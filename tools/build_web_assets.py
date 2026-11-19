@@ -41,6 +41,7 @@ RULES = [
     (r"_loop\.mp4$",                                        "video", 1280, 28),
     (r"^audio/(music|sfx|ambient|voice)/[^/]+\.ogg$",       "copy", None, None),
     (r"\.json$",                                            "copy", None, None),
+    (r"_sheet_8x4\.png$",                                   "img", 2560, 85),   # 8x4 idle sheets: always 320 px frames
     (r"_sheet_\d+x\d+\.png$",                               "img", 4096, 85),
     (r"^ui/screens/",                                       "img", 1920, 82),
     (r"^(backgrounds|city)/[^/]+\.png$",                    "img", 1920, 82),

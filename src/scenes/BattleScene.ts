@@ -288,7 +288,7 @@ export class BattleScene extends Phaser.Scene {
     if (!this.anims.exists(animKey)) {
       this.anims.create({ key: animKey, frames: this.anims.generateFrameNumbers(sk, { start: 0, end: 31 }), frameRate: 8, repeat: -1 });
     }
-    const sprite = this.add.sprite(0, 6, sk).setOrigin(0.5, 0.95);
+    const sprite = this.add.sprite(0, 6, sk).setOrigin(0.5, this.feetY(sk));
     sprite.setScale((BASE_H * (s.def.sizeScale ?? TIER_SCALE[s.def.tier])) / 320 * 1.3);
     sprite.play({ key: animKey, startFrame: Math.floor(Math.random() * 32) });
     if (s.side === 'enemy') sprite.setFlipX(true);
@@ -306,6 +306,27 @@ export class BattleScene extends Phaser.Scene {
     box.add([shadow, sprite, plate]);
     box.setDepth(p.y + 10);
     this.views.set(s.uid, { stack: s, box, sprite, plate, countText });
+  }
+
+  /** Where the figure's feet are in its frame (0..1): scans frame 0 for the lowest opaque row. */
+  private feetY(key: string): number {
+    const cache = (this.registry.get('feetY') as Record<string, number>) ?? {};
+    if (cache[key] !== undefined) return cache[key];
+    let v = 0.95;
+    try {
+      const src = this.textures.get(key).getSourceImage() as HTMLImageElement;
+      const c = document.createElement('canvas');
+      c.width = 80; c.height = 80;
+      const ctx = c.getContext('2d', { willReadFrequently: true })!;
+      ctx.drawImage(src, 0, 0, 320, 320, 0, 0, 80, 80);
+      const d = ctx.getImageData(0, 0, 80, 80).data;
+      outer: for (let y = 79; y >= 0; y--) {
+        for (let x = 0; x < 80; x++) if (d[(y * 80 + x) * 4 + 3] > 60) { v = Math.min(0.98, (y + 1) / 80); break outer; }
+      }
+    } catch { /* keep default */ }
+    cache[key] = v;
+    this.registry.set('feetY', cache);
+    return v;
   }
 
   private setCount(uid: number, n: number): void {
