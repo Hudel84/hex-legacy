@@ -11,10 +11,12 @@ Free, non-commercial fan project by Ben. Code by Claude (Anthropic).
 - All texts via localization keys: `src/i18n/en.json` (main language) and `de.json`
 
 ## Structure
-- `src/scenes/` – Boot, Preload, Title, Modal (settings/credits), Battle
+- `src/scenes/` – Boot, Preload, Title, Modal (settings/credits), Battle, HeroSelect, Map, Node (shop/camp/treasure/shrine/events), Reward (gold, XP, level-up, draft), RunEnd
+- `src/run/` – run state + autosave (localStorage), map generator, encounters (difficulty curve `DIFFICULTY`), heroes, events
 - `src/battle/` – battle rules (hex grid, stacks, initiative, damage, AI), no Phaser inside
 - `src/data/units.json` – unit stats (placeholders for balancing)
-- `sim/` – autobattle simulations: `npx tsx sim/simulate.ts 400`, `npx tsx sim/duels.ts 280 adjacent`
+- `sim/` – autobattle simulations: `npx tsx sim/simulate.ts 400`, `npx tsx sim/duels.ts 280 adjacent`, whole runs: `npx tsx sim/run_sim.ts 150`
+- `tools/test.sh steps.json` – serves `dist/` and runs a headless browser test
 - `src/core/` – settings (localStorage), i18n, audio, theme
 - `src/ui/` – reusable UI (buttons, toasts)
 - `public/assets/` – web versions of the art and audio (generated, see below)

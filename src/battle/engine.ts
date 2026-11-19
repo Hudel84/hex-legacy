@@ -281,7 +281,7 @@ export class Battle {
           s.pos = a.from;
         }
         ev.push(...this.strike(s, t, false, false));
-        if (t.count > 0 && !t.retaliated && !this.has(s, 'noRetaliation')) {
+        if (t.count > 0 && (!t.retaliated || this.has(t, 'unlimitedRetaliation')) && !this.has(s, 'noRetaliation')) {
           t.retaliated = true;
           ev.push(...this.strike(t, s, false, true));
         }

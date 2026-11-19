@@ -1,27 +1,560 @@
 {
-  "human_t1_spearman":      { "faction": "human", "tier": 1, "hp": 10,  "atk": 4,  "def": 5,  "dmg": [1, 3],   "ini": 8,  "speed": 4, "cost": 5,
-                              "sheet": "units/animated/anim_human_t1_spearman_idle_sheet_8x4.webp", "portrait": "ui/portraits/units/portrait_human_t1_spearman.webp" },
-  "human_t2_crossbowman":   { "faction": "human", "tier": 2, "hp": 10,  "atk": 6,  "def": 3,  "dmg": [2, 5],   "ini": 9,  "speed": 4, "cost": 10, "ranged": 10, "passives": ["pierce"],
-                              "sheet": "units/animated/anim_human_t2_crossbowman_idle_sheet_8x4.webp", "portrait": "ui/portraits/units/portrait_human_t2_crossbowman.webp" },
-  "human_t3_swordsman":     { "faction": "human", "tier": 3, "hp": 30,  "atk": 8,  "def": 8,  "dmg": [5, 8],   "ini": 10, "speed": 5, "cost": 20, "passives": ["formation"],
-                              "sheet": "units/animated/anim_human_t3_idle_sheet_8x4.webp", "portrait": "ui/portraits/units/portrait_human_t3_swordsman.webp" },
-  "human_t4_cleric":        { "faction": "human", "tier": 4, "hp": 40,  "atk": 9,  "def": 9,  "dmg": [6, 10],  "ini": 10, "speed": 5, "cost": 30, "passives": ["healAura"],
-                              "sheet": "units/animated/anim_human_t4_cleric_idle_sheet_8x4.webp", "portrait": "ui/portraits/units/portrait_human_t4_cleric.webp" },
-  "human_t5_griffin_rider": { "faction": "human", "tier": 5, "hp": 70,  "atk": 14, "def": 12, "dmg": [10, 16], "ini": 14, "speed": 8, "cost": 45, "flying": true, "passives": ["noRetaliation"],
-                              "sheet": "units/animated/anim_human_t5_griffin_rider_idle_sheet_8x4.webp", "portrait": "ui/portraits/units/portrait_human_t5_griffin_rider.webp" },
-  "human_t6_paladin":       { "faction": "human", "tier": 6, "hp": 140, "atk": 20, "def": 20, "dmg": [25, 35], "ini": 12, "speed": 6, "cost": 70, "passives": ["holyBane"],
-                              "sheet": "units/animated/anim_human_t6_paladin_idle_sheet_8x4.webp", "portrait": "ui/portraits/units/portrait_human_t6_paladin.webp" },
-
-  "undead_t1_skeleton":     { "faction": "undead", "tier": 1, "hp": 6,   "atk": 4,  "def": 4,  "dmg": [2, 3],   "ini": 8,  "speed": 4, "cost": 4, "undead": true,
-                              "sheet": "units/animated/anim_undead_t1_skeleton_idle_sheet_8x4.webp", "portrait": "ui/portraits/units/portrait_undead_t1_skeleton.webp" },
-  "undead_t2_zombie":       { "faction": "undead", "tier": 2, "hp": 15,  "atk": 5,  "def": 5,  "dmg": [2, 4],   "ini": 5,  "speed": 3, "cost": 10, "undead": true,
-                              "sheet": "units/animated/anim_undead_t2_zombie_idle_sheet_8x4.webp", "portrait": "ui/portraits/units/portrait_undead_t2_zombie.webp" },
-  "undead_t3_ghost":        { "faction": "undead", "tier": 3, "hp": 20,  "atk": 8,  "def": 6,  "dmg": [4, 6],   "ini": 12, "speed": 6, "cost": 20, "undead": true, "flying": true, "passives": ["ethereal"],
-                              "sheet": "units/animated/anim_undead_t3_ghost_idle_sheet_8x4.webp", "portrait": "ui/portraits/units/portrait_undead_t3_ghost.webp" },
-  "undead_t4_vampire":      { "faction": "undead", "tier": 4, "hp": 35,  "atk": 10, "def": 9,  "dmg": [6, 9],   "ini": 12, "speed": 6, "cost": 30, "undead": true, "flying": true, "passives": ["lifesteal"],
-                              "sheet": "units/animated/anim_undead_t4_vampire_idle_sheet_8x4.webp", "portrait": "ui/portraits/units/portrait_undead_t4_vampire.webp" },
-  "undead_t5_lich":         { "faction": "undead", "tier": 5, "hp": 55,  "atk": 13, "def": 10, "dmg": [12, 18], "ini": 10, "speed": 4, "cost": 45, "undead": true, "ranged": 8,
-                              "sheet": "units/animated/anim_undead_t5_lich_idle_sheet_8x4.webp", "portrait": "ui/portraits/units/portrait_undead_t5_lich.webp" },
-  "undead_t6_bone_dragon":  { "faction": "undead", "tier": 6, "hp": 165, "atk": 20, "def": 15, "dmg": [30, 45], "ini": 11, "speed": 8, "cost": 70, "undead": true, "flying": true,
-                              "sheet": "units/animated/anim_undead_t6_bone_dragon_idle_sheet_8x4.webp", "portrait": "ui/portraits/units/portrait_undead_t6_bone_dragon.webp" }
+ "human_t1_spearman": {
+  "faction": "human",
+  "tier": 1,
+  "hp": 10,
+  "atk": 4,
+  "def": 5,
+  "dmg": [
+   1,
+   3
+  ],
+  "ini": 8,
+  "speed": 4,
+  "cost": 5,
+  "sheet": "units/animated/anim_human_t1_spearman_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/units/portrait_human_t1_spearman.webp"
+ },
+ "human_t2_crossbowman": {
+  "faction": "human",
+  "tier": 2,
+  "hp": 10,
+  "atk": 6,
+  "def": 3,
+  "dmg": [
+   2,
+   5
+  ],
+  "ini": 9,
+  "speed": 4,
+  "cost": 10,
+  "ranged": 10,
+  "passives": [
+   "pierce"
+  ],
+  "sheet": "units/animated/anim_human_t2_crossbowman_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/units/portrait_human_t2_crossbowman.webp"
+ },
+ "human_t3_swordsman": {
+  "faction": "human",
+  "tier": 3,
+  "hp": 30,
+  "atk": 8,
+  "def": 8,
+  "dmg": [
+   5,
+   8
+  ],
+  "ini": 10,
+  "speed": 5,
+  "cost": 20,
+  "passives": [
+   "formation"
+  ],
+  "sheet": "units/animated/anim_human_t3_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/units/portrait_human_t3_swordsman.webp"
+ },
+ "human_t4_cleric": {
+  "faction": "human",
+  "tier": 4,
+  "hp": 40,
+  "atk": 9,
+  "def": 9,
+  "dmg": [
+   6,
+   10
+  ],
+  "ini": 10,
+  "speed": 5,
+  "cost": 30,
+  "passives": [
+   "healAura"
+  ],
+  "sheet": "units/animated/anim_human_t4_cleric_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/units/portrait_human_t4_cleric.webp"
+ },
+ "human_t5_griffin_rider": {
+  "faction": "human",
+  "tier": 5,
+  "hp": 70,
+  "atk": 14,
+  "def": 12,
+  "dmg": [
+   10,
+   16
+  ],
+  "ini": 14,
+  "speed": 8,
+  "cost": 45,
+  "flying": true,
+  "passives": [
+   "noRetaliation"
+  ],
+  "sheet": "units/animated/anim_human_t5_griffin_rider_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/units/portrait_human_t5_griffin_rider.webp"
+ },
+ "human_t6_paladin": {
+  "faction": "human",
+  "tier": 6,
+  "hp": 140,
+  "atk": 20,
+  "def": 20,
+  "dmg": [
+   25,
+   35
+  ],
+  "ini": 12,
+  "speed": 6,
+  "cost": 70,
+  "passives": [
+   "holyBane"
+  ],
+  "sheet": "units/animated/anim_human_t6_paladin_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/units/portrait_human_t6_paladin.webp"
+ },
+ "undead_t1_skeleton": {
+  "faction": "undead",
+  "tier": 1,
+  "hp": 6,
+  "atk": 4,
+  "def": 4,
+  "dmg": [
+   2,
+   3
+  ],
+  "ini": 8,
+  "speed": 4,
+  "cost": 4,
+  "undead": true,
+  "sheet": "units/animated/anim_undead_t1_skeleton_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/units/portrait_undead_t1_skeleton.webp"
+ },
+ "undead_t2_zombie": {
+  "faction": "undead",
+  "tier": 2,
+  "hp": 15,
+  "atk": 5,
+  "def": 5,
+  "dmg": [
+   2,
+   4
+  ],
+  "ini": 5,
+  "speed": 3,
+  "cost": 10,
+  "undead": true,
+  "sheet": "units/animated/anim_undead_t2_zombie_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/units/portrait_undead_t2_zombie.webp"
+ },
+ "undead_t3_ghost": {
+  "faction": "undead",
+  "tier": 3,
+  "hp": 20,
+  "atk": 8,
+  "def": 6,
+  "dmg": [
+   4,
+   6
+  ],
+  "ini": 12,
+  "speed": 6,
+  "cost": 20,
+  "undead": true,
+  "flying": true,
+  "passives": [
+   "ethereal"
+  ],
+  "sheet": "units/animated/anim_undead_t3_ghost_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/units/portrait_undead_t3_ghost.webp"
+ },
+ "undead_t4_vampire": {
+  "faction": "undead",
+  "tier": 4,
+  "hp": 35,
+  "atk": 10,
+  "def": 9,
+  "dmg": [
+   6,
+   9
+  ],
+  "ini": 12,
+  "speed": 6,
+  "cost": 30,
+  "undead": true,
+  "flying": true,
+  "passives": [
+   "lifesteal"
+  ],
+  "sheet": "units/animated/anim_undead_t4_vampire_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/units/portrait_undead_t4_vampire.webp"
+ },
+ "undead_t5_lich": {
+  "faction": "undead",
+  "tier": 5,
+  "hp": 55,
+  "atk": 13,
+  "def": 10,
+  "dmg": [
+   12,
+   18
+  ],
+  "ini": 10,
+  "speed": 4,
+  "cost": 45,
+  "undead": true,
+  "ranged": 8,
+  "sheet": "units/animated/anim_undead_t5_lich_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/units/portrait_undead_t5_lich.webp"
+ },
+ "undead_t6_bone_dragon": {
+  "faction": "undead",
+  "tier": 6,
+  "hp": 165,
+  "atk": 20,
+  "def": 15,
+  "dmg": [
+   30,
+   45
+  ],
+  "ini": 11,
+  "speed": 8,
+  "cost": 70,
+  "undead": true,
+  "flying": true,
+  "sheet": "units/animated/anim_undead_t6_bone_dragon_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/units/portrait_undead_t6_bone_dragon.webp"
+ },
+ "neutral_giant_rat": {
+  "faction": "neutral",
+  "tier": 1,
+  "hp": 4,
+  "atk": 3,
+  "def": 2,
+  "dmg": [
+   1,
+   2
+  ],
+  "ini": 9,
+  "speed": 5,
+  "cost": 3,
+  "sheet": "neutrals/animated/anim_neutral_giant_rat_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/neutrals/portrait_neutral_giant_rat.webp"
+ },
+ "neutral_goblin_raider": {
+  "faction": "neutral",
+  "tier": 1,
+  "hp": 6,
+  "atk": 4,
+  "def": 3,
+  "dmg": [
+   1,
+   3
+  ],
+  "ini": 9,
+  "speed": 5,
+  "cost": 4,
+  "sheet": "neutrals/animated/anim_neutral_goblin_raider_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/neutrals/portrait_neutral_goblin_raider.webp"
+ },
+ "neutral_bandit_thug": {
+  "faction": "neutral",
+  "tier": 1,
+  "hp": 10,
+  "atk": 5,
+  "def": 4,
+  "dmg": [
+   2,
+   3
+  ],
+  "ini": 8,
+  "speed": 4,
+  "cost": 5,
+  "sheet": "neutrals/animated/anim_neutral_bandit_thug_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/neutrals/portrait_neutral_bandit_thug.webp"
+ },
+ "neutral_kobold_trapper": {
+  "faction": "neutral",
+  "tier": 1,
+  "hp": 6,
+  "atk": 4,
+  "def": 2,
+  "dmg": [
+   1,
+   3
+  ],
+  "ini": 8,
+  "speed": 4,
+  "cost": 5,
+  "ranged": 8,
+  "sheet": "neutrals/animated/anim_neutral_kobold_trapper_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/neutrals/portrait_neutral_kobold_trapper.webp"
+ },
+ "neutral_bandit_archer": {
+  "faction": "neutral",
+  "tier": 2,
+  "hp": 10,
+  "atk": 6,
+  "def": 3,
+  "dmg": [
+   2,
+   4
+  ],
+  "ini": 9,
+  "speed": 4,
+  "cost": 10,
+  "ranged": 10,
+  "sheet": "neutrals/animated/anim_neutral_bandit_archer_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/neutrals/portrait_neutral_bandit_archer.webp"
+ },
+ "neutral_dire_wolf": {
+  "faction": "neutral",
+  "tier": 2,
+  "hp": 16,
+  "atk": 7,
+  "def": 4,
+  "dmg": [
+   3,
+   5
+  ],
+  "ini": 13,
+  "speed": 7,
+  "cost": 12,
+  "sheet": "neutrals/animated/anim_neutral_dire_wolf_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/neutrals/portrait_neutral_dire_wolf.webp"
+ },
+ "neutral_wild_boar": {
+  "faction": "neutral",
+  "tier": 2,
+  "hp": 22,
+  "atk": 6,
+  "def": 6,
+  "dmg": [
+   3,
+   5
+  ],
+  "ini": 8,
+  "speed": 5,
+  "cost": 12,
+  "sheet": "neutrals/animated/anim_neutral_wild_boar_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/neutrals/portrait_neutral_wild_boar.webp"
+ },
+ "neutral_acid_slime": {
+  "faction": "neutral",
+  "tier": 2,
+  "hp": 26,
+  "atk": 4,
+  "def": 3,
+  "dmg": [
+   2,
+   5
+  ],
+  "ini": 5,
+  "speed": 3,
+  "cost": 10,
+  "sheet": "neutrals/animated/anim_neutral_acid_slime_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/neutrals/portrait_neutral_acid_slime.webp"
+ },
+ "neutral_cultist": {
+  "faction": "neutral",
+  "tier": 2,
+  "hp": 14,
+  "atk": 6,
+  "def": 4,
+  "dmg": [
+   3,
+   5
+  ],
+  "ini": 10,
+  "speed": 4,
+  "cost": 14,
+  "ranged": 6,
+  "sheet": "neutrals/animated/anim_neutral_cultist_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/neutrals/portrait_neutral_cultist.webp"
+ },
+ "neutral_will_o_wisps": {
+  "faction": "neutral",
+  "tier": 2,
+  "hp": 10,
+  "atk": 6,
+  "def": 6,
+  "dmg": [
+   3,
+   5
+  ],
+  "ini": 14,
+  "speed": 7,
+  "cost": 14,
+  "flying": true,
+  "passives": [
+   "ethereal"
+  ],
+  "sheet": "neutrals/animated/anim_neutral_will_o_wisps_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/neutrals/portrait_neutral_will_o_wisps.webp"
+ },
+ "neutral_gnoll_hunter": {
+  "faction": "neutral",
+  "tier": 3,
+  "hp": 24,
+  "atk": 8,
+  "def": 6,
+  "dmg": [
+   5,
+   7
+  ],
+  "ini": 11,
+  "speed": 5,
+  "cost": 20,
+  "ranged": 8,
+  "sheet": "neutrals/animated/anim_neutral_gnoll_hunter_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/neutrals/portrait_neutral_gnoll_hunter.webp"
+ },
+ "neutral_giant_spider": {
+  "faction": "neutral",
+  "tier": 3,
+  "hp": 30,
+  "atk": 9,
+  "def": 7,
+  "dmg": [
+   5,
+   8
+  ],
+  "ini": 11,
+  "speed": 6,
+  "cost": 20,
+  "sheet": "neutrals/animated/anim_neutral_giant_spider_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/neutrals/portrait_neutral_giant_spider.webp"
+ },
+ "neutral_animated_armor": {
+  "faction": "neutral",
+  "tier": 3,
+  "hp": 35,
+  "atk": 8,
+  "def": 12,
+  "dmg": [
+   5,
+   8
+  ],
+  "ini": 8,
+  "speed": 4,
+  "cost": 22,
+  "sheet": "neutrals/animated/anim_neutral_animated_armor_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/neutrals/portrait_neutral_animated_armor.webp"
+ },
+ "neutral_hedge_mage": {
+  "faction": "neutral",
+  "tier": 3,
+  "hp": 22,
+  "atk": 10,
+  "def": 5,
+  "dmg": [
+   6,
+   9
+  ],
+  "ini": 10,
+  "speed": 4,
+  "cost": 22,
+  "ranged": 6,
+  "sheet": "neutrals/animated/anim_neutral_hedge_mage_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/neutrals/portrait_neutral_hedge_mage.webp"
+ },
+ "neutral_cave_bear": {
+  "faction": "neutral",
+  "tier": 3,
+  "hp": 45,
+  "atk": 10,
+  "def": 8,
+  "dmg": [
+   6,
+   9
+  ],
+  "ini": 9,
+  "speed": 5,
+  "cost": 25,
+  "sheet": "neutrals/animated/anim_neutral_cave_bear_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/neutrals/portrait_neutral_cave_bear.webp"
+ },
+ "neutral_treant": {
+  "faction": "neutral",
+  "tier": 4,
+  "hp": 90,
+  "atk": 11,
+  "def": 14,
+  "dmg": [
+   9,
+   14
+  ],
+  "ini": 6,
+  "speed": 3,
+  "cost": 40,
+  "sheet": "neutrals/animated/anim_neutral_treant_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/neutrals/portrait_neutral_treant.webp"
+ },
+ "elite_bandit_captain": {
+  "faction": "neutral",
+  "tier": 6,
+  "hp": 75,
+  "atk": 11,
+  "def": 9,
+  "dmg": [
+   10,
+   15
+  ],
+  "ini": 12,
+  "speed": 5,
+  "cost": 100,
+  "sizeScale": 1.3,
+  "sheet": "bosses/animated/anim_elite_bandit_captain_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/bosses/portrait_elite_bandit_captain.webp"
+ },
+ "elite_giant_spider": {
+  "faction": "neutral",
+  "tier": 6,
+  "hp": 80,
+  "atk": 10,
+  "def": 8,
+  "dmg": [
+   9,
+   14
+  ],
+  "ini": 13,
+  "speed": 6,
+  "cost": 100,
+  "sizeScale": 1.3,
+  "sheet": "bosses/animated/anim_elite_giant_spider_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/bosses/portrait_elite_giant_spider.webp"
+ },
+ "elite_minotaur": {
+  "faction": "neutral",
+  "tier": 6,
+  "hp": 95,
+  "atk": 12,
+  "def": 10,
+  "dmg": [
+   12,
+   17
+  ],
+  "ini": 10,
+  "speed": 5,
+  "cost": 120,
+  "sizeScale": 1.3,
+  "sheet": "bosses/animated/anim_elite_minotaur_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/bosses/portrait_elite_minotaur.webp"
+ },
+ "boss_act1_bandit_king": {
+  "faction": "neutral",
+  "tier": 6,
+  "hp": 170,
+  "atk": 12,
+  "def": 10,
+  "dmg": [
+   14,
+   20
+  ],
+  "ini": 11,
+  "speed": 5,
+  "cost": 250,
+  "sizeScale": 1.7,
+  "sheet": "bosses/animated/anim_boss_act1_bandit_king_idle_sheet_8x4.webp",
+  "portrait": "ui/portraits/bosses/portrait_boss_act1_bandit_king.webp"
+ }
 }

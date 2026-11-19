@@ -16,6 +16,8 @@ export interface UnitDef {
   speed: number;
   cost: number;
   ranged?: number;          // number of shots, absent = melee
+  sizeScale?: number;       // sprite size override (elites, bosses)
+  level?: number;           // upgrade level of the player's unit type (0-2)
   flying?: boolean;
   undead?: boolean;
   /** passive keys handled by the engine */

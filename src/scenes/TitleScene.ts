@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import { t } from '../core/i18n';
 import { FONT_BODY, COLOR, VERSION } from '../core/theme';
 import { playMusic } from '../core/audio';
-import { Button, toast } from '../ui/Button';
+import { Button } from '../ui/Button';
+import { hasSave, loadSave } from '../run/state';
 
 export class TitleScene extends Phaser.Scene {
   private buttons: { btn: Button; key: string }[] = [];
@@ -43,15 +44,17 @@ export class TitleScene extends Phaser.Scene {
     logo.setScale(330 / logo.width);
     this.tweens.add({ targets: logo, y: 170, duration: 2600, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
 
-    const items: { key: string; style?: 'wood' | 'red'; action: () => void }[] = [
-      { key: 'title.quickBattle', style: 'red', action: () => this.scene.start('Battle') },
-      { key: 'title.newRun', action: () => toast(this, t('common.comingSoon')) },
+    const items: { key: string; style?: 'wood' | 'red'; action: () => void }[] = [];
+    if (hasSave()) items.push({ key: 'title.continue', style: 'red', action: () => { if (loadSave()) this.scene.start('Map'); } });
+    items.push(
+      { key: 'title.newRun', style: hasSave() ? 'wood' : 'red', action: () => this.scene.start('HeroSelect') },
+      { key: 'title.quickBattle', action: () => this.scene.start('Battle') },
       { key: 'title.settings', action: () => this.openModal('settings') },
       { key: 'title.credits', action: () => this.openModal('credits') },
-    ];
+    );
     items.forEach((it, i) => {
-      const bx = w / 2 + (i - (items.length - 1) / 2) * 350;
-      const btn = new Button(this, bx, h - 85, t(it.key), { style: it.style, width: 320, fontSize: 28, onClick: it.action });
+      const bx = w / 2 + (i - (items.length - 1) / 2) * (items.length > 4 ? 318 : 350);
+      const btn = new Button(this, bx, h - 85, t(it.key), { style: it.style, width: items.length > 4 ? 300 : 320, fontSize: items.length > 4 ? 25 : 28, onClick: it.action });
       btn.setAlpha(0);
       this.tweens.add({ targets: btn, alpha: 1, y: { from: h - 55, to: h - 85 }, delay: 200 + i * 100, duration: 400 });
       this.buttons.push({ btn, key: it.key });

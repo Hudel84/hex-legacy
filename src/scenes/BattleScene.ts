@@ -8,6 +8,7 @@ import { FONT_TITLE, FONT_BODY, COLOR } from '../core/theme';
 import { playMusic, playSfx } from '../core/audio';
 import { settings } from '../core/settings';
 import { Button } from '../ui/Button';
+import type { RunBattleConfig } from '../run/encounters';
 
 const A = 'assets/';
 
@@ -57,12 +58,16 @@ const sheetKey = (d: UnitDef) => `sheet_${d.id}`;
 const portraitKey = (d: UnitDef) => `portrait_${d.id}`;
 const unitName = (d: UnitDef) => t(`unit.${d.id}`);
 
-export interface BattleConfig {
+export interface QuickBattleConfig {
   setup: BattleSetup;
   playerHero: string;
   enemyHero?: string;
   background: string;
+  ambient?: string;
+  music?: string;
+  mode?: 'quick';
 }
+export type BattleConfig = QuickBattleConfig | RunBattleConfig;
 
 export function testBattleConfig(): BattleConfig {
   const seed = Math.floor(Math.random() * 1e9);
@@ -128,8 +133,10 @@ export class BattleScene extends Phaser.Scene {
     this.load.on(Phaser.Loader.Events.PROGRESS, (p: number) => txt.setText(`${Math.round(p * 100)}%`));
 
     const bg = this.cfg.background;
-    this.load.image(bg, `${A}backgrounds/${bg}.webp`);
-    this.load.video(`${bg}_loop`, `${A}backgrounds/animated/${bg}_loop.mp4`, true);
+    if (!this.textures.exists(bg)) this.load.image(bg, `${A}backgrounds/${bg}.webp`);
+    const LOOPS = ['bg_act1_meadows', 'bg_act1_autumn_forest', 'bg_act2_graveyard', 'bg_act2_snowy_pass', 'bg_act2_swamp_ruins',
+      'bg_act3_crystal_cavern', 'bg_act3_demon_wasteland', 'bg_act3_volcanic'];
+    if (LOOPS.includes(bg) && !this.cache.video.exists(`${bg}_loop`)) this.load.video(`${bg}_loop`, `${A}backgrounds/animated/${bg}_loop.mp4`, true);
     const defs = new Set<UnitDef>();
     for (const side of ['player', 'enemy'] as Side[]) for (const a of this.cfg.setup[side].army) defs.add(a.def);
     for (const d of defs) {
@@ -156,8 +163,10 @@ export class BattleScene extends Phaser.Scene {
     const sfx = ['cb_move', 'cb_fly', 'cb_hit_sword', 'cb_hit_claw', 'cb_hit_blunt', 'cb_hit_bolt', 'cb_counter', 'cb_block',
       'cb_heal', 'cb_death_human', 'cb_death_undead', 'cb_turn_start', 'sp_death_cast', 'ev_victory_crowd', 'cb_crit'];
     for (const k of sfx) if (!this.cache.audio.exists(k)) this.load.audio(k, `${A}audio/sfx/${k}.ogg`);
-    if (!this.cache.audio.exists('mus_battle')) this.load.audio('mus_battle', `${A}audio/music/mus_battle.ogg`);
-    if (!this.cache.audio.exists('amb_meadows')) this.load.audio('amb_meadows', `${A}audio/ambient/amb_meadows.ogg`);
+    const music = this.cfg.music ?? 'mus_battle';
+    const amb = this.cfg.ambient ?? 'amb_meadows';
+    if (!this.cache.audio.exists(music)) this.load.audio(music, `${A}audio/music/${music}.ogg`);
+    if (!this.cache.audio.exists(amb)) this.load.audio(amb, `${A}audio/ambient/${amb}.ogg`);
     this.load.once(Phaser.Loader.Events.COMPLETE, () => txt.destroy());
   }
 
@@ -167,8 +176,14 @@ export class BattleScene extends Phaser.Scene {
 
     // background with animated loop on top
     const bgKey = this.cfg.background;
-    this.add.image(w / 2, h / 2, bgKey).setDisplaySize(w, h);
-    const vid = this.add.video(w / 2, h / 2, `${bgKey}_loop`).setAlpha(0);
+    this.add.image(w / 2, h / 2, bgKey).setDisplaySize(w, h).setDepth(-2);
+    if (this.cache.video.exists(`${bgKey}_loop`)) this.addLoop(bgKey);
+    this.build();
+  }
+
+  private addLoop(bgKey: string): void {
+    const { width: w, height: h } = this.scale;
+    const vid = this.add.video(w / 2, h / 2, `${bgKey}_loop`).setAlpha(0).setDepth(-1);
     vid.setLoop(true); vid.setMute(true); vid.play(true);
     vid.on(Phaser.GameObjects.Events.VIDEO_COMPLETE, () => { vid.seekTo(0); vid.play(true); });
     const poll = this.time.addEvent({
@@ -180,6 +195,10 @@ export class BattleScene extends Phaser.Scene {
         }
       },
     });
+  }
+
+  private build(): void {
+    const { width: w, height: h } = this.scale;
     // slight vignette so the board reads better
     const vg = this.add.graphics();
     vg.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0.55, 0.55, 0, 0);
@@ -241,9 +260,9 @@ export class BattleScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-W', () => this.playerAction({ type: 'wait' }));
     this.input.keyboard?.on('keydown-D', () => this.playerAction({ type: 'defend' }));
 
-    playMusic(this, 'mus_battle');
+    playMusic(this, this.cfg.music ?? 'mus_battle');
     const startAmbient = () => {
-      this.ambient = this.sound.add('amb_meadows', { loop: true, volume: settings.sfxVolume * 0.12 });
+      this.ambient = this.sound.add(this.cfg.ambient ?? 'amb_meadows', { loop: true, volume: settings.sfxVolume * 0.12 });
       this.ambient.play();
     };
     if (this.sound.locked) this.sound.once(Phaser.Sound.Events.UNLOCKED, startAmbient); else startAmbient();
@@ -270,7 +289,7 @@ export class BattleScene extends Phaser.Scene {
       this.anims.create({ key: animKey, frames: this.anims.generateFrameNumbers(sk, { start: 0, end: 31 }), frameRate: 8, repeat: -1 });
     }
     const sprite = this.add.sprite(0, 6, sk).setOrigin(0.5, 0.95);
-    sprite.setScale((BASE_H * TIER_SCALE[s.def.tier]) / 320 * 1.3);
+    sprite.setScale((BASE_H * (s.def.sizeScale ?? TIER_SCALE[s.def.tier])) / 320 * 1.3);
     sprite.play({ key: animKey, startFrame: Math.floor(Math.random() * 32) });
     if (s.side === 'enemy') sprite.setFlipX(true);
 
@@ -726,10 +745,17 @@ export class BattleScene extends Phaser.Scene {
     }).setOrigin(0.5);
     layer.add([img, title, sum]);
     this.tweens.add({ targets: layer, alpha: 1, duration: 700 });
-    const again = new Button(this, w / 2 - 230, h - 120, t('battle.again'), { style: 'red', width: 400, fontSize: 30,
-      onClick: () => this.scene.restart({ config: testBattleConfig() }) });
-    const menu = new Button(this, w / 2 + 230, h - 120, t('battle.toTitle'), { width: 400, fontSize: 30,
-      onClick: () => this.scene.start('Title') });
-    for (const b of [again, menu]) { b.setDepth(5001).setAlpha(0); this.tweens.add({ targets: b, alpha: 1, delay: 500, duration: 400 }); }
+    const buttons: Button[] = [];
+    if (this.cfg.mode === 'run') {
+      const cfg = this.cfg;
+      buttons.push(new Button(this, w / 2, h - 120, t('common.continue'), { style: 'red', width: 400, fontSize: 30,
+        onClick: () => (won ? this.scene.start('Reward', { config: cfg }) : this.scene.start('RunEnd', { won: false })) }));
+    } else {
+      buttons.push(new Button(this, w / 2 - 230, h - 120, t('battle.again'), { style: 'red', width: 400, fontSize: 30,
+        onClick: () => this.scene.restart({ config: testBattleConfig() }) }));
+      buttons.push(new Button(this, w / 2 + 230, h - 120, t('battle.toTitle'), { width: 400, fontSize: 30,
+        onClick: () => this.scene.start('Title') }));
+    }
+    for (const b of buttons) { b.setDepth(5001).setAlpha(0); this.tweens.add({ targets: b, alpha: 1, delay: 500, duration: 400 }); }
   }
 }
