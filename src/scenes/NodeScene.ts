@@ -85,7 +85,7 @@ export class NodeScene extends Phaser.Scene {
     const H = 980;
     this.box.add(panel(this, x, 540, W, H, 'ui_panel_parchment', 60));
     this.box.add(this.add.text(x, 110, title, { ...titleStyle(40, '#4a2c10'), stroke: '#00000000', strokeThickness: 0 }).setOrigin(0.5));
-    const body = this.add.text(x, 170, text, { ...inkStyle(26), align: 'center', wordWrap: { width: W - 120 }, lineSpacing: 4 }).setOrigin(0.5, 0);
+    const body = this.add.text(x, 170, text, { ...inkStyle(28), color: '#2b1a0c', align: 'center', wordWrap: { width: W - 120 }, lineSpacing: 4 }).setOrigin(0.5, 0);
     this.box.add(body);
     let y = Math.max(330, 170 + body.height + 40);
     for (const o of opts) {
@@ -103,23 +103,23 @@ export class NodeScene extends Phaser.Scene {
     const g = this.add.graphics();
     const draw = (hover: boolean) => {
       g.clear();
-      g.fillStyle(enabled ? (hover ? 0x5a3a1e : 0x3b2614) : 0x6b5d4a, enabled ? 0.92 : 0.75).fillRoundedRect(-w / 2, -h / 2, w, h, 12);
-      g.lineStyle(3, hover ? 0xf3d48a : 0x8a6a2b, 1).strokeRoundedRect(-w / 2, -h / 2, w, h, 12);
+      g.fillStyle(enabled ? (hover ? 0x5a3a1e : 0x3b2614) : 0x2a221b, enabled ? 0.92 : 0.8).fillRoundedRect(-w / 2, -h / 2, w, h, 12);
+      g.lineStyle(3, hover ? 0xf3d48a : enabled ? 0x8a6a2b : 0x5a4a3a, 1).strokeRoundedRect(-w / 2, -h / 2, w, h, 12);
     };
     draw(false);
     c.add(g);
     c.add(this.add.text(-w / 2 + 22, o.hint ? -h / 2 + 14 : 0, o.label, {
-      fontFamily: FONT_BODY, fontSize: '26px', fontStyle: '700', color: enabled ? COLOR.gold : '#d8ccb0',
+      fontFamily: FONT_BODY, fontSize: '26px', fontStyle: '700', color: enabled ? COLOR.gold : '#b3a58a',
     }).setOrigin(0, o.hint ? 0 : 0.5));
     if (o.hint) {
       c.add(this.add.text(-w / 2 + 22, -h / 2 + 52, o.hint, {
-        fontFamily: FONT_BODY, fontSize: '20px', color: enabled ? '#e8dcc0' : '#cfc3a6', wordWrap: { width: w - 170 },
+        fontFamily: FONT_BODY, fontSize: '20px', color: enabled ? '#e8dcc0' : '#a89a80', wordWrap: { width: w - 170 },
       }));
     }
     if (o.price !== undefined) {
       const gi = this.add.image(w / 2 - 105, 0, 'icon_gold'); gi.setScale(34 / gi.width);
       c.add(gi);
-      c.add(this.add.text(w / 2 - 82, 0, String(o.price), { fontFamily: FONT_BODY, fontSize: '28px', fontStyle: '700', color: enabled ? '#ffe9a8' : '#d8ccb0' }).setOrigin(0, 0.5));
+      c.add(this.add.text(w / 2 - 82, 0, String(o.price), { fontFamily: FONT_BODY, fontSize: '28px', fontStyle: '700', color: enabled ? '#ffe9a8' : '#e07a6a' }).setOrigin(0, 0.5));
     }
     c.setSize(w, h);
     if (enabled) {

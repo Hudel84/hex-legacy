@@ -9,6 +9,8 @@ import { playMusic, playSfx } from '../core/audio';
 import { settings } from '../core/settings';
 import { Button } from '../ui/Button';
 import type { RunBattleConfig } from '../run/encounters';
+import { showUnitInfo, loadAbilityIcons, ABILITY_ICON, STATUS_ICON } from '../ui/UnitInfo';
+import { loadRunUi } from '../core/assets';
 
 const A = 'assets/';
 
@@ -19,7 +21,7 @@ const HEX_R = HEX_W / Math.sqrt(3);            // corner radius before squash
 const ROW_STEP = HEX_R * 1.5 * SQUASH;
 const GRID_X0 = (1920 - (9 * HEX_W + HEX_W / 2)) / 2 + HEX_W / 2;
 const GRID_Y0 = 430;
-const TIER_SCALE = [0, 0.78, 0.88, 1.0, 1.1, 1.3, 1.5];
+const TIER_SCALE = [0, 0.8, 0.9, 1.0, 1.1, 1.28, 1.45];
 const BASE_H = 150;
 
 function hexCenter(h: Hex): { x: number; y: number } {
@@ -52,6 +54,7 @@ interface StackView {
   sprite: Phaser.GameObjects.Sprite;
   plate: Phaser.GameObjects.Container;
   countText: Phaser.GameObjects.Text;
+  statusRow: Phaser.GameObjects.Container;
 }
 
 const sheetKey = (d: UnitDef) => `sheet_${d.id}`;
@@ -116,6 +119,9 @@ export class BattleScene extends Phaser.Scene {
   private reach = new Map<string, Hex[]>();
   private ambient?: Phaser.Sound.BaseSound;
   private cursorIcon!: Phaser.GameObjects.Image;
+  private btnAbility!: Button;
+  private targeting = false;
+  private infoOpen: Phaser.GameObjects.Container | null = null;
 
   constructor() { super('Battle'); }
 
@@ -125,9 +131,13 @@ export class BattleScene extends Phaser.Scene {
     this.logLines = [];
     this.auto = false;
     this.inputOpen = false;
+    this.targeting = false;
+    this.infoOpen = null;
   }
 
   preload(): void {
+    loadRunUi(this);
+    loadAbilityIcons(this);
     const { width: w, height: h } = this.scale;
     const txt = this.add.text(w / 2, h / 2, '…', { fontFamily: FONT_TITLE, fontSize: '40px', color: COLOR.gold }).setOrigin(0.5);
     this.load.on(Phaser.Loader.Events.PROGRESS, (p: number) => txt.setText(`${Math.round(p * 100)}%`));
@@ -161,7 +171,7 @@ export class BattleScene extends Phaser.Scene {
     ];
     for (const [k, p] of imgs) if (!this.textures.exists(k)) this.load.image(k, `${A}${p}.webp`);
     const sfx = ['cb_move', 'cb_fly', 'cb_hit_sword', 'cb_hit_claw', 'cb_hit_blunt', 'cb_hit_bolt', 'cb_counter', 'cb_block',
-      'cb_heal', 'cb_death_human', 'cb_death_undead', 'cb_turn_start', 'sp_death_cast', 'ev_victory_crowd', 'cb_crit'];
+      'cb_heal', 'cb_death_human', 'cb_death_undead', 'cb_turn_start', 'sp_death_cast', 'ev_victory_crowd', 'cb_crit', 'cb_buff', 'ui_open'];
     for (const k of sfx) if (!this.cache.audio.exists(k)) this.load.audio(k, `${A}audio/sfx/${k}.ogg`);
     const music = this.cfg.music ?? 'mus_battle';
     const amb = this.cfg.ambient ?? 'amb_meadows';
@@ -247,6 +257,9 @@ export class BattleScene extends Phaser.Scene {
     }).setOrigin(0, 1).setDepth(2000);
 
     const bx = w - 150;
+    this.btnAbility = new Button(this, bx, h - 285, t('battle.ability'), { width: 250, fontSize: 20, style: 'red', onClick: () => this.abilityClicked() });
+    this.btnAbility.on('pointerover', () => this.abilityHover());
+    this.btnAbility.setDepth(2000).setVisible(false);
     this.btnWait = new Button(this, bx, h - 205, t('battle.wait'), { width: 250, fontSize: 26, onClick: () => this.playerAction({ type: 'wait' }) });
     this.btnDefend = new Button(this, bx, h - 125, t('battle.defend'), { width: 250, fontSize: 26, onClick: () => this.playerAction({ type: 'defend' }) });
     this.btnAuto = new Button(this, bx, h - 45, t('battle.auto'), { width: 250, fontSize: 26, onClick: () => this.toggleAuto() });
@@ -254,9 +267,14 @@ export class BattleScene extends Phaser.Scene {
 
     // input
     this.input.on(Phaser.Input.Events.POINTER_MOVE, (p: Phaser.Input.Pointer) => this.onHover(p.worldX, p.worldY));
+    this.input.mouse?.disableContextMenu();
     this.input.on(Phaser.Input.Events.POINTER_UP, (p: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
+      if (this.infoOpen?.active) return;
+      if (p.rightButtonReleased()) { this.onRightClick(p.worldX, p.worldY); return; }
       if (over.length === 0) this.onClick(p.worldX, p.worldY);
     });
+    this.input.keyboard?.on('keydown-ESC', () => this.cancelTargeting());
+    this.input.keyboard?.on('keydown-A', () => this.abilityClicked());
     this.input.keyboard?.on('keydown-W', () => this.playerAction({ type: 'wait' }));
     this.input.keyboard?.on('keydown-D', () => this.playerAction({ type: 'defend' }));
 
@@ -288,8 +306,12 @@ export class BattleScene extends Phaser.Scene {
     if (!this.anims.exists(animKey)) {
       this.anims.create({ key: animKey, frames: this.anims.generateFrameNumbers(sk, { start: 0, end: 31 }), frameRate: 8, repeat: -1 });
     }
-    const sprite = this.add.sprite(0, 6, sk).setOrigin(0.5, this.feetY(sk));
-    sprite.setScale((BASE_H * (s.def.sizeScale ?? TIER_SCALE[s.def.tier])) / 320 * 1.3);
+    const fb = this.frameBox(sk);
+    const sprite = this.add.sprite(0, 6, sk).setOrigin((fb.left + fb.right) / 2, fb.bottom);
+    // same visible size for every unit of a tier, no matter how much empty space its frames have
+    const visible = Math.max(fb.bottom - fb.top, (fb.right - fb.left) * 0.75) * 320;
+    const target = BASE_H * (s.def.sizeScale ?? TIER_SCALE[s.def.tier]);
+    sprite.setScale(target / visible);
     sprite.play({ key: animKey, startFrame: Math.floor(Math.random() * 32) });
     if (s.side === 'enemy') sprite.setFlipX(true);
 
@@ -303,30 +325,49 @@ export class BattleScene extends Phaser.Scene {
     }).setOrigin(0.5);
     const plate = this.add.container(plateX, 16, [plateBg, countText]);
 
-    box.add([shadow, sprite, plate]);
+    const statusRow = this.add.container(plateX, 44);
+    box.add([shadow, sprite, plate, statusRow]);
     box.setDepth(p.y + 10);
-    this.views.set(s.uid, { stack: s, box, sprite, plate, countText });
+    this.views.set(s.uid, { stack: s, box, sprite, plate, countText, statusRow });
   }
 
-  /** Where the figure's feet are in its frame (0..1): scans frame 0 for the lowest opaque row. */
-  private feetY(key: string): number {
-    const cache = (this.registry.get('feetY') as Record<string, number>) ?? {};
-    if (cache[key] !== undefined) return cache[key];
-    let v = 0.95;
+  /** Visible bounding box of frame 0 as fractions of the frame (cached per sheet). */
+  private frameBox(key: string): { top: number; bottom: number; left: number; right: number } {
+    const cache = (this.registry.get('frameBox') as Record<string, { top: number; bottom: number; left: number; right: number }>) ?? {};
+    if (cache[key]) return cache[key];
+    let box = { top: 0.05, bottom: 0.95, left: 0.05, right: 0.95 };
     try {
       const src = this.textures.get(key).getSourceImage() as HTMLImageElement;
+      const N = 80;
       const c = document.createElement('canvas');
-      c.width = 80; c.height = 80;
+      c.width = N; c.height = N;
       const ctx = c.getContext('2d', { willReadFrequently: true })!;
-      ctx.drawImage(src, 0, 0, 320, 320, 0, 0, 80, 80);
-      const d = ctx.getImageData(0, 0, 80, 80).data;
-      outer: for (let y = 79; y >= 0; y--) {
-        for (let x = 0; x < 80; x++) if (d[(y * 80 + x) * 4 + 3] > 60) { v = Math.min(0.98, (y + 1) / 80); break outer; }
+      ctx.drawImage(src, 0, 0, 320, 320, 0, 0, N, N);
+      const d = ctx.getImageData(0, 0, N, N).data;
+      let top = N, bottom = -1, left = N, right = -1;
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+        if (d[(y * N + x) * 4 + 3] > 60) { top = Math.min(top, y); bottom = Math.max(bottom, y); left = Math.min(left, x); right = Math.max(right, x); }
       }
+      if (bottom > top) box = { top: top / N, bottom: Math.min(0.99, (bottom + 1) / N), left: left / N, right: (right + 1) / N };
     } catch { /* keep default */ }
-    cache[key] = v;
-    this.registry.set('feetY', cache);
-    return v;
+    cache[key] = box;
+    this.registry.set('frameBox', cache);
+    return box;
+  }
+
+  private refreshStatus(uid: number): void {
+    const v = this.views.get(uid);
+    if (!v) return;
+    v.statusRow.removeAll(true);
+    const sts = v.stack.statuses;
+    sts.forEach((st, i) => {
+      const k = STATUS_ICON[st.id];
+      if (!k || !this.textures.exists(k)) return;
+      const ic = this.add.image((i - (sts.length - 1) / 2) * 30, 0, k);
+      ic.setScale(28 / ic.width);
+      v.statusRow.add(ic);
+    });
+    v.sprite.setAlpha(this.battle.hasStatus(v.stack, 'disembodied') ? 0.45 : 1);
   }
 
   private setCount(uid: number, n: number): void {
@@ -377,6 +418,7 @@ export class BattleScene extends Phaser.Scene {
       this.updateInitBar();
       this.showActive(s);
       if (s.side === 'enemy' || this.auto) {
+        this.updateAbilityButton(undefined);
         await this.wait(this.auto ? 250 : 450);
         await this.play(this.battle.act(this.battle.decide()));
       } else {
@@ -394,15 +436,82 @@ export class BattleScene extends Phaser.Scene {
     this.inputOpen = true;
     this.setButtonsEnabled(true);
     this.btnWait.setEnabled(!s.waited);
+    this.updateAbilityButton(s);
     this.infoText.setText(t('battle.yourTurn', { unit: unitName(s.def) }));
     this.drawHighlights();
     return new Promise((res) => { this.resolveInput = res; });
   }
 
+  private updateAbilityButton(s?: Stack): void {
+    const ab = s ? this.battle.ability(s) : null;
+    if (!s || !ab || s.side !== 'player') { this.btnAbility.setVisible(false); return; }
+    const usable = this.battle.abilityTargets(s).length > 0;
+    this.btnAbility.setVisible(true);
+    this.btnAbility.setLabel(t(`ability.${ab.id}.name`) + (s.cooldown > 0 ? ` (${s.cooldown})` : ''));
+    this.btnAbility.setEnabled(usable && this.inputOpen);
+  }
+
+  private abilityHover(): void {
+    const s = this.battle.active;
+    const ab = s ? this.battle.ability(s) : null;
+    if (ab) this.infoText.setText(`${t(`ability.${ab.id}.name`)}: ${t(`ability.${ab.id}.desc`)}`);
+  }
+
+  private abilityClicked(): void {
+    const s = this.battle.active;
+    if (!s || !this.inputOpen || s.side !== 'player') return;
+    const ab = this.battle.ability(s);
+    if (!ab || !this.battle.abilityTargets(s).length) return;
+    if (ab.target === 'self') { void this.playerAction({ type: 'ability' }); return; }
+    this.targeting = !this.targeting;
+    if (!this.targeting) { this.cancelTargeting(); return; }
+    this.hideAttackCursor();
+    this.drawTargets(s);
+    this.infoText.setText(t('battle.chooseTarget', { ability: t(`ability.${ab.id}.name`) }));
+  }
+
+  private drawTargets(s: Stack): void {
+    const g = this.hiG;
+    g.clear();
+    for (const uid of this.battle.abilityTargets(s)) {
+      const tg = this.battle.stack(uid);
+      g.fillStyle(0xb070ff, 0.35).fillPoints(hexPoly(tg.pos, 4), true);
+      g.lineStyle(3, 0xd8b0ff, 0.95).strokePoints(hexPoly(tg.pos, 4), true, true);
+    }
+  }
+
+  private cancelTargeting(): void {
+    if (!this.targeting) return;
+    this.targeting = false;
+    this.drawHighlights();
+    const s = this.battle.active;
+    if (s) this.infoText.setText(t('battle.yourTurn', { unit: unitName(s.def) }));
+  }
+
+  private inspect(st: Stack): void {
+    if (this.infoOpen?.active) return;
+    this.hideAttackCursor();
+    this.infoOpen = showUnitInfo(this, {
+      def: st.def, count: st.count, topHp: st.topHp, enemy: st.side === 'enemy',
+      atkBonus: this.battle.effAtk(st) - st.def.atk, defBonus: this.battle.effDef(st) - st.def.def,
+      shots: st.shots, cooldown: st.def.active ? st.cooldown : undefined, statuses: st.statuses, level: st.def.level,
+      portraitKey: portraitKey(st.def),
+    });
+  }
+
+  private onRightClick(x: number, y: number): void {
+    if (this.targeting) { this.cancelTargeting(); return; }
+    const h = pixelToHex(x, y);
+    const st = h ? this.battle.stackAt(h) : undefined;
+    if (st) this.inspect(st);
+  }
+
   private async playerAction(a: Action): Promise<void> {
     if (!this.inputOpen || !this.battle.isLegal(a)) return;
     this.inputOpen = false;
+    this.targeting = false;
     this.setButtonsEnabled(false);
+    this.btnAbility.setEnabled(false);
     this.hideAttackCursor();
     this.hiG.clear(); this.hoverG.clear();
     this.infoText.setText('');
@@ -438,6 +547,10 @@ export class BattleScene extends Phaser.Scene {
     const h = pixelToHex(x, y);
     if (!h) return null;
     const occ = this.battle.stackAt(h);
+    if (this.targeting) {
+      if (occ && this.battle.abilityTargets(s).includes(occ.uid)) return { action: { type: 'ability', target: occ.uid }, target: occ };
+      return null;
+    }
     if (occ && occ.side !== s.side) {
       if (this.battle.canShoot(s)) return { action: { type: 'shoot', target: occ.uid }, target: occ };
       const opts = this.battle.meleeFrom(s, occ, this.reach);
@@ -462,6 +575,14 @@ export class BattleScene extends Phaser.Scene {
     const occ = h ? this.battle.stackAt(h) : undefined;
     const a = this.actionAt(x, y);
     const s = this.battle.active;
+    if (a && s && a.action.type === 'ability' && a.target) {
+      this.hoverG.lineStyle(4, 0xffffff, 1).strokePoints(hexPoly(a.target.pos, 2), true, true);
+      this.input.setDefaultCursor('pointer');
+      const ab = this.battle.ability(s)!;
+      this.infoText.setText(`${t(`ability.${ab.id}.name`)} → ${unitName(a.target.def)}`);
+      return;
+    }
+    if (this.targeting) { this.input.setDefaultCursor('default'); return; }
     if (a && s) {
       const g = this.hoverG;
       if (a.action.type === 'move') {
@@ -516,7 +637,8 @@ export class BattleScene extends Phaser.Scene {
     const tags: string[] = [];
     if (d.ranged) tags.push(t('passive.ranged', { n: s.shots }));
     if (d.flying) tags.push(t('passive.flying'));
-    for (const p of d.passives ?? []) tags.push(t(`passive.${p}`));
+    for (const p of d.passives ?? []) tags.push(t(`passiveName.${p}`));
+    if (d.active) tags.push(`${t(`ability.${d.active}.name`)}${s.cooldown > 0 ? ` (${s.cooldown})` : ''}`);
     return t('battle.info', {
       name: unitName(d), count: s.count, top: s.topHp, hp: d.hp,
       atk: d.atk + this.battle.heroes[s.side].atk, def: d.def + this.battle.heroes[s.side].def,
@@ -526,7 +648,11 @@ export class BattleScene extends Phaser.Scene {
 
   private onClick(x: number, y: number): void {
     const a = this.actionAt(x, y);
-    if (a) void this.playerAction(a.action);
+    if (a) { void this.playerAction(a.action); return; }
+    if (this.targeting) return;
+    const h = pixelToHex(x, y);
+    const st = h ? this.battle.stackAt(h) : undefined;
+    if (st) this.inspect(st);
   }
 
   // ---------- initiative bar ----------
@@ -555,6 +681,7 @@ export class BattleScene extends Phaser.Scene {
       frame.fillStyle(0x140d08, 0.9).fillRoundedRect(x, -size / 2, size, size, 10);
       const img = this.add.image(x + size / 2, 0, portraitKey(s.def));
       img.setDisplaySize(size - 8, size - 8);
+      img.setInteractive({ useHandCursor: true }).on('pointerup', () => this.inspect(s));
       if (s.side === 'enemy') img.setFlipX(true);
       const border = this.add.graphics();
       border.lineStyle(i === 0 ? 5 : 3, i === 0 ? 0xf3d48a : col, 1).strokeRoundedRect(x, -size / 2, size, size, 10);
@@ -606,9 +733,71 @@ export class BattleScene extends Phaser.Scene {
           ic.destroy();
           break;
         }
+        case 'ability': await this.animAbility(e.uid, e.ability); break;
+        case 'status': this.refreshStatus(e.uid); break;
+        case 'dot': {
+          const v = this.views.get(e.uid);
+          if (v) {
+            this.floatText(e.uid, `-${e.damage}`, '#7dff6a');
+            v.sprite.setTint(0x80ff80);
+            this.time.delayedCall(200, () => v.sprite.clearTint());
+            this.setCount(e.uid, e.left);
+            this.log(t('battle.log.poison', { a: unitName(v.stack.def), dmg: e.damage, kills: e.kills }));
+            await this.wait(350);
+          }
+          break;
+        }
+        case 'summon': {
+          const st = this.battle.stack(e.uid);
+          this.createView(st);
+          const v = this.views.get(e.uid)!;
+          v.box.setAlpha(0).setScale(0.6);
+          this.log(t('battle.log.summon', { a: unitName(st.def) }));
+          await this.tween({ targets: v.box, alpha: 1, scale: 1, duration: 400 });
+          break;
+        }
+        case 'vanish': {
+          const v = this.views.get(e.uid);
+          if (v) {
+            this.log(t('battle.log.vanish', { a: unitName(v.stack.def) }));
+            await this.tween({ targets: v.box, alpha: 0, duration: 400 });
+            v.box.destroy(); this.views.delete(e.uid);
+          }
+          break;
+        }
+        case 'teleport': {
+          const v = this.views.get(e.uid)!;
+          const to = hexCenter(e.to);
+          playSfx(this, 'cb_fly', 0.7);
+          this.tweens.add({ targets: v.sprite, y: v.sprite.y - 50, duration: 160, yoyo: true });
+          await this.tween({ targets: v.box, x: to.x, y: to.y, duration: 320, ease: 'Sine.inOut' });
+          v.box.setDepth(to.y + 10);
+          break;
+        }
+        case 'skip': {
+          const v = this.views.get(e.uid);
+          if (v) { this.floatText(e.uid, t('battle.fear'), '#c9a8ff'); this.log(t('battle.log.fear', { a: unitName(v.stack.def) })); }
+          await this.wait(500);
+          break;
+        }
         case 'end': break;
       }
     }
+  }
+
+  private async animAbility(uid: number, ability: string): Promise<void> {
+    const v = this.views.get(uid);
+    if (!v) return;
+    this.log(t('battle.log.ability', { a: unitName(v.stack.def), ability: t(`ability.${ability}.name`) }));
+    playSfx(this, 'cb_buff', 0.7);
+    const k = ABILITY_ICON[ability];
+    if (k && this.textures.exists(k)) {
+      const ic = this.add.image(v.box.x, v.box.y - 150, k).setDepth(3500);
+      ic.setScale(90 / ic.width).setAlpha(0);
+      this.tweens.chain({ targets: ic, tweens: [{ alpha: 1, y: ic.y - 20, duration: 200 }, { alpha: 0, y: ic.y - 50, duration: 500, delay: 300 }], onComplete: () => ic.destroy() });
+    }
+    this.floatText(uid, t(`ability.${ability}.name`), '#d8b0ff', -60);
+    await this.wait(450);
   }
 
   private async roundBanner(n: number): Promise<void> {
@@ -748,7 +937,7 @@ export class BattleScene extends Phaser.Scene {
     const { width: w, height: h } = this.scale;
     const won = winner === 'player';
     playSfx(this, won ? 'ev_victory_crowd' : 'cb_death_human');
-    for (const o of [this.initBar, this.infoText, this.logText, this.btnWait, this.btnDefend, this.btnAuto]) {
+    for (const o of [this.initBar, this.infoText, this.logText, this.btnWait, this.btnDefend, this.btnAuto, this.btnAbility]) {
       this.tweens.add({ targets: o, alpha: 0, duration: 300 });
     }
     this.hideAttackCursor();

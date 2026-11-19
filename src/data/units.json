@@ -13,7 +13,11 @@
   "speed": 4,
   "cost": 5,
   "sheet": "units/animated/anim_human_t1_spearman_idle_sheet_8x4.webp",
-  "portrait": "ui/portraits/units/portrait_human_t1_spearman.webp"
+  "portrait": "ui/portraits/units/portrait_human_t1_spearman.webp",
+  "passives": [
+   "antiMounted"
+  ],
+  "active": "spearWall"
  },
  "human_t2_crossbowman": {
   "faction": "human",
@@ -33,7 +37,8 @@
    "pierce"
   ],
   "sheet": "units/animated/anim_human_t2_crossbowman_idle_sheet_8x4.webp",
-  "portrait": "ui/portraits/units/portrait_human_t2_crossbowman.webp"
+  "portrait": "ui/portraits/units/portrait_human_t2_crossbowman.webp",
+  "active": "aimedShot"
  },
  "human_t3_swordsman": {
   "faction": "human",
@@ -52,7 +57,8 @@
    "formation"
   ],
   "sheet": "units/animated/anim_human_t3_idle_sheet_8x4.webp",
-  "portrait": "ui/portraits/units/portrait_human_t3_swordsman.webp"
+  "portrait": "ui/portraits/units/portrait_human_t3_swordsman.webp",
+  "active": "shieldFormation"
  },
  "human_t4_cleric": {
   "faction": "human",
@@ -71,7 +77,8 @@
    "healAura"
   ],
   "sheet": "units/animated/anim_human_t4_cleric_idle_sheet_8x4.webp",
-  "portrait": "ui/portraits/units/portrait_human_t4_cleric.webp"
+  "portrait": "ui/portraits/units/portrait_human_t4_cleric.webp",
+  "active": "revival"
  },
  "human_t5_griffin_rider": {
   "faction": "human",
@@ -91,7 +98,9 @@
    "noRetaliation"
   ],
   "sheet": "units/animated/anim_human_t5_griffin_rider_idle_sheet_8x4.webp",
-  "portrait": "ui/portraits/units/portrait_human_t5_griffin_rider.webp"
+  "portrait": "ui/portraits/units/portrait_human_t5_griffin_rider.webp",
+  "active": "dive",
+  "mounted": true
  },
  "human_t6_paladin": {
   "faction": "human",
@@ -110,7 +119,8 @@
    "holyBane"
   ],
   "sheet": "units/animated/anim_human_t6_paladin_idle_sheet_8x4.webp",
-  "portrait": "ui/portraits/units/portrait_human_t6_paladin.webp"
+  "portrait": "ui/portraits/units/portrait_human_t6_paladin.webp",
+  "active": "holyStrike"
  },
  "undead_t1_skeleton": {
   "faction": "undead",
@@ -127,7 +137,8 @@
   "cost": 4,
   "undead": true,
   "sheet": "units/animated/anim_undead_t1_skeleton_idle_sheet_8x4.webp",
-  "portrait": "ui/portraits/units/portrait_undead_t1_skeleton.webp"
+  "portrait": "ui/portraits/units/portrait_undead_t1_skeleton.webp",
+  "active": "boneSwarm"
  },
  "undead_t2_zombie": {
   "faction": "undead",
@@ -144,7 +155,11 @@
   "cost": 10,
   "undead": true,
   "sheet": "units/animated/anim_undead_t2_zombie_idle_sheet_8x4.webp",
-  "portrait": "ui/portraits/units/portrait_undead_t2_zombie.webp"
+  "portrait": "ui/portraits/units/portrait_undead_t2_zombie.webp",
+  "passives": [
+   "poisonHit"
+  ],
+  "active": "rotStench"
  },
  "undead_t3_ghost": {
   "faction": "undead",
@@ -165,7 +180,8 @@
    "ethereal"
   ],
   "sheet": "units/animated/anim_undead_t3_ghost_idle_sheet_8x4.webp",
-  "portrait": "ui/portraits/units/portrait_undead_t3_ghost.webp"
+  "portrait": "ui/portraits/units/portrait_undead_t3_ghost.webp",
+  "active": "disembody"
  },
  "undead_t4_vampire": {
   "faction": "undead",
@@ -186,7 +202,8 @@
    "lifesteal"
   ],
   "sheet": "units/animated/anim_undead_t4_vampire_idle_sheet_8x4.webp",
-  "portrait": "ui/portraits/units/portrait_undead_t4_vampire.webp"
+  "portrait": "ui/portraits/units/portrait_undead_t4_vampire.webp",
+  "active": "bloodFrenzy"
  },
  "undead_t5_lich": {
   "faction": "undead",
@@ -204,7 +221,11 @@
   "undead": true,
   "ranged": 8,
   "sheet": "units/animated/anim_undead_t5_lich_idle_sheet_8x4.webp",
-  "portrait": "ui/portraits/units/portrait_undead_t5_lich.webp"
+  "portrait": "ui/portraits/units/portrait_undead_t5_lich.webp",
+  "passives": [
+   "curseHit"
+  ],
+  "active": "deathWave"
  },
  "undead_t6_bone_dragon": {
   "faction": "undead",
@@ -222,7 +243,11 @@
   "undead": true,
   "flying": true,
   "sheet": "units/animated/anim_undead_t6_bone_dragon_idle_sheet_8x4.webp",
-  "portrait": "ui/portraits/units/portrait_undead_t6_bone_dragon.webp"
+  "portrait": "ui/portraits/units/portrait_undead_t6_bone_dragon.webp",
+  "passives": [
+   "fearAura"
+  ],
+  "active": "decayBreath"
  },
  "neutral_giant_rat": {
   "faction": "neutral",
@@ -352,7 +377,10 @@
   "speed": 3,
   "cost": 10,
   "sheet": "neutrals/animated/anim_neutral_acid_slime_idle_sheet_8x4.webp",
-  "portrait": "ui/portraits/neutrals/portrait_neutral_acid_slime.webp"
+  "portrait": "ui/portraits/neutrals/portrait_neutral_acid_slime.webp",
+  "passives": [
+   "corrode"
+  ]
  },
  "neutral_cultist": {
   "faction": "neutral",
@@ -422,7 +450,10 @@
   "speed": 6,
   "cost": 20,
   "sheet": "neutrals/animated/anim_neutral_giant_spider_idle_sheet_8x4.webp",
-  "portrait": "ui/portraits/neutrals/portrait_neutral_giant_spider.webp"
+  "portrait": "ui/portraits/neutrals/portrait_neutral_giant_spider.webp",
+  "passives": [
+   "poisonHit"
+  ]
  },
  "neutral_animated_armor": {
   "faction": "neutral",
@@ -438,7 +469,10 @@
   "speed": 4,
   "cost": 22,
   "sheet": "neutrals/animated/anim_neutral_animated_armor_idle_sheet_8x4.webp",
-  "portrait": "ui/portraits/neutrals/portrait_neutral_animated_armor.webp"
+  "portrait": "ui/portraits/neutrals/portrait_neutral_animated_armor.webp",
+  "passives": [
+   "construct"
+  ]
  },
  "neutral_hedge_mage": {
   "faction": "neutral",
@@ -455,7 +489,10 @@
   "cost": 22,
   "ranged": 6,
   "sheet": "neutrals/animated/anim_neutral_hedge_mage_idle_sheet_8x4.webp",
-  "portrait": "ui/portraits/neutrals/portrait_neutral_hedge_mage.webp"
+  "portrait": "ui/portraits/neutrals/portrait_neutral_hedge_mage.webp",
+  "passives": [
+   "curseHit"
+  ]
  },
  "neutral_cave_bear": {
   "faction": "neutral",
@@ -487,7 +524,10 @@
   "speed": 3,
   "cost": 40,
   "sheet": "neutrals/animated/anim_neutral_treant_idle_sheet_8x4.webp",
-  "portrait": "ui/portraits/neutrals/portrait_neutral_treant.webp"
+  "portrait": "ui/portraits/neutrals/portrait_neutral_treant.webp",
+  "passives": [
+   "regen"
+  ]
  },
  "elite_bandit_captain": {
   "faction": "neutral",
@@ -521,7 +561,10 @@
   "cost": 100,
   "sizeScale": 1.3,
   "sheet": "bosses/animated/anim_elite_giant_spider_idle_sheet_8x4.webp",
-  "portrait": "ui/portraits/bosses/portrait_elite_giant_spider.webp"
+  "portrait": "ui/portraits/bosses/portrait_elite_giant_spider.webp",
+  "passives": [
+   "poisonHit"
+  ]
  },
  "elite_minotaur": {
   "faction": "neutral",
@@ -538,7 +581,10 @@
   "cost": 120,
   "sizeScale": 1.3,
   "sheet": "bosses/animated/anim_elite_minotaur_idle_sheet_8x4.webp",
-  "portrait": "ui/portraits/bosses/portrait_elite_minotaur.webp"
+  "portrait": "ui/portraits/bosses/portrait_elite_minotaur.webp",
+  "passives": [
+   "rage"
+  ]
  },
  "boss_act1_bandit_king": {
   "faction": "neutral",
@@ -555,6 +601,7 @@
   "cost": 250,
   "sizeScale": 1.7,
   "sheet": "bosses/animated/anim_boss_act1_bandit_king_idle_sheet_8x4.webp",
-  "portrait": "ui/portraits/bosses/portrait_boss_act1_bandit_king.webp"
+  "portrait": "ui/portraits/bosses/portrait_boss_act1_bandit_king.webp",
+  "mounted": true
  }
 }

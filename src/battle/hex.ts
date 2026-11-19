@@ -18,7 +18,7 @@ export function neighbors(h: Hex): Hex[] {
   return d.map(([dc, dr]) => ({ col: h.col + dc, row: h.row + dr })).filter(inBounds);
 }
 
-function toCube(h: Hex): [number, number, number] {
+export function toCube(h: Hex): [number, number, number] {
   const x = h.col - (h.row - (h.row & 1)) / 2;
   const z = h.row;
   return [x, -x - z, z];
@@ -34,4 +34,15 @@ export function allHexes(): Hex[] {
   const out: Hex[] = [];
   for (let row = 0; row < ROWS; row++) for (let col = 0; col < COLS; col++) out.push({ col, row });
   return out;
+}
+
+export function fromCube(x: number, z: number): Hex {
+  return { col: x + (z - (z & 1)) / 2, row: z };
+}
+
+/** The hex directly behind `b` as seen from `a` (same direction, one step further). */
+export function behind(a: Hex, b: Hex): Hex {
+  const [ax, , az] = toCube(a);
+  const [bx, , bz] = toCube(b);
+  return fromCube(2 * bx - ax, 2 * bz - az);
 }

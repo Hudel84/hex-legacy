@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { GAME_W, GAME_H } from './core/theme';
 import { run as currentRun } from './run/state';
+import { UNITS } from './data/units';
 import { BootScene } from './scenes/BootScene';
 import { PreloadScene } from './scenes/PreloadScene';
 import { TitleScene } from './scenes/TitleScene';
@@ -29,3 +30,4 @@ const game = new Phaser.Game({
 // handy for automated tests and debugging in the browser console
 (window as unknown as { game: Phaser.Game }).game = game;
 (window as unknown as { hexRun: typeof currentRun }).hexRun = currentRun;
+(window as unknown as { hexUnits: typeof UNITS }).hexUnits = UNITS;
