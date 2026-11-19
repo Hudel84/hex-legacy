@@ -545,7 +545,7 @@ export class BattleScene extends Phaser.Scene {
           if (e.round > 1) await this.roundBanner(e.round);
           break;
         case 'turn':
-          if (this.battle.stack(e.uid).side === 'player' && !this.auto) playSfx(this, 'cb_turn_start', 0.6);
+          if (this.battle.stack(e.uid).side === 'player' && !this.auto) playSfx(this, 'cb_turn_start', 0.45);
           break;
         case 'move': await this.animMove(e.uid, e.path); break;
         case 'attack': await this.animAttack(e); break;

@@ -37,7 +37,7 @@ export class Button extends Phaser.GameObjects.Container {
       if (!this.enabled) return;
       this.bg.setTexture(`${this.base}_hover`);
       this.label.setColor('#fff3c4');
-      playSfx(scene, 'ui_hover', 0.5);
+      playSfx(scene, 'ui_hover', 1);
     });
     this.on('pointerout', () => {
       if (!this.enabled) return;
