@@ -1,0 +1,22 @@
+{
+  "name": "hex-legacy",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "shot": "node tools/screenshot.mjs"
+  },
+  "dependencies": {
+    "@fontsource/alegreya": "^5",
+    "@fontsource/cinzel": "^5",
+    "phaser": "4.2.1"
+  },
+  "devDependencies": {
+    "puppeteer-core": "*",
+    "typescript": "^5.9",
+    "vite": "^8"
+  }
+}

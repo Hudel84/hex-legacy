@@ -1,0 +1,17 @@
+{
+  "title.newRun": "Neuer Run",
+  "title.continue": "Fortsetzen",
+  "title.settings": "Einstellungen",
+  "title.credits": "Mitwirkende",
+  "title.version": "Prototyp {version}",
+  "title.clickToStart": "Zum Starten klicken",
+  "common.close": "Schließen",
+  "common.comingSoon": "Kommt bald",
+  "settings.title": "Einstellungen",
+  "settings.language": "Sprache",
+  "settings.music": "Musik",
+  "settings.sfx": "Soundeffekte",
+  "settings.fullscreen": "Vollbild",
+  "credits.title": "Mitwirkende",
+  "credits.body": "HEX LEGACY\nEin kostenloses Fanprojekt von Ben\n\nDesign & Leitung: Ben\nCode: Claude (Anthropic)\nGrafik: Higgsfield (Nano Banana Pro, Seedance), Freebeat\nSoundeffekte & Heldenstimmen: elevenlabs.io\nMusik: Made with ElevenMusic\nEngine: Phaser\nSchriften: Cinzel, Alegreya (SIL Open Font License)\n\nInspiriert von Heroes of Might and Magic und Slay the Spire.\nNicht-kommerziell. Danke fürs Spielen!"
+}

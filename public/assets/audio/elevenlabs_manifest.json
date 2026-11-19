@@ -1,0 +1,18 @@
+{
+ "_info": "ElevenLabs SFX-Flows fuer Hex Legacy (eleven_text_to_sound_v3, 10 Credits/s). Erstellt 19.11.2026.",
+ "flows": {
+  "ui":     {"flow_id": "t8ZM4IC0xiGHMR0DppFO", "dir": "audio/sfx"},
+  "combat": {"flow_id": "G3eIeSHtnaHmQhlhrvnO", "dir": "audio/sfx"},
+  "spells": {"flow_id": "OfLmKIuZLGhzE4u4ZbyF", "dir": "audio/sfx"},
+  "prio2":  {"flow_id": "po5M5J1981TQlWGbQ2FM", "dir": "audio/sfx"},
+  "ambient":{"flow_id": "GWnWWmaRh3DAe8tLvzWt", "dir": "audio/ambient"}
+ },
+ "nodes": {
+  "ui": {"ui_click":"KhkEWYXgPKaF8rL12xXO","ui_hover":"iUI1xeCZ6izxpQLBaMTJ","ui_open":"YwekYs70Apb8oYAWSBX4","ui_close":"MmyIoiZsiRdRyyTNO4fz","ui_coins":"XQTOe6Qcuu3N3ZxTAOEn","ui_buy":"QhQa8mQaQZn2huhuHbGl","ui_error":"DbvbY44D20j3kyUoeYEA","ui_levelup":"uUMxjoGUS7WOtNENdyMa","ui_talent_pick":"b2a4hEeLllzPXjh8nBfN","ui_equip":"3BMkrQGFDLkKQ2afePuG","ui_node_select":"im7ZZHciQdU1WtWRIsGN","ui_reward":"N8Y1E1xhXSDHVuVFjQym","ui_card_draft":"l7noZLVwbIfboIXcneg7"},
+  "combat": {"cb_turn_start":"8BeUIWHwXOCyhozrteRg","cb_move":"YThz56v2SM52S5bLoX97","cb_hit_sword":"9oiCqK1vXjpPjvKQWxpO","cb_hit_blunt":"p2qieQEeyCzf67Bi0YCg","cb_hit_claw":"8AkTbZfkVWX7TSRBYJxF","cb_hit_arrow":"IBJ31UkB1EMXvEHu33Nd","cb_hit_bolt":"uLoAkHiK50i5lMmbfFNi","cb_block":"xP8aEysSvfopYLdgdYpS","cb_counter":"oOuz0ukdOBbDdCfa0fMD","cb_crit":"gcpholwl09uNctb4IVKd","cb_death_human":"TmS9GdvuZsHOhm4nFGyN","cb_death_beast":"RNpixJFb69HDEs13hCNZ","cb_death_undead":"6JOhz661lXOtC3mTmKNO","cb_death_demon":"n6SasGapJ8gi95v3UHur","cb_heal":"XF1UHaKrA1OTonTtd1b1","cb_buff":"RYjBfMB8M3rQXLRgw0rz","cb_debuff":"kWsgJicc2OjMOS2KQZy0","cb_stun":"MR96BVBgeBTUb4gzanDy","cb_fly":"yRO7a0VsRrkmqCxqOXL8"},
+  "spells": {"sp_light_cast":"wYtQNmYeW4045LTKntSq","sp_light_impact":"OTnMrWuyA3ngxAWvVyr7","sp_nature_cast":"X1FHji44O1sJARX4sxx7","sp_nature_impact":"xtS0DvUrA4oVFn5Zql5N","sp_earth_cast":"1IgV3wGlZ45zNBhL9qKW","sp_earth_impact":"cJZERBR66aQDksISUpR1","sp_death_cast":"gz0SFfhyfLnUI8gfJtlC","sp_death_impact":"qJ9pxQi30DZbij9WcGRw","sp_fire_cast":"hq5e4ZNyVWe5Fo12Mw0I","sp_fire_impact":"llZDwLLreSTBeofoYDS5","sp_lightning_cast":"aEuEkJwEAoHeoPMgxbMt","sp_lightning_impact":"6gkzyGACIRYfTirfnnWo","sp_blood_cast":"MkPZ1TZW8u89RXnju4iy","sp_blood_impact":"uqppUt59iukrArVCLTjq","sp_mind_cast":"VcaFMxcskZXtxJzAxT4N","sp_mind_impact":"YfGxgdhNn1ZpeUQx3R3y"},
+  "prio2": {"ab_summon":"YUIGY2eY1EsOBOl79kx7","ab_teleport":"mNb80SijWZijdsqBTnEv","ab_roar":"vy9FlL3vJvJ2OOKkC2Tz","ab_warcry":"IQcopaYI0RIVlblKK8Cf","ab_dig":"QfXujn94zlyFRsLOCEq4","ab_steam":"kN6tfWfMmuegzhmSmfG0","ab_poison":"EW22WncCCMySKBbZTOiz","ab_burn":"OYSYGY0hn3frifH4Wef0","ab_explosion":"KwJ9snEJOxpk6Jdz8gt0","ev_boss_intro":"EJwWLIfe22Z7vPvaYole","ev_victory_crowd":"Jsyfe0zYfJrJxthF4w9I"},
+  "ambient": {"amb_meadows":"R2vwHBXU0GLE2X5ruex9","amb_autumn_forest":"xC8n3ST6FVqh6EtLO4jn","amb_rocky_coast":"ohBYBP83WbgekgqkM2rK","amb_graveyard":"rLlTdd1FouKrDGTv8i7u","amb_snowy_pass":"yqt0rw7HMcumIW2Mq0oq","amb_swamp_ruins":"ewErnfJDS64z5w6LmiV1","amb_crystal_cavern":"Cc8T4GkrNQrRwssSdjBg","amb_demon_wasteland":"uxGsx6Kutd2S7957PL6o","amb_volcanic":"3f5aOWEyELR4wMxeSB7l"}
+ },
+ "status_19_11_0758": "UI: 1 Take je Sound fertig (ui_click 1). Rest noch nicht generiert. Ziel: SFX 2 Takes, Ambient 1 Take (30 s Loop). Free-Plan-Limit ca. 12 Starts pro Minute."
+}
