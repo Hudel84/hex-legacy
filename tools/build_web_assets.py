@@ -109,12 +109,7 @@ def run(job, force=False):
                 im = im.resize((max(1, round(im.width * s)), max(1, round(im.height * s))), Image.LANCZOS)
             im.save(tmp, "WEBP", quality=q, method=4, alpha_quality=90)
         elif kind == "video":
-            subprocess.run(
-                ["ffmpeg", "-v", "error", "-y", "-i", str(src), "-an",
-                 "-vf", f"scale='min({maxside},iw)':-2", "-c:v", "libx264",
-                 "-preset", "veryfast", "-crf", str(q), "-pix_fmt", "yuv420p",
-                 "-movflags", "+faststart", "-f", "mp4", str(tmp)],
-                check=True)
+            seamless_loop(src, tmp, maxside, q)
         else:
             shutil.copyfile(src, tmp)
         os.replace(tmp, dst)
@@ -126,6 +121,48 @@ def run(job, force=False):
             except OSError:
                 pass
         return rel, f"ERROR {e}", 0
+
+
+LOOP_FPS = 24
+LOOP_FADE_S = 1.5
+
+
+def seamless_loop(src, dst, maxside, crf):
+    """Re-encode a loop video so its end flows into its start.
+
+    The first LOOP_FADE_S seconds are cut off and cross-faded into the end:
+    out[i] = v[i+X] and over the last X frames blends towards v[0..X-1].
+    The last output frame is v[X-1], the first is v[X] -> no visible jump.
+    """
+    import numpy as np
+    probe = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                            "stream=width,height", "-of", "csv=p=0", str(src)],
+                           capture_output=True, text=True, check=True).stdout.strip().split(",")
+    w, h = int(probe[0]), int(probe[1])
+    if w > maxside:
+        h = int(round(h * maxside / w / 2) * 2)
+        w = maxside
+    dec = subprocess.run(["ffmpeg", "-v", "error", "-i", str(src), "-an", "-vf", f"fps={LOOP_FPS},scale={w}:{h}",
+                          "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True, check=True).stdout
+    fsize = w * h * 3
+    n = len(dec) // fsize
+    frames = np.frombuffer(dec[: n * fsize], dtype=np.uint8).reshape(n, h, w, 3)
+    x = min(int(LOOP_FADE_S * LOOP_FPS), n // 3)
+    enc = subprocess.Popen(["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{w}x{h}",
+                            "-r", str(LOOP_FPS), "-i", "-", "-c:v", "libx264", "-preset", "veryfast", "-crf", str(crf),
+                            "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-f", "mp4", str(dst)],
+                           stdin=subprocess.PIPE)
+    for i in range(n - x):
+        j = i + x
+        if j >= n - x:
+            a = (j - (n - x) + 1) / x
+            f = (frames[j].astype(np.float32) * (1 - a) + frames[j - (n - x)].astype(np.float32) * a + 0.5).astype(np.uint8)
+        else:
+            f = frames[j]
+        enc.stdin.write(f.tobytes())
+    enc.stdin.close()
+    if enc.wait() != 0:
+        raise RuntimeError("ffmpeg encode failed")
 
 
 def write_manifest():

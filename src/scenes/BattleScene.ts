@@ -170,6 +170,7 @@ export class BattleScene extends Phaser.Scene {
     this.add.image(w / 2, h / 2, bgKey).setDisplaySize(w, h);
     const vid = this.add.video(w / 2, h / 2, `${bgKey}_loop`).setAlpha(0);
     vid.setLoop(true); vid.setMute(true); vid.play(true);
+    vid.on(Phaser.GameObjects.Events.VIDEO_COMPLETE, () => { vid.seekTo(0); vid.play(true); });
     const poll = this.time.addEvent({
       delay: 100, repeat: 80, callback: () => {
         const el = vid.video;
@@ -242,7 +243,7 @@ export class BattleScene extends Phaser.Scene {
 
     playMusic(this, 'mus_battle');
     const startAmbient = () => {
-      this.ambient = this.sound.add('amb_meadows', { loop: true, volume: settings.sfxVolume * 0.35 });
+      this.ambient = this.sound.add('amb_meadows', { loop: true, volume: settings.sfxVolume * 0.12 });
       this.ambient.play();
     };
     if (this.sound.locked) this.sound.once(Phaser.Sound.Events.UNLOCKED, startAmbient); else startAmbient();

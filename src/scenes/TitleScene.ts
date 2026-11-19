@@ -19,6 +19,8 @@ export class TitleScene extends Phaser.Scene {
     vid.setLoop(true);
     vid.setMute(true);
     vid.play(true);
+    // some browsers stop at the end despite loop=true: restart manually
+    vid.on(Phaser.GameObjects.Events.VIDEO_COMPLETE, () => { vid.seekTo(0); vid.play(true); });
     // fade the video in once real frames arrive (the still image stays as fallback)
     const poll = this.time.addEvent({
       delay: 100, repeat: 80, callback: () => {
@@ -31,15 +33,15 @@ export class TitleScene extends Phaser.Scene {
       },
     });
 
-    // darken the left side so the menu reads well
+    // dark band at the bottom for the menu, so the six heroes stay visible
     const shade = this.add.graphics();
-    shade.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0.75, 0, 0.75, 0);
-    shade.fillRect(0, 0, w * 0.55, h);
+    shade.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0, 0, 0.85, 0.85);
+    shade.fillRect(0, h - 300, w, 300);
 
     // logo with a slow float
-    const logo = this.add.image(440, 255, 'logo');
-    logo.setScale(450 / logo.width);
-    this.tweens.add({ targets: logo, y: 267, duration: 2600, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    const logo = this.add.image(w / 2, 160, 'logo');
+    logo.setScale(330 / logo.width);
+    this.tweens.add({ targets: logo, y: 170, duration: 2600, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
 
     const items: { key: string; style?: 'wood' | 'red'; action: () => void }[] = [
       { key: 'title.quickBattle', style: 'red', action: () => this.scene.start('Battle') },
@@ -48,9 +50,10 @@ export class TitleScene extends Phaser.Scene {
       { key: 'title.credits', action: () => this.openModal('credits') },
     ];
     items.forEach((it, i) => {
-      const btn = new Button(this, 440, 575 + i * 128, t(it.key), { style: it.style, width: 330, fontSize: 30, onClick: it.action });
+      const bx = w / 2 + (i - (items.length - 1) / 2) * 350;
+      const btn = new Button(this, bx, h - 85, t(it.key), { style: it.style, width: 320, fontSize: 28, onClick: it.action });
       btn.setAlpha(0);
-      this.tweens.add({ targets: btn, alpha: 1, x: { from: 400, to: 440 }, delay: 200 + i * 120, duration: 400 });
+      this.tweens.add({ targets: btn, alpha: 1, y: { from: h - 55, to: h - 85 }, delay: 200 + i * 100, duration: 400 });
       this.buttons.push({ btn, key: it.key });
     });
 
