@@ -110,6 +110,7 @@ export class BattleScene extends Phaser.Scene {
   private resolveInput: (() => void) | null = null;
   private reach = new Map<string, Hex[]>();
   private ambient?: Phaser.Sound.BaseSound;
+  private cursorIcon!: Phaser.GameObjects.Image;
 
   constructor() { super('Battle'); }
 
@@ -148,6 +149,8 @@ export class BattleScene extends Phaser.Scene {
       ['obstacle_boulders', 'map/objects/mapdeco_boulders'],
       ['ui_victory_screen', 'ui/screens/ui_victory_screen'], ['ui_defeat_screen', 'ui/screens/ui_defeat_screen'],
       ['ui_icon_hourglass', 'ui/ui_icon_hourglass'],
+      ['cursor_sword', 'icons/equipment/icon_equip_weapon_steel_longsword'],
+      ['cursor_shoot', 'icons/equipment/icon_equip_weapon_light_crossbow'],
     ];
     for (const [k, p] of imgs) if (!this.textures.exists(k)) this.load.image(k, `${A}${p}.webp`);
     const sfx = ['cb_move', 'cb_fly', 'cb_hit_sword', 'cb_hit_claw', 'cb_hit_blunt', 'cb_hit_bolt', 'cb_counter', 'cb_block',
@@ -210,6 +213,9 @@ export class BattleScene extends Phaser.Scene {
     this.tweens.add({ targets: this.activeRing, alpha: { from: 1, to: 0.55 }, duration: 700, yoyo: true, repeat: -1 });
 
     for (const s of this.battle.stacks) this.createView(s);
+
+    // attack cursor: a sword that points in the attack direction, or a crossbow for shots
+    this.cursorIcon = this.add.image(0, 0, 'cursor_sword').setDepth(4500).setVisible(false);
 
     // HUD
     this.initBar = this.add.container(w / 2, 78).setDepth(2000);
@@ -356,6 +362,7 @@ export class BattleScene extends Phaser.Scene {
     if (!this.inputOpen || !this.battle.isLegal(a)) return;
     this.inputOpen = false;
     this.setButtonsEnabled(false);
+    this.hideAttackCursor();
     this.hiG.clear(); this.hoverG.clear();
     this.infoText.setText('');
     await this.play(this.battle.act(a));
@@ -420,6 +427,7 @@ export class BattleScene extends Phaser.Scene {
         for (const step of this.reach.get(key(a.action.to)) ?? []) g.fillStyle(0xffffff, 0.22).fillPoints(hexPoly(step, 10), true);
         g.lineStyle(3, 0xffffff, 0.9).strokePoints(hexPoly(a.action.to, 4), true, true);
         this.input.setDefaultCursor('pointer');
+        this.hideAttackCursor(false);
       } else if (a.target) {
         const ranged = a.action.type === 'shoot';
         if (a.from && !eq(a.from, s.pos)) {
@@ -431,14 +439,35 @@ export class BattleScene extends Phaser.Scene {
         this.infoText.setText(t(ranged ? 'battle.preview.shoot' : 'battle.preview.melee', {
           b: unitName(a.target.def), min: pv.minDmg, max: pv.maxDmg, kmin: pv.minKills, kmax: pv.maxKills, shots: s.shots - 1,
         }));
-        this.input.setDefaultCursor('crosshair');
+        this.showAttackCursor(x, y, ranged ? null : (a.from ?? s.pos), a.target.pos);
         return;
       }
     } else {
-      this.input.setDefaultCursor('default');
+      this.hideAttackCursor();
     }
     if (occ) this.infoText.setText(this.stackInfo(occ));
     else if (s && this.inputOpen) this.infoText.setText(t('battle.yourTurn', { unit: unitName(s.def) }));
+  }
+
+  /** Sword at the mouse pointer, tip on the pointer, blade pointing from the attack hex to the target. */
+  private showAttackCursor(x: number, y: number, from: Hex | null, target: Hex): void {
+    const c = this.cursorIcon;
+    if (from) {
+      const a = hexCenter(from), b = hexCenter(target);
+      const angle = Math.atan2(b.y - a.y, b.x - a.x); // on-screen direction
+      // the icon's blade points up-right (-45°); its tip sits near the top-right corner
+      c.setTexture('cursor_sword').setOrigin(0.88, 0.12).setDisplaySize(84, 84);
+      c.setRotation(angle + Math.PI / 4);
+    } else {
+      c.setTexture('cursor_shoot').setOrigin(0.5, 0.5).setDisplaySize(76, 76).setRotation(0);
+    }
+    c.setPosition(x, y).setVisible(true);
+    this.input.setDefaultCursor('none');
+  }
+
+  private hideAttackCursor(resetCursor = true): void {
+    this.cursorIcon?.setVisible(false);
+    if (resetCursor) this.input.setDefaultCursor('default');
   }
 
   private stackInfo(s: Stack): string {
@@ -681,7 +710,7 @@ export class BattleScene extends Phaser.Scene {
     for (const o of [this.initBar, this.infoText, this.logText, this.btnWait, this.btnDefend, this.btnAuto]) {
       this.tweens.add({ targets: o, alpha: 0, duration: 300 });
     }
-    this.input.setDefaultCursor('default');
+    this.hideAttackCursor();
     const layer = this.add.container(0, 0).setDepth(5000).setAlpha(0);
     const img = this.add.image(w / 2, h / 2, won ? 'ui_victory_screen' : 'ui_defeat_screen').setDisplaySize(w, h);
     const title = this.add.text(w / 2, 170, t(won ? 'battle.victory' : 'battle.defeat'), {

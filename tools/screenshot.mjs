@@ -29,6 +29,7 @@ for (const s of steps) {
   if (s.wait) await new Promise((r) => setTimeout(r, s.wait));
   if (s.click) { const [x, y] = await toPage(...s.click); await page.mouse.click(x, y); }
   if (s.clickEval) { const xy = await page.evaluate(s.clickEval); if (xy) { const [x, y] = await toPage(...xy); await page.mouse.move(x, y); await new Promise((r) => setTimeout(r, 300)); await page.mouse.click(x, y); } logs.push('[clickEval] ' + JSON.stringify(xy)); }
+  if (s.moveEval) { const xy = await page.evaluate(s.moveEval); if (xy) { const [x, y] = await toPage(...xy); await page.mouse.move(x, y); } logs.push('[moveEval] ' + JSON.stringify(xy)); }
   if (s.until) { const t0 = Date.now(); while (Date.now() - t0 < (s.timeout ?? 60000) && !(await page.evaluate(s.until))) await new Promise((r) => setTimeout(r, 250)); logs.push('[until] ' + (Date.now() - t0) + 'ms'); }
   if (s.move) { const [x, y] = await toPage(...s.move); await page.mouse.move(x, y); }
   if (s.eval) logs.push('[eval] ' + JSON.stringify(await page.evaluate(s.eval)));
