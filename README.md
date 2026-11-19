@@ -11,13 +11,16 @@ Free, non-commercial fan project by Ben. Code by Claude (Anthropic).
 - All texts via localization keys: `src/i18n/en.json` (main language) and `de.json`
 
 ## Structure
-- `src/scenes/` – Boot, Preload, Title, Modal (settings/credits)
+- `src/scenes/` – Boot, Preload, Title, Modal (settings/credits), Battle
+- `src/battle/` – battle rules (hex grid, stacks, initiative, damage, AI), no Phaser inside
+- `src/data/units.json` – unit stats (placeholders for balancing)
+- `sim/` – autobattle simulations: `npx tsx sim/simulate.ts 400`, `npx tsx sim/duels.ts 280 adjacent`
 - `src/core/` – settings (localStorage), i18n, audio, theme
 - `src/ui/` – reusable UI (buttons, toasts)
 - `public/assets/` – web versions of the art and audio (generated, see below)
 - `tools/build_web_assets.py` – builds `web_assets/` from the original files in Ben's project folder
   (WebP in game size, OGG, re-encoded loops). The originals are never changed.
-- `tools/screenshot.mjs` – headless-Chrome test runner used for automated checks
+- `tools/screenshot.mjs` – headless-Chrome test runner used for automated checks (open the game with `?test` for real-time timing)
 
 ## Commands
 ```

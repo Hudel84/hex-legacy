@@ -1,0 +1,27 @@
+{
+  "human_t1_spearman":      { "faction": "human", "tier": 1, "hp": 10,  "atk": 4,  "def": 5,  "dmg": [1, 3],   "ini": 8,  "speed": 4, "cost": 5,
+                              "sheet": "units/animated/anim_human_t1_spearman_idle_sheet_8x4.webp", "portrait": "ui/portraits/units/portrait_human_t1_spearman.webp" },
+  "human_t2_crossbowman":   { "faction": "human", "tier": 2, "hp": 10,  "atk": 6,  "def": 3,  "dmg": [2, 5],   "ini": 9,  "speed": 4, "cost": 10, "ranged": 10, "passives": ["pierce"],
+                              "sheet": "units/animated/anim_human_t2_crossbowman_idle_sheet_8x4.webp", "portrait": "ui/portraits/units/portrait_human_t2_crossbowman.webp" },
+  "human_t3_swordsman":     { "faction": "human", "tier": 3, "hp": 30,  "atk": 8,  "def": 8,  "dmg": [5, 8],   "ini": 10, "speed": 5, "cost": 20, "passives": ["formation"],
+                              "sheet": "units/animated/anim_human_t3_idle_sheet_8x4.webp", "portrait": "ui/portraits/units/portrait_human_t3_swordsman.webp" },
+  "human_t4_cleric":        { "faction": "human", "tier": 4, "hp": 40,  "atk": 9,  "def": 9,  "dmg": [6, 10],  "ini": 10, "speed": 5, "cost": 30, "passives": ["healAura"],
+                              "sheet": "units/animated/anim_human_t4_cleric_idle_sheet_8x4.webp", "portrait": "ui/portraits/units/portrait_human_t4_cleric.webp" },
+  "human_t5_griffin_rider": { "faction": "human", "tier": 5, "hp": 70,  "atk": 14, "def": 12, "dmg": [10, 16], "ini": 14, "speed": 8, "cost": 45, "flying": true, "passives": ["noRetaliation"],
+                              "sheet": "units/animated/anim_human_t5_griffin_rider_idle_sheet_8x4.webp", "portrait": "ui/portraits/units/portrait_human_t5_griffin_rider.webp" },
+  "human_t6_paladin":       { "faction": "human", "tier": 6, "hp": 140, "atk": 20, "def": 20, "dmg": [25, 35], "ini": 12, "speed": 6, "cost": 70, "passives": ["holyBane"],
+                              "sheet": "units/animated/anim_human_t6_paladin_idle_sheet_8x4.webp", "portrait": "ui/portraits/units/portrait_human_t6_paladin.webp" },
+
+  "undead_t1_skeleton":     { "faction": "undead", "tier": 1, "hp": 6,   "atk": 4,  "def": 4,  "dmg": [2, 3],   "ini": 8,  "speed": 4, "cost": 4, "undead": true,
+                              "sheet": "units/animated/anim_undead_t1_skeleton_idle_sheet_8x4.webp", "portrait": "ui/portraits/units/portrait_undead_t1_skeleton.webp" },
+  "undead_t2_zombie":       { "faction": "undead", "tier": 2, "hp": 15,  "atk": 5,  "def": 5,  "dmg": [2, 4],   "ini": 5,  "speed": 3, "cost": 10, "undead": true,
+                              "sheet": "units/animated/anim_undead_t2_zombie_idle_sheet_8x4.webp", "portrait": "ui/portraits/units/portrait_undead_t2_zombie.webp" },
+  "undead_t3_ghost":        { "faction": "undead", "tier": 3, "hp": 20,  "atk": 8,  "def": 6,  "dmg": [4, 6],   "ini": 12, "speed": 6, "cost": 20, "undead": true, "flying": true, "passives": ["ethereal"],
+                              "sheet": "units/animated/anim_undead_t3_ghost_idle_sheet_8x4.webp", "portrait": "ui/portraits/units/portrait_undead_t3_ghost.webp" },
+  "undead_t4_vampire":      { "faction": "undead", "tier": 4, "hp": 35,  "atk": 10, "def": 9,  "dmg": [6, 9],   "ini": 12, "speed": 6, "cost": 30, "undead": true, "flying": true, "passives": ["lifesteal"],
+                              "sheet": "units/animated/anim_undead_t4_vampire_idle_sheet_8x4.webp", "portrait": "ui/portraits/units/portrait_undead_t4_vampire.webp" },
+  "undead_t5_lich":         { "faction": "undead", "tier": 5, "hp": 55,  "atk": 13, "def": 10, "dmg": [12, 18], "ini": 10, "speed": 4, "cost": 45, "undead": true, "ranged": 8,
+                              "sheet": "units/animated/anim_undead_t5_lich_idle_sheet_8x4.webp", "portrait": "ui/portraits/units/portrait_undead_t5_lich.webp" },
+  "undead_t6_bone_dragon":  { "faction": "undead", "tier": 6, "hp": 165, "atk": 20, "def": 15, "dmg": [30, 45], "ini": 11, "speed": 8, "cost": 70, "undead": true, "flying": true,
+                              "sheet": "units/animated/anim_undead_t6_bone_dragon_idle_sheet_8x4.webp", "portrait": "ui/portraits/units/portrait_undead_t6_bone_dragon.webp" }
+}

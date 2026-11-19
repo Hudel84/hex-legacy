@@ -37,17 +37,18 @@ export class TitleScene extends Phaser.Scene {
     shade.fillRect(0, 0, w * 0.55, h);
 
     // logo with a slow float
-    const logo = this.add.image(440, 270, 'logo');
-    logo.setScale(470 / logo.width);
-    this.tweens.add({ targets: logo, y: 282, duration: 2600, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    const logo = this.add.image(440, 255, 'logo');
+    logo.setScale(450 / logo.width);
+    this.tweens.add({ targets: logo, y: 267, duration: 2600, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
 
     const items: { key: string; style?: 'wood' | 'red'; action: () => void }[] = [
-      { key: 'title.newRun', style: 'red', action: () => toast(this, t('common.comingSoon')) },
+      { key: 'title.quickBattle', style: 'red', action: () => this.scene.start('Battle') },
+      { key: 'title.newRun', action: () => toast(this, t('common.comingSoon')) },
       { key: 'title.settings', action: () => this.openModal('settings') },
       { key: 'title.credits', action: () => this.openModal('credits') },
     ];
     items.forEach((it, i) => {
-      const btn = new Button(this, 440, 600 + i * 145, t(it.key), { style: it.style, width: 360, fontSize: 32, onClick: it.action });
+      const btn = new Button(this, 440, 575 + i * 128, t(it.key), { style: it.style, width: 330, fontSize: 30, onClick: it.action });
       btn.setAlpha(0);
       this.tweens.add({ targets: btn, alpha: 1, x: { from: 400, to: 440 }, delay: 200 + i * 120, duration: 400 });
       this.buttons.push({ btn, key: it.key });
