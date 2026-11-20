@@ -109,6 +109,18 @@ function migrate(r: RunState): void {
   r.equip ??= {};
   r.bag ??= [];
   r.belt ??= [null, null, null];
+  // fields added in later versions (very old saves would otherwise break single screens)
+  r.act ??= 1;
+  r.biome ??= 'meadows';
+  r.talents ??= [];
+  r.artifacts ??= [];
+  r.loot ??= {};
+  r.seenEvents ??= [];
+  r.visited ??= [];
+  r.shopBuys ??= 0;
+  r.battlesWon ??= 0;
+  for (const s of r.army ?? []) s.level ??= 0;
+  r.army = (r.army ?? []).filter((s) => !!UNITS[s.unitId]);
 }
 
 let current: RunState | null = null;
