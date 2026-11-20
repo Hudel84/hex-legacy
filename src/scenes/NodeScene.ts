@@ -10,7 +10,9 @@ import { eventById, type EventOutcome } from '../run/events';
 import { buildEnemy, battleConfig } from '../run/encounters';
 import { ArmyPanel } from '../ui/ArmyPanel';
 import { bonus } from '../meta/meta';
-import { addLoot, lootFor } from '../run/state';
+import { addLoot, lootFor, owner, grantPerk } from '../run/state';
+import { offer, perkById } from '../run/perks';
+import { perkLines } from '../ui/perkUi';
 import { panel, titleStyle, inkStyle } from '../ui/widgets';
 import { Button } from '../ui/Button';
 
@@ -28,6 +30,7 @@ export class NodeScene extends Phaser.Scene {
   private box!: Phaser.GameObjects.Container;
   private armyPanel!: ArmyPanel;
   private shopUnit: string | null = null;
+  private shopArtifact: string | null = null;
 
   constructor() { super('Node'); }
 
@@ -35,6 +38,7 @@ export class NodeScene extends Phaser.Scene {
     this.kind = data.kind;
     this.eventId = data.eventId ?? '';
     this.shopUnit = null;
+    this.shopArtifact = null;
   }
 
   preload(): void {
@@ -46,7 +50,7 @@ export class NodeScene extends Phaser.Scene {
     } else {
       img(this, BG[this.kind], `ui/screens/${BG[this.kind]}.webp`);
     }
-    if (this.kind === 'shop') for (const id of draftPool('human', 99)) img(this, `portrait_${id}`, unitDef(id).portrait);
+    if (this.kind === 'shop') for (const id of draftPool(owner().faction, 99)) img(this, `portrait_${id}`, unitDef(id).portrait);
   }
 
   create(): void {
@@ -89,11 +93,14 @@ export class NodeScene extends Phaser.Scene {
     this.box.add(this.add.text(x, 110, title, { ...titleStyle(40, '#4a2c10'), stroke: '#00000000', strokeThickness: 0 }).setOrigin(0.5));
     const body = this.add.text(x, 170, text, { ...inkStyle(28), color: '#2b1a0c', align: 'center', wordWrap: { width: W - 120 }, lineSpacing: 4 }).setOrigin(0.5, 0);
     this.box.add(body);
-    let y = Math.max(330, 170 + body.height + 40);
+    let y = Math.max(300, 170 + body.height + 30);
+    const need = opts.reduce((a, o) => a + (o.hint ? 112 : 84), 0);
+    const squeeze = Math.min(1, (1010 - y) / need);
     for (const o of opts) {
       const row = this.optionRow(x, y, W - 110, o);
+      if (squeeze < 1) row.setScale(1, Math.max(0.82, squeeze));
       this.box.add(row);
-      y += o.hint ? 112 : 84;
+      y += (o.hint ? 112 : 84) * squeeze;
     }
     this.armyPanel.refresh();
   }
@@ -170,7 +177,7 @@ export class NodeScene extends Phaser.Scene {
     if (this.shopUnit === null) {
       const g = rng();
       const floor = r.currentNode !== null ? nodeById(r.currentNode).floor : 0;
-      const pool = draftPool('human', floor).filter((id) => !r.army.some((s) => s.unitId === id));
+      const pool = draftPool(owner().faction, floor).filter((id) => !r.army.some((s) => s.unitId === id));
       this.shopUnit = pool.length ? g.pick(pool) : '';
       commitRng(g);
     }
@@ -202,6 +209,19 @@ export class NodeScene extends Phaser.Scene {
           r.gold -= cost; r.army.push({ unitId: id, alloc: 0, level: 0 }); rebalance(); this.shopUnit = '';
           playSfx(this, 'ui_buy'); save(); this.scene.restart({ kind: 'shop' });
         },
+      });
+    }
+    if (this.shopArtifact === null) {
+      const g = rng();
+      this.shopArtifact = offer('artifact', 1, owner(), g)[0]?.id ?? '';
+      commitRng(g);
+    }
+    if (this.shopArtifact) {
+      const p = perkById(this.shopArtifact);
+      const cost = Math.round((p.rarity === 'legendary' ? 220 : p.rarity === 'rare' ? 150 : 110) * (1 - bonus.shopDiscount()));
+      opts.push({
+        label: t('shop.artifact', { name: t(`perk.${p.id}`) }), hint: perkLines(p).join(' · '), price: cost, enabled: r.gold >= cost,
+        action: () => { r.gold -= cost; grantPerk(p.id); this.shopArtifact = ''; playSfx(this, 'ui_buy'); save(); this.shop(); },
       });
     }
     opts.push(this.leaveOpt());
@@ -239,9 +259,14 @@ export class NodeScene extends Phaser.Scene {
     r.gold += gold;
     if (boon) applyBoon(boon);
     addLoot(lootFor('treasure', 6));
+    const g2 = rng();
+    const art = g2.next() < 0.4 ? offer('artifact', 1, owner(), g2)[0] : undefined;
+    commitRng(g2);
+    if (art) grantPerk(art.id);
     playSfx(this, 'ui_reward');
     save();
-    const text = t('treasure.text', { gold }) + (boon ? `\n\n${t('treasure.boon', { boon: t(`boon.${boon}`) })}` : '');
+    const text = t('treasure.text', { gold }) + (boon ? `\n\n${t('treasure.boon', { boon: t(`boon.${boon}`) })}` : '')
+      + (art ? `\n\n${t('treasure.artifact', { name: t(`perk.${art.id}`) })}\n${perkLines(art).join(' · ')}` : '');
     this.show(t('node.treasure'), text, [this.leaveOpt(t('common.continue'))]);
   }
 

@@ -7,9 +7,12 @@ import { run, save, availableNodes, nodeById, rng, commitRng, count } from '../r
 import type { MapNode, NodeType } from '../run/mapgen';
 import { buildEnemy, battleConfig } from '../run/encounters';
 import { EVENT_IDS } from '../run/events';
+import { heroById } from '../run/heroes';
 import { ArmyPanel } from '../ui/ArmyPanel';
 import { panel, textStyle, titleStyle } from '../ui/widgets';
 import { Button, toast } from '../ui/Button';
+import { perkById, perkIconKey } from '../run/perks';
+import { perkLines, rarityLabel, RARITY_COLOR, tooltip, loadPerkIcons } from '../ui/perkUi';
 
 const MAP_X = 420;
 const MAP_W = 1080;
@@ -41,8 +44,10 @@ export class MapScene extends Phaser.Scene {
     for (const k of ['node_battle', 'node_elite', 'node_event', 'node_shop', 'node_rest', 'node_shrine', 'node_boss']) img(this, k, `map/${k}.webp`);
     img(this, 'node_treasure', 'map/objects/mapobj_treasure_chest.webp');
     for (const k of ['ring_available', 'ring_current', 'ring_visited', 'path_dot', 'path_dot_lit', 'marker_check']) img(this, k, `map/node_states/${k}.webp`);
-    if (!this.textures.exists('walk_humans')) this.load.spritesheet('walk_humans', 'assets/map/animated/anim_map_hero_humans_walk_sheet_8x4.webp', { frameWidth: 320, frameHeight: 320 });
+    const wk = this.walkKey();
+    if (!this.textures.exists(wk)) this.load.spritesheet(wk, `assets/map/animated/anim_map_hero_${wk.slice(5)}_walk_sheet_8x4.webp`, { frameWidth: 320, frameHeight: 320 });
     sfx(this, 'mus_map_act1', 'audio/music/mus_map_act1.ogg');
+    loadPerkIcons(this, [...(r.talents ?? []), ...(r.artifacts ?? [])].map(perkById));
   }
 
   create(): void {
@@ -113,13 +118,14 @@ export class MapScene extends Phaser.Scene {
     }
 
     // hero token
-    if (!this.anims.exists('walk_humans_anim')) {
-      this.anims.create({ key: 'walk_humans_anim', frames: this.anims.generateFrameNumbers('walk_humans', { start: 0, end: 31 }), frameRate: 16, repeat: -1 });
+    const wk = this.walkKey();
+    if (!this.anims.exists(`${wk}_anim`)) {
+      this.anims.create({ key: `${wk}_anim`, frames: this.anims.generateFrameNumbers(wk, { start: 0, end: 31 }), frameRate: 16, repeat: -1 });
     }
     const start = r.currentNode !== null ? nodeById(r.currentNode) : null;
     const tx = start ? px(start) : MAP_X + MAP_W / 2;
     const ty = start ? py(start) : MAP_H - 25;
-    this.token = this.add.sprite(tx, ty + 10, 'walk_humans', 0).setOrigin(0.5, 0.92).setDepth(50);
+    this.token = this.add.sprite(tx, ty + 10, wk, 0).setOrigin(0.5, 0.92).setDepth(50);
     this.token.setScale(120 / 320);
 
     this.tip = this.add.text(0, 0, '', { ...textStyle(24, COLOR.light, true), backgroundColor: '#1b120bdd', padding: { x: 10, y: 6 } })
@@ -150,17 +156,42 @@ export class MapScene extends Phaser.Scene {
     right.add(this.add.text(200, 50, t('run.act', { n: r.act }), titleStyle(34)).setOrigin(0.5));
     right.add(this.add.text(200, 95, t(`biome.${r.biome}`), textStyle(24, '#e8dcc0')).setOrigin(0.5));
     LEGEND.forEach((type, i) => {
-      const y = 175 + i * 74;
-      const ic = this.add.image(70, y, ICON[type]); ic.setScale(56 / Math.max(ic.width, ic.height));
+      const y = 150 + i * 50;
+      const ic = this.add.image(70, y, ICON[type]); ic.setScale(42 / Math.max(ic.width, ic.height));
       right.add(ic);
-      right.add(this.add.text(115, y, t(`node.${type}`), textStyle(23)).setOrigin(0, 0.5));
+      right.add(this.add.text(110, y, t(`node.${type}`), textStyle(21)).setOrigin(0, 0.5));
     });
-    right.add(this.add.text(200, 790, t('map.hint'), { ...textStyle(18, '#c9b896'), align: 'center', wordWrap: { width: 340 } }).setOrigin(0.5));
+    // talents and artifacts with tooltips
+    const perkGrid = (title: string, ids: string[], y0: number): number => {
+      right.add(this.add.text(200, y0, title, titleStyle(24)).setOrigin(0.5, 0));
+      if (!ids.length) { right.add(this.add.text(200, y0 + 40, t('map.none'), textStyle(18, '#c9b896')).setOrigin(0.5, 0)); return y0 + 80; }
+      ids.forEach((id, i) => {
+        const p = perkById(id);
+        const x = 60 + (i % 5) * 70, y = y0 + 64 + Math.floor(i / 5) * 70;
+        const bg = this.add.graphics();
+        bg.fillStyle(0x000000, 0.45).fillRoundedRect(x - 30, y - 30, 60, 60, 10);
+        bg.lineStyle(2, Phaser.Display.Color.HexStringToColor(RARITY_COLOR[p.cursed ? 'cursed' : p.rarity]).color, 1).strokeRoundedRect(x - 30, y - 30, 60, 60, 10);
+        const ic = this.add.image(x, y, perkIconKey(p)).setInteractive();
+        ic.setScale(52 / Math.max(ic.width, ic.height));
+        tooltip(this, ic, `${t(`perk.${p.id}`)} (${rarityLabel(p)})`, perkLines(p));
+        right.add([bg, ic]);
+      });
+      return y0 + 64 + Math.ceil(ids.length / 5) * 70;
+    };
+    let py0 = perkGrid(t('map.talents'), r.talents ?? [], 560);
+    py0 = perkGrid(t('map.artifacts'), r.artifacts ?? [], py0 + 6);
+    right.setScrollFactor(0, 0, true);
     const menu = new Button(this, 1710, 990, t('map.menu'), { width: 300, fontSize: 26, onClick: () => { save(); this.scene.start('Title'); } });
     menu.setScrollFactor(0).setDepth(201);
 
     playMusic(this, 'mus_map_act1');
     if (!availableNodes().length) toast(this, '…');
+  }
+
+  /** Walking hero token of the run's people (sheet key walk_<people>). */
+  private walkKey(): string {
+    const f = heroById(run().heroId).faction;
+    return `walk_${({ human: 'humans', undead: 'undead', elf: 'elves', dwarf: 'dwarves', orc: 'orcs', demon: 'demons' } as Record<string, string>)[f] ?? 'humans'}`;
   }
 
   private showTip(n: MapNode, x: number, y: number): void {
@@ -177,7 +208,7 @@ export class MapScene extends Phaser.Scene {
     playSfx(this, 'ui_node_select');
     const tx = px(n), ty = py(n) + 10;
     this.token.setFlipX(tx < this.token.x);
-    this.token.play('walk_humans_anim');
+    this.token.play(`${this.walkKey()}_anim`);
     const dist = Math.hypot(tx - this.token.x, ty - this.token.y);
     this.cameras.main.pan(MAP_X + MAP_W / 2, Phaser.Math.Clamp(ty - 150, this.scale.height / 2, MAP_H - this.scale.height / 2), dist * 3 + 300);
     this.tweens.add({

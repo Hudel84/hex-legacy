@@ -53,6 +53,7 @@ RULES = [
     (r"^ui/portraits/",                                     "img", 256, 88),
     (r"^ui/hero_screen/ui_(hero_screen_bg|talent_tree_bg)", "img", 1920, 82),
     (r"^ui/",                                               "img", 640, 90),
+    (r"^icons/(talents|artifacts|spells|equipment)/",        "img", 256, 88),   # shown large on cards
     (r"^icons/",                                            "img", 128, 90),
     (r"^(units|neutrals|bosses|heroes|heroes_battle)/[^/]+\.png$", "img", 640, 88),
     (r"^map/",                                              "img", 384, 88),

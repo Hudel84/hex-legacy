@@ -3,8 +3,9 @@
 // unit passives and active abilities with cooldowns (3.8).
 import { type Hex, key, eq, neighbors, distance, inBounds, allHexes, behind, COLS, ROWS } from './hex';
 import type { UnitDef, Stack, Side, HeroStats, BattleEvent, StatusId } from './types';
+import { NO_MODS, type SideMods } from './mods';
 
-export interface ArmySetup { hero: HeroStats; army: { def: UnitDef; count: number }[]; }
+export interface ArmySetup { hero: HeroStats; army: { def: UnitDef; count: number }[]; mods?: SideMods; }
 export interface BattleSetup { player: ArmySetup; enemy: ArmySetup; seed?: number; obstacles?: Hex[]; startCols?: [number, number]; }
 
 export interface AttackPreview { minDmg: number; maxDmg: number; minKills: number; maxKills: number; }
@@ -50,11 +51,12 @@ function rng(seed: number): () => number {
 
 const START_ROWS: Record<number, number[]> = { 1: [3], 2: [2, 4], 3: [1, 3, 5], 4: [0, 2, 4, 6] };
 
-interface StrikeOpts { mult?: number; ignoreDefend?: boolean; noLifesteal?: boolean; kind?: 'normal' | 'counter' | 'first' | 'area' }
+interface StrikeOpts { mult?: number; ignoreDefend?: boolean; noLifesteal?: boolean; kind?: 'normal' | 'counter' | 'first' | 'area'; noCrit?: boolean }
 
 export class Battle {
   stacks: Stack[] = [];
   heroes: Record<Side, HeroStats>;
+  mods: Record<Side, SideMods>;
   obstacles = new Set<string>();
   round = 0;
   activeUid = -1;
@@ -67,6 +69,7 @@ export class Battle {
   constructor(setup: BattleSetup) {
     this.random = rng(setup.seed ?? Date.now());
     this.heroes = { player: setup.player.hero, enemy: setup.enemy.hero };
+    this.mods = { player: setup.player.mods ?? NO_MODS, enemy: setup.enemy.mods ?? NO_MODS };
     for (const side of ['player', 'enemy'] as Side[]) {
       const army = setup[side].army;
       const rows = START_ROWS[army.length] ?? START_ROWS[3];
@@ -77,13 +80,22 @@ export class Battle {
       });
     }
     for (const h of setup.obstacles ?? []) this.obstacles.add(key(h));
+    for (const st of this.stacks) {
+      const sh = this.mods[st.side].startShield;
+      if (sh > 0) st.statuses.push({ id: 'shield', turns: 2, value: sh });
+    }
   }
 
-  private addStack(def: UnitDef, side: Side, count: number, pos: Hex): Stack {
+  private addStack(def0: UnitDef, side: Side, count: number, pos: Hex): Stack {
+    const m = this.mods?.[side] ?? NO_MODS;
+    const def: UnitDef = (m.hp || m.ini || m.speed || (m.shots && def0.ranged))
+      ? { ...def0, hp: Math.round(def0.hp * (1 + m.hp)), ini: def0.ini + m.ini, speed: def0.speed + m.speed,
+        ranged: def0.ranged ? def0.ranged + m.shots : undefined }
+      : def0;
     const s: Stack = {
       uid: this.nextUid++, def, side, count, startCount: count, topHp: def.hp, pos,
       shots: def.ranged ?? 0, retaliated: false, defending: false, waited: false, acted: false,
-      cooldown: 0, statuses: [],
+      cooldown: 0, statuses: [], attacks: 0, counters: 0,
     };
     this.stacks.push(s);
     return s;
@@ -198,6 +210,14 @@ export class Battle {
     if (this.has(def, 'antiMounted') && att.def.mounted) m *= 0.6;
     if (this.has(att, 'rage') && att.topHp < att.def.hp / 2 && att.count === 1) m *= 1.5;
     if (!ranged && att.def.ranged && o.kind !== 'area') m *= 0.5;   // shooters are weak in melee
+    const am = this.mods[att.side], dm = this.mods[def.side];
+    let bonus = am.dmg + (ranged ? am.ranged : am.melee);
+    if (o.kind === 'counter') bonus += am.counterDmg;
+    if (att.attacks === 0 && o.kind !== 'counter') bonus += am.firstStrike;
+    if (def.def.sizeScale) bonus += am.vsBig;
+    if (def.def.undead) bonus += am.undeadDmg;
+    if (def.count * 2 < def.startCount) bonus += am.executioner;
+    m *= Math.max(0.1, 1 + bonus) * (1 - dm.taken);
     return m * (o.mult ?? 1);
   }
 
@@ -252,16 +272,21 @@ export class Battle {
   }
 
   private strike(att: Stack, def: Stack, ranged: boolean, o: StrikeOpts = {}): BattleEvent[] {
-    const dmg = this.roll(att, def, ranged, o);
+    const am = this.mods[att.side];
+    const crit = !o.noCrit && am.crit > 0 && this.random() < am.crit;
+    const dmg = this.roll(att, def, ranged, o) * (crit ? 2 : 1);
+    if (o.kind !== 'counter') att.attacks++;
     const kills = this.damage(def, dmg);
     const kind = o.kind ?? 'normal';
-    const ev: BattleEvent[] = [{ type: 'attack', uid: att.uid, target: def.uid, ranged, counter: kind === 'counter', damage: dmg, kills, left: def.count }];
-    if (this.has(att, 'lifesteal') && att.count > 0 && !o.noLifesteal) {
-      const healed = this.heal(att, Math.floor(dmg * 0.3), true);
+    const ev: BattleEvent[] = [{ type: 'attack', uid: att.uid, target: def.uid, ranged, counter: kind === 'counter', damage: dmg, kills, left: def.count, crit }];
+    const steal = (this.has(att, 'lifesteal') ? 0.3 : 0) + am.lifesteal;
+    if (steal > 0 && att.count > 0 && !o.noLifesteal) {
+      const healed = this.heal(att, Math.floor(dmg * steal), true);
       if (healed > 0) ev.push({ type: 'heal', uid: att.uid, amount: healed, count: att.count });
     }
     if (def.count > 0) {
       if (this.has(att, 'poisonHit')) this.addStatus(def, 'poison', 2, Math.max(2, Math.round(dmg * 0.2)), ev);
+      else if (am.poison > 0 && !ranged) this.addStatus(def, 'poison', 2, Math.max(1, Math.round(dmg * am.poison)), ev);
       if (this.has(att, 'curseHit')) this.addStatus(def, 'atkDown', 2, 2, ev);
       if (this.has(att, 'corrode')) this.addStatus(def, 'defDown', 2, 2, ev);
     }
@@ -276,9 +301,20 @@ export class Battle {
       ev.push(...this.strike(t, s, false, { mult: 0.5, kind: 'first' }));
       if (s.count <= 0) return ev;
     }
+    const before = this.hpTotal(t);
     ev.push(...this.strike(s, t, false, o));
-    if (allowCounter && t.count > 0 && (!t.retaliated || this.has(t, 'unlimitedRetaliation')) && !this.has(s, 'noRetaliation')) {
-      t.retaliated = true;
+    const thorns = this.mods[t.side].thorns;
+    if (thorns > 0 && s.count > 0) {
+      const dealt = before - this.hpTotal(t);
+      const back = Math.max(1, Math.round(dealt * thorns));
+      const kills = this.damage(s, back);
+      ev.push({ type: 'dot', uid: s.uid, damage: back, kills, left: s.count, source: 'thorns' });
+      if (s.count <= 0) { ev.push({ type: 'death', uid: s.uid }); return ev; }
+    }
+    const maxCounters = 1 + this.mods[t.side].counters;
+    if (allowCounter && t.count > 0 && (t.counters < maxCounters || this.has(t, 'unlimitedRetaliation')) && !this.has(s, 'noRetaliation')) {
+      t.counters++;
+      t.retaliated = t.counters >= maxCounters;
       ev.push(...this.strike(t, s, false, { kind: 'counter' }));
     }
     return ev;
@@ -286,16 +322,19 @@ export class Battle {
 
   // ---------- turn flow ----------
 
+  /** Initiative including the round-1 bonus (the queue is built right after the round counter rises). */
+  iniOf(s: Stack): number { return s.def.ini + (this.round <= 1 ? this.mods[s.side].round1Ini : 0); }
+
   private initiativeOrder(): number[] {
     return this.alive
       .slice()
-      .sort((a, b) => b.def.ini - a.def.ini || (a.side === 'player' ? -1 : 1) - (b.side === 'player' ? -1 : 1) || a.uid - b.uid)
+      .sort((a, b) => this.iniOf(b) - this.iniOf(a) || (a.side === 'player' ? -1 : 1) - (b.side === 'player' ? -1 : 1) || a.uid - b.uid)
       .map((s) => s.uid);
   }
 
   private startRound(): BattleEvent[] {
     this.round++;
-    for (const s of this.alive) { s.retaliated = false; s.waited = false; s.acted = false; }
+    for (const s of this.alive) { s.retaliated = false; s.counters = 0; s.waited = false; s.acted = false; }
     this.queue = this.initiativeOrder();
     this.waitQueue = [];
     return [{ type: 'round', round: this.round }];
@@ -321,6 +360,11 @@ export class Battle {
         s.statuses = s.statuses.filter((x) => x !== st);
         ev.push({ type: 'status', uid: s.uid, status: st.id, on: false });
       }
+    }
+    const rg = this.mods[s.side].regen;
+    if (rg > 0 && s.summonRounds === undefined) {
+      const amount = this.heal(s, Math.ceil(s.def.hp * rg * s.count), false);
+      if (amount > 0) ev.push({ type: 'heal', uid: s.uid, amount, count: s.count });
     }
     if (this.has(s, 'regen') && s.topHp < s.def.hp) {
       const amount = s.def.hp - s.topHp;
@@ -408,7 +452,7 @@ export class Battle {
   private useAbility(s: Stack, targetUid: number | undefined): BattleEvent[] {
     const ab = this.ability(s)!;
     const ev: BattleEvent[] = [{ type: 'ability', uid: s.uid, ability: ab.id, target: targetUid }];
-    s.cooldown = ab.cooldown;
+    s.cooldown = ab.cooldown >= 99 ? ab.cooldown : Math.max(1, ab.cooldown - this.mods[s.side].cooldown);
     const t = targetUid !== undefined ? this.stack(targetUid) : s;
     switch (ab.id) {
       case 'spearWall': this.addStatus(s, 'spearwall', 1, 1, ev); break;
@@ -514,7 +558,13 @@ export class Battle {
       }
       case 'shoot': {
         s.shots--;
-        ev.push(...this.strike(s, this.stack(a.target), true));
+        const t = this.stack(a.target);
+        ev.push(...this.strike(s, t, true));
+        const split = this.mods[s.side].splitShot;
+        if (split > 0) {
+          const near = this.enemiesOf(s).filter((e) => e !== t && this.targetable(e) && this.sdist(e, t) === 1);
+          if (near.length) ev.push(...this.strike(s, near[Math.floor(this.random() * near.length)], true, { mult: split, kind: 'area', noCrit: true }));
+        }
         break;
       }
       case 'melee': {

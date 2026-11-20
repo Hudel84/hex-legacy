@@ -777,7 +777,7 @@ export class BattleScene extends Phaser.Scene {
             v.sprite.setTint(0x80ff80);
             this.time.delayedCall(200, () => v.sprite.clearTint());
             this.setCount(e.uid, e.left);
-            this.log(t('battle.log.poison', { a: unitName(v.stack.def), dmg: e.damage, kills: e.kills }));
+            this.log(t(e.source === 'thorns' ? 'battle.log.thorns' : 'battle.log.poison', { a: unitName(v.stack.def), dmg: e.damage, kills: e.kills }));
             await this.wait(350);
           }
           break;
@@ -911,6 +911,7 @@ export class BattleScene extends Phaser.Scene {
     const bx = tv.box.x;
     this.tweens.add({ targets: tv.box, x: bx + (facing ? -10 : 10), duration: 50, yoyo: true, repeat: 1, onComplete: () => { tv.box.x = bx; } });
     this.floatText(e.target, `-${e.damage}`, '#ff6b5b');
+    if (e.crit) { this.floatText(e.target, t('battle.crit'), '#ffb347', -80); playSfx(this, 'cb_crit', 0.8); }
     if (e.kills > 0) this.floatText(e.target, `☠ ${e.kills}`, '#ffffff', -40, 120);
     this.setCount(e.target, e.left);
 

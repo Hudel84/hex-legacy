@@ -3,8 +3,10 @@ import { UNITS } from '../data/units';
 import type { UnitDef } from '../battle/types';
 import { generateMap, type MapNode } from './mapgen';
 import { heroById } from './heroes';
+import { perkById, sideMods, runFactor } from './perks';
+import type { SideMods } from '../battle/mods';
 import { Rng } from './rng';
-import { bonus, unitUnlocked, type Res } from '../meta/meta';
+import { bonus, unitUnlocked, FACTION_RES, type Res } from '../meta/meta';
 
 export const MAX_SLOTS = 3;
 export const MAX_UNIT_LEVEL = 2;
@@ -33,6 +35,8 @@ export interface RunState {
   pending?: { kind: 'reward'; nodeId: number } | null;
   seenEvents?: string[];
   loot: Partial<Record<Res, number>>;
+  talents?: string[];
+  artifacts?: string[];
 }
 
 const KEY = 'hexlegacy.run.v1';
@@ -48,7 +52,7 @@ export function newRun(heroId: string, seed = Math.floor(Math.random() * 2 ** 31
     version: 1, seed, rngState: seed ^ 0x51f15e, act: 1, biome,
     heroId, atk: hero.atk + bonus.atk(), def: hero.def + bonus.def(), leadership, level: 1, xp: 0, gold: 60 + bonus.startGold(),
     army: hero.startArmy.map((unitId, i) => ({ unitId, alloc: share, level: i < bonus.smithy() ? 1 : 0 })),
-    map: generateMap(seed), currentNode: null, visited: [], shopBuys: 0, battlesWon: 0, pending: null, loot: {},
+    map: generateMap(seed), currentNode: null, visited: [], shopBuys: 0, battlesWon: 0, pending: null, loot: {}, talents: [], artifacts: [],
   };
 }
 
@@ -170,11 +174,32 @@ export function addLoot(gain: Partial<Record<Res, number>>, r = run()): void {
   for (const [k, v] of Object.entries(gain) as [Res, number][]) r.loot[k] = (r.loot[k] ?? 0) + v;
 }
 
-export function lootFor(type: string, floor: number): Partial<Record<Res, number>> {
+export function lootFor(type: string, floor: number, r = run()): Partial<Record<Res, number>> {
+  const fr = FACTION_RES[heroById(r.heroId).faction] ?? 'seal';
   switch (type) {
-    case 'boss': return { wood: 5, stone: 5, ore: 5, crystals: 4, seal: 5 };
-    case 'elite': return { wood: 2, stone: 2, ore: 3, crystals: 1, seal: 2 };
+    case 'boss': return { wood: 5, stone: 5, ore: 5, crystals: 4, [fr]: 5 };
+    case 'elite': return { wood: 2, stone: 2, ore: 3, crystals: 1, [fr]: 2 };
     case 'treasure': return { wood: 3, stone: 3, ore: 1 };
-    default: return { wood: 4 + Math.floor(floor / 3), stone: 3 + Math.floor(floor / 4), seal: 1 };
+    default: return { wood: 4 + Math.floor(floor / 3), stone: 3 + Math.floor(floor / 4), [fr]: 1 };
   }
 }
+
+// ---------- talents & artifacts ----------
+
+export function owner(r = run()): { heroId: string; faction: string; talents: string[]; artifacts: string[] } {
+  return { heroId: r.heroId, faction: heroById(r.heroId).faction, talents: r.talents ?? [], artifacts: r.artifacts ?? [] };
+}
+
+/** Take a talent or artifact: remember it and apply its one-time effects. */
+export function grantPerk(id: string, r = run()): void {
+  const p = perkById(id);
+  if (p.kind === 'talent') (r.talents ??= []).push(id); else (r.artifacts ??= []).push(id);
+  const o = p.once ?? {};
+  if (o.atk) r.atk = Math.max(0, r.atk + o.atk);
+  if (o.def) r.def = Math.max(0, r.def + o.def);
+  if (o.lead) r.leadership = Math.max(20, r.leadership + o.lead);
+  if (o.gold) r.gold += o.gold;
+}
+
+export const playerMods = (r = run()): SideMods => sideMods(owner(r));
+export const perkFactor = (k: 'gold' | 'xp' | 'draft', r = run()): number => runFactor(owner(r), k);

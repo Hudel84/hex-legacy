@@ -1,19 +1,22 @@
 // Meta progression ("the city"): resources carried over between runs and permanent buildings.
 // Saved separately from the run in localStorage.
 
-export type Res = 'wood' | 'stone' | 'ore' | 'crystals' | 'fame' | 'seal';
-export const RES: Res[] = ['wood', 'stone', 'ore', 'crystals', 'fame', 'seal'];
+export type Res = 'wood' | 'stone' | 'ore' | 'crystals' | 'fame' | 'seal' | 'dust';
+export const RES: Res[] = ['wood', 'stone', 'ore', 'crystals', 'fame', 'seal', 'dust'];
+/** Each people collects its own resource during its runs. */
+export const FACTION_RES: Record<string, Res> = { human: 'seal', undead: 'dust' };
 export const RES_ICON: Record<Res, string> = {
   wood: 'icons/resources/icon_res_wood.webp', stone: 'icons/resources/icon_res_stone.webp',
   ore: 'icons/resources/icon_res_ore.webp', crystals: 'icons/resources/icon_res_crystals.webp',
   fame: 'icons/resources/icon_res_fame.webp', seal: 'icons/resources/icon_res_human_sun_seal.webp',
+  dust: 'icons/resources/icon_res_undead_bone_dust.webp',
 };
 export type Cost = Partial<Record<Res, number>>;
 
 export interface BuildingDef {
   id: string;
   icon: string;          // icons/buildings/<icon>.webp
-  district: 'center' | 'human';
+  district: 'center' | 'human' | 'undead';
   x: number; y: number;  // position on the city overview (1920x1080)
   costs: Cost[];         // one entry per level
 }
@@ -35,7 +38,7 @@ export const BUILDINGS: BuildingDef[] = [
     costs: [{ stone: 20, crystals: 3, fame: 15 }] },
   { id: 'warehouse', icon: 'icon_building_warehouse', district: 'center', x: 880, y: 300,
     costs: [{ wood: 20, stone: 15 }] },
-  { id: 'fieldCamp', icon: 'icon_building_field_camp', district: 'center', x: 560, y: 760,
+  { id: 'fieldCamp', icon: 'icon_building_field_camp', district: 'center', x: 700, y: 800,
     costs: [{ wood: 8, stone: 4 }, { wood: 25, stone: 15, ore: 4 }] },
   { id: 'cathedral', icon: 'icon_building_human_cathedral', district: 'human', x: 420, y: 250,
     costs: [{ seal: 8, stone: 15 }] },
@@ -43,12 +46,18 @@ export const BUILDINGS: BuildingDef[] = [
     costs: [{ seal: 15, wood: 20, ore: 5 }] },
   { id: 'knightsHall', icon: 'icon_building_human_knights_hall', district: 'human', x: 250, y: 420,
     costs: [{ seal: 25, stone: 25, ore: 10, crystals: 3 }] },
+  { id: 'crypt', icon: 'icon_building_undead_crypt', district: 'undead', x: 250, y: 640,
+    costs: [{ dust: 8, stone: 15 }] },
+  { id: 'necroTower', icon: 'icon_building_undead_necro_tower', district: 'undead', x: 450, y: 700,
+    costs: [{ dust: 15, stone: 20, ore: 5 }] },
+  { id: 'dragonGraveyard', icon: 'icon_building_undead_dragon_graveyard', district: 'undead', x: 290, y: 830,
+    costs: [{ dust: 25, stone: 25, ore: 10, crystals: 3 }] },
 ];
 export const buildingById = (id: string): BuildingDef => BUILDINGS.find((b) => b.id === id)!;
 
 /** Districts of the other peoples, shown as locked. */
 export const LOCKED_DISTRICTS = [
-  { id: 'elves', x: 1040, y: 235 }, { id: 'dwarves', x: 1600, y: 260 }, { id: 'undead', x: 300, y: 760 },
+  { id: 'elves', x: 1040, y: 235 }, { id: 'dwarves', x: 1600, y: 260 },
   { id: 'orcs', x: 1000, y: 930 }, { id: 'demons', x: 1620, y: 800 },
 ];
 
@@ -65,7 +74,7 @@ const KEY = 'hexlegacy.meta.v1';
 let meta: MetaState | null = null;
 
 function fresh(): MetaState {
-  return { version: 1, res: { wood: 0, stone: 0, ore: 0, crystals: 0, fame: 0, seal: 0 }, buildings: {}, runs: 0, wins: 0, bestFloor: 0 };
+  return { version: 1, res: { wood: 0, stone: 0, ore: 0, crystals: 0, fame: 0, seal: 0, dust: 0 }, buildings: {}, runs: 0, wins: 0, bestFloor: 0 };
 }
 
 export function getMeta(): MetaState {
@@ -115,7 +124,7 @@ export function build(id: string): boolean {
 
 export function addRes(gain: Partial<Record<Res, number>>, factor = 1): Record<Res, number> {
   const m = getMeta();
-  const out = { wood: 0, stone: 0, ore: 0, crystals: 0, fame: 0, seal: 0 } as Record<Res, number>;
+  const out = { wood: 0, stone: 0, ore: 0, crystals: 0, fame: 0, seal: 0, dust: 0 } as Record<Res, number>;
   for (const r of RES) {
     const v = Math.floor((gain[r] ?? 0) * factor);
     m.res[r] += v;
@@ -141,16 +150,17 @@ export const bonus = {
   campDrill: () => (level('fieldCamp') >= 2 ? 20 : 12),
 };
 
-/** Which heroes are available. The Knight Commander is always unlocked. */
+/** Heroes: the first hero of every people is free, the tavern unlocks the second and third. */
+const HERO_TIER: Record<string, number> = {
+  human_hero_guard_captain: 1, human_hero_priestess_of_light: 2,
+  undead_hero_necromancer: 1, undead_hero_grave_robber: 2,
+};
 export function heroUnlocked(heroId: string): boolean {
-  if (heroId === 'human_hero_guard_captain') return level('tavern') >= 1;
-  if (heroId === 'human_hero_priestess_of_light') return level('tavern') >= 2;
-  return true;
+  return level('tavern') >= (HERO_TIER[heroId] ?? 0);
 }
 export function heroUnlockText(heroId: string): string | null {
-  if (heroId === 'human_hero_guard_captain') return 'tavern:1';
-  if (heroId === 'human_hero_priestess_of_light') return 'tavern:2';
-  return null;
+  const n = HERO_TIER[heroId];
+  return n ? `tavern:${n}` : null;
 }
 
 /** Unit types that can show up in drafts and shops. */
@@ -158,5 +168,8 @@ export function unitUnlocked(unitId: string): boolean {
   if (unitId === 'human_t4_cleric') return level('cathedral') >= 1;
   if (unitId === 'human_t5_griffin_rider') return level('griffinAerie') >= 1;
   if (unitId === 'human_t6_paladin') return level('knightsHall') >= 1;
+  if (unitId === 'undead_t4_vampire') return level('crypt') >= 1;
+  if (unitId === 'undead_t5_lich') return level('necroTower') >= 1;
+  if (unitId === 'undead_t6_bone_dragon') return level('dragonGraveyard') >= 1;
   return true;
 }

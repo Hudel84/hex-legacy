@@ -2,7 +2,7 @@ import { UNITS } from '../data/units';
 import type { BattleSetup } from '../battle/engine';
 import { Battle } from '../battle/engine';
 import type { MapNode } from './mapgen';
-import { run, rng, commitRng, count, upgradedDef, type RunState } from './state';
+import { run, rng, commitRng, count, upgradedDef, playerMods, perkFactor, type RunState } from './state';
 import { heroById } from './heroes';
 
 // Themed enemy groups for act 1. Units are picked from one group per fight.
@@ -32,7 +32,7 @@ function playerPower(r: RunState): number {
     * (1 + 0.04 * (r.atk + r.def));
 }
 
-export const DIFFICULTY = { base: 300, start: 0.5, perFloor: 0.05, elite: 1.1, boss: 0.45 };
+export const DIFFICULTY = { base: 315, start: 0.5, perFloor: 0.05, elite: 1.1, boss: 0.45 };
 
 export function buildEnemy(node: MapNode, groupOverride?: string): EnemyArmy {
   const r = run();
@@ -107,13 +107,14 @@ export function battleConfig(node: MapNode, enemy: EnemyArmy, rewardMul = 1): Ru
       obstacles: Battle.randomObstacles(seed, isBoss ? 2 : 3),
       player: {
         hero: { atk: r.atk, def: r.def },
+        mods: playerMods(r),
         army: r.army.filter((s) => count(s) > 0).map((s) => ({ def: upgradedDef(s), count: count(s) })),
       },
       enemy: { hero: enemy.hero, army: enemy.army.map((a) => ({ def: UNITS[a.id], count: a.count })) },
     },
     reward: {
-      gold: Math.round(baseGold * rewardMul),
-      xp: isBoss ? 60 : isElite ? 30 : 12 + node.floor,
+      gold: Math.round(baseGold * rewardMul * (1 + perkFactor('gold', r))),
+      xp: Math.round((isBoss ? 60 : isElite ? 30 : 12 + node.floor) * (1 + perkFactor('xp', r))),
       draft: !isBoss,
     },
   };

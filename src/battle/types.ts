@@ -47,6 +47,8 @@ export interface Stack {
   waited: boolean;
   acted: boolean;
   cooldown: number;         // rounds until the active ability is ready again (0 = ready)
+  attacks: number;          // own attacks this battle (first-strike talents)
+  counters: number;         // counter-attacks used this round
   statuses: Status[];
   summonRounds?: number;    // summoned stacks vanish when this reaches 0
 }
@@ -57,11 +59,11 @@ export interface Status { id: StatusId; turns: number; value: number; }
 export type BattleEvent =
   | { type: 'move'; uid: number; path: Hex[] }
   | { type: 'attack'; uid: number; target: number; ranged: boolean; counter: boolean;
-      damage: number; kills: number; left: number }
+      damage: number; kills: number; left: number; crit?: boolean }
   | { type: 'heal'; uid: number; amount: number; count: number }
   | { type: 'ability'; uid: number; ability: string; target?: number }
   | { type: 'status'; uid: number; status: StatusId; on: boolean }
-  | { type: 'dot'; uid: number; damage: number; kills: number; left: number }
+  | { type: 'dot'; uid: number; damage: number; kills: number; left: number; source?: 'thorns' }
   | { type: 'summon'; uid: number }
   | { type: 'vanish'; uid: number }
   | { type: 'teleport'; uid: number; to: Hex }

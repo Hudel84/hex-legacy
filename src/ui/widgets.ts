@@ -58,7 +58,9 @@ export interface CardOpts {
   portrait?: string;
   title: string;
   subtitle?: string;
+  subtitleColor?: string;
   lines?: string[];
+  lineSize?: number;
   onClick?: () => void;
   disabled?: boolean;
   highlight?: boolean;
@@ -88,13 +90,13 @@ export function card(scene: Phaser.Scene, x: number, y: number, o: CardOpts): Ph
   c.add(title);
   let yy = ty + title.height + 6;
   if (o.subtitle) {
-    const sub = scene.add.text(0, yy, o.subtitle, { ...textStyle(Math.round(w / 17), '#d9c7a0'), align: 'center', wordWrap: { width: w * 0.8 } }).setOrigin(0.5, 0);
+    const sub = scene.add.text(0, yy, o.subtitle, { ...textStyle(Math.round(w / 17), o.subtitleColor ?? '#d9c7a0', !!o.subtitleColor), align: 'center', wordWrap: { width: w * 0.8 } }).setOrigin(0.5, 0);
     c.add(sub);
     yy += sub.height + 8;
   }
   if (o.lines?.length) {
     c.add(scene.add.text(0, yy, o.lines.join('\n'), {
-      ...textStyle(Math.round(w / 17)), align: 'center', lineSpacing: 3, wordWrap: { width: w * 0.8 },
+      ...textStyle(o.lineSize ?? Math.round(w / 17)), align: 'center', lineSpacing: 3, wordWrap: { width: w * 0.8 },
     }).setOrigin(0.5, 0));
   }
   if (o.highlight) {

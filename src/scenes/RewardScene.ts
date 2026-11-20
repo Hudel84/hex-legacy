@@ -3,15 +3,16 @@ import { t } from '../core/i18n';
 import { playSfx, playMusic } from '../core/audio';
 import { img, loadRunUi, loadPortrait } from '../core/assets';
 import {
-  run, save, gainXp, applyBoon, BOONS, type Boon, rng, commitRng, draftPool, nodeById, MAX_SLOTS, MAX_UNIT_LEVEL, rebalance, unitDef,
-  addLoot, lootFor,
+  run, save, gainXp, rng, commitRng, draftPool, nodeById, MAX_SLOTS, MAX_UNIT_LEVEL, rebalance, unitDef,
+  addLoot, lootFor, owner, grantPerk, perkFactor,
 } from '../run/state';
+import { offer, type PerkDef } from '../run/perks';
+import { perkCard, loadPerkIcons } from '../ui/perkUi';
 import { bonus } from '../meta/meta';
 import type { RunBattleConfig } from '../run/encounters';
 import { card, titleStyle, textStyle, stat, resRow } from '../ui/widgets';
 import { Button } from '../ui/Button';
 
-const BOON_ICON: Record<Boon, string> = { atk2: 'icon_atk', def2: 'icon_def', lead20: 'icon_lead', atkdef: 'icon_atk', gold60: 'icon_gold' };
 
 export class RewardScene extends Phaser.Scene {
   private cfg!: RunBattleConfig;
@@ -19,19 +20,21 @@ export class RewardScene extends Phaser.Scene {
   private levelUps = 0;
   private draft: string[] = [];
   private loot: Record<string, number> = {};
+  private artifactDone = false;
 
   constructor() { super('Reward'); }
 
-  init(data: { config: RunBattleConfig }): void { this.cfg = data.config; }
+  init(data: { config: RunBattleConfig }): void { this.cfg = data.config; this.artifactDone = false; }
 
   preload(): void {
     loadRunUi(this);
     img(this, 'ui_victory_screen', 'ui/screens/ui_victory_screen.webp');
     const node = nodeById(this.cfg.nodeId);
     const g = rng();
-    const pool = g.shuffle(draftPool('human', node.floor));
+    const pool = g.shuffle(draftPool(owner().faction, node.floor));
     commitRng(g);
-    this.draft = pool.slice(0, 3);
+    this.draft = pool.slice(0, 3 + perkFactor('draft'));
+    loadPerkIcons(this);
     for (const id of [...this.draft, ...run().army.map((s) => s.unitId)]) loadPortrait(this, id);
   }
 
@@ -70,6 +73,8 @@ export class RewardScene extends Phaser.Scene {
 
   private next(): void {
     if (this.levelUps > 0) { this.levelUp(); return; }
+    const node = nodeById(this.cfg.nodeId);
+    if (node.type === 'elite' && !this.artifactDone) { this.artifactChoice(); return; }
     if (this.cfg.reward.draft && this.draft.length) { this.showDraft(); return; }
     this.finish();
   }
@@ -80,17 +85,33 @@ export class RewardScene extends Phaser.Scene {
     playSfx(this, 'ui_levelup');
     this.clear();
     this.layer.add(this.add.text(w / 2, 120, t('reward.levelUp', { n: r.level - this.levelUps + 1 }), titleStyle(60)).setOrigin(0.5));
-    this.layer.add(this.add.text(w / 2, 195, t('reward.chooseBoon'), textStyle(30)).setOrigin(0.5));
+    this.layer.add(this.add.text(w / 2, 195, t('reward.chooseTalent'), textStyle(30)).setOrigin(0.5));
     const g = rng();
-    const opts = g.shuffle([...BOONS]).slice(0, bonus.levelUpChoices());
+    const opts = offer('talent', bonus.levelUpChoices(), owner(), g);
     commitRng(g);
-    opts.forEach((b, i) => {
-      const c = card(this, w / 2 + (i - (opts.length - 1) / 2) * 340, 560, {
-        w: 300, h: 470, portrait: BOON_ICON[b], title: t(`boon.${b}`), subtitle: t(`boonText.${b}`),
-        onClick: () => { applyBoon(b); this.levelUps--; save(); playSfx(this, 'ui_talent_pick'); this.next(); },
-      });
-      this.layer.add(c);
+    this.perkCards(opts, (p) => { grantPerk(p.id); this.levelUps--; save(); playSfx(this, 'ui_talent_pick'); this.next(); });
+  }
+
+  private perkCards(opts: PerkDef[], pick: (p: PerkDef) => void): void {
+    const { width: w } = this.scale;
+    const gap = opts.length > 3 ? 330 : 360;
+    opts.forEach((p, i) => {
+      this.layer.add(perkCard(this, w / 2 + (i - (opts.length - 1) / 2) * gap, 590, p, () => pick(p)));
     });
+  }
+
+  private artifactChoice(): void {
+    const { width: w } = this.scale;
+    this.artifactDone = true;
+    const g = rng();
+    const opts = offer('artifact', 3, owner(), g);
+    commitRng(g);
+    if (!opts.length) { this.next(); return; }
+    playSfx(this, 'ui_reward');
+    this.clear();
+    this.layer.add(this.add.text(w / 2, 120, t('reward.artifact'), titleStyle(60)).setOrigin(0.5));
+    this.layer.add(this.add.text(w / 2, 195, t('reward.chooseArtifact'), textStyle(30)).setOrigin(0.5));
+    this.perkCards(opts, (p) => { grantPerk(p.id); save(); playSfx(this, 'ui_equip'); this.next(); });
   }
 
   private showDraft(): void {
