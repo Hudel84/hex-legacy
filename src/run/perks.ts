@@ -79,6 +79,51 @@ export const PERKS: PerkDef[] = [
   T('spectralHand', 'spectral_hand', 'rare', { heroes: ['undead_hero_necromancer'], once: { power: 2 }, mods: { spellDmg: 0.15 } }),
   T('treasureHunter', 'treasure_hunter', 'common', { heroes: ['undead_hero_grave_robber'], run: { gold: 0.5 } }),
   T('soulGrasp', 'soul_grasp', 'rare', { heroes: ['undead_hero_grave_robber'], mods: { executioner: 0.25, firstStrike: 0.2 } }),
+  // more hero talents: every hero has three of its own
+  T('herald', 'herald', 'rare', { heroes: ['human_hero_knight_commander'], once: { lead: 15 }, mods: { hp: 0.05 } }),
+  T('featherShield', 'feather_shield', 'common', { heroes: ['human_hero_guard_captain'], mods: { taken: 0.05, startShield: 2 } }),
+  T('reassemble', 'reassemble', 'rare', { heroes: ['undead_hero_death_lord'], mods: { regen: 0.05 } }),
+  T('luckyHorseshoe', 'lucky_horseshoe', 'common', { heroes: ['undead_hero_grave_robber'], run: { gold: 0.15 }, mods: { crit: 0.03 } }),
+  // elves
+  T('arrowRain', 'arrow_rain', 'rare', { heroes: ['elf_hero_ranger_leader'], mods: { ranged: 0.15, shots: 2 } }),
+  T('poisonArrows', 'poison_arrows', 'common', { heroes: ['elf_hero_ranger_leader'], mods: { poison: 0.15, ranged: 0.05 } }),
+  T('sniper', 'sniper', 'legendary', { heroes: ['elf_hero_ranger_leader'], mods: { markShots: 1, crit: 0.1 } }),
+  T('herbalism', 'herbalism', 'common', { heroes: ['elf_hero_druid'], once: { knowledge: 1 }, mods: { regen: 0.04 } }),
+  T('mightyAcorn', 'mighty_acorn', 'rare', { heroes: ['elf_hero_druid'], mods: { hp: 0.1, spellDmg: 0.1 } }),
+  T('peaceDove', 'peace_dove', 'rare', { heroes: ['elf_hero_druid'], mods: { regen: 0.03, taken: 0.06 } }),
+  T('foresight', 'foresight', 'common', { heroes: ['elf_hero_shadow_pathfinder'], mods: { firstStrike: 0.2 } }),
+  T('routePlanning', 'route_planning', 'rare', { heroes: ['elf_hero_shadow_pathfinder'], mods: { speed: 1, ini: 1 } }),
+  T('frostArrows', 'frost_arrows', 'rare', { heroes: ['elf_hero_shadow_pathfinder'], mods: { frost: 1, ranged: 0.05 } }),
+  // dwarves
+  T('stoneFist', 'stone_fist', 'common', { heroes: ['dwarf_hero_thane'], once: { def: 2 }, mods: { taken: 0.03 } }),
+  T('stormAnvil', 'storm_anvil', 'rare', { heroes: ['dwarf_hero_thane'], mods: { counterDmg: 0.25, counters: 1 } }),
+  T('reforgedBlade', 'reforged_blade', 'rare', { heroes: ['dwarf_hero_thane'], mods: { melee: 0.12, vsBig: 0.15 } }),
+  T('runeCircle', 'rune_circle', 'common', { heroes: ['dwarf_hero_runesmith'], once: { power: 1, knowledge: 1 } }),
+  T('runeSmithing', 'rune_smithing', 'rare', { heroes: ['dwarf_hero_runesmith'], mods: { startShield: 3, spellDmg: 0.1 } }),
+  T('runeCharm', 'rune_charm', 'rare', { heroes: ['dwarf_hero_runesmith'], mods: { cooldown: 1, mana: 6 } }),
+  T('runeGear', 'rune_gear', 'common', { heroes: ['dwarf_hero_sapper_master'], mods: { thorns: 0.1 } }),
+  T('armorCrusher', 'armor_crusher', 'rare', { heroes: ['dwarf_hero_sapper_master'], mods: { pierceDef: 0.2 } }),
+  T('torchbearer', 'torchbearer', 'rare', { heroes: ['dwarf_hero_sapper_master'], mods: { burn: 0.15 } }),
+  // orcs
+  T('warPaint', 'war_paint', 'common', { heroes: ['orc_hero_warchief'], mods: { melee: 0.08, round1Ini: 2 } }),
+  T('hornedRage', 'horned_rage', 'rare', { heroes: ['orc_hero_warchief'], mods: { furyMax: 2, dmg: 0.05 } }),
+  T('bloodyTusk', 'bloody_tusk', 'rare', { heroes: ['orc_hero_warchief'], mods: { lifesteal: 0.1, executioner: 0.15 } }),
+  T('fireTotem', 'fire_totem', 'rare', { heroes: ['orc_hero_shaman'], mods: { burn: 0.12, spellDmg: 0.1 } }),
+  T('bottledLightning', 'bottled_lightning', 'rare', { heroes: ['orc_hero_shaman'], once: { power: 1 }, mods: { spellDmg: 0.2 } }),
+  T('boneHorn', 'bone_horn', 'common', { heroes: ['orc_hero_shaman'], once: { knowledge: 2 } }),
+  T('boarTrophy', 'boar_trophy', 'common', { heroes: ['orc_hero_raid_master'], run: { gold: 0.2 } }),
+  T('cleave', 'cleave', 'rare', { heroes: ['orc_hero_raid_master'], mods: { firstStrike: 0.25, melee: 0.08 } }),
+  T('wolfPaw', 'wolf_paw', 'rare', { heroes: ['orc_hero_raid_master'], mods: { speed: 1, ini: 1 } }),
+  // demons
+  T('burningBlade', 'burning_blade', 'common', { heroes: ['demon_hero_pit_lord'], mods: { burn: 0.1, dmg: 0.05 } }),
+  T('ringOfFire', 'ring_of_fire', 'rare', { heroes: ['demon_hero_pit_lord'], mods: { thorns: 0.15, taken: 0.05 } }),
+  T('lavaHeart', 'lava_heart', 'legendary', { heroes: ['demon_hero_pit_lord'], mods: { dmg: 0.15, ini: 1, hp: 0.05 } }),
+  T('fiveFlames', 'five_flames', 'rare', { heroes: ['demon_hero_warlock'], mods: { spellDmg: 0.25 } }),
+  T('chaosVortex', 'chaos_vortex', 'rare', { heroes: ['demon_hero_warlock'], mods: { mana: 10, cooldown: 1 } }),
+  T('flamingSkull', 'flaming_skull', 'common', { heroes: ['demon_hero_warlock'], once: { power: 2 } }),
+  T('painForPower', 'pain_for_power', 'rare', { heroes: ['demon_hero_pact_maker'], mods: { dmg: 0.2, hp: -0.05 } }),
+  T('bloodEye', 'blood_eye', 'common', { heroes: ['demon_hero_pact_maker'], mods: { crit: 0.06 } }),
+  T('soulChain', 'soul_chain', 'rare', { heroes: ['demon_hero_pact_maker'], mods: { lifesteal: 0.12 } }),
 
   // ---- artifacts ----
   A('eagleStandard', 'eagle_standard', 'rare', { mods: { dmg: 0.15 } }),
@@ -149,7 +194,7 @@ export function offer(kind: 'talent' | 'artifact', n: number, o: Owner, rng: Rng
   if (minRarity === 'rare') pool = pool.filter((p) => p.rarity !== 'common');
   const out: PerkDef[] = [];
   while (out.length < n && pool.length) {
-    const w = pool.map((p) => WEIGHT[p.rarity] * (p.heroes ? 2 : 1));
+    const w = pool.map((p) => WEIGHT[p.rarity] * (p.heroes ? 4 : 1));   // hero talents show up often
     let r = rng.next() * w.reduce((a, b) => a + b, 0);
     let i = 0;
     for (; i < pool.length - 1; i++) { r -= w[i]; if (r <= 0) break; }
@@ -178,7 +223,7 @@ export function effectParts(p: PerkDef): { key: string; v: number }[] {
   for (const [k, v] of Object.entries(p.once ?? {})) if (v) out.push({ key: `eff.${k}`, v });
   for (const [k, v] of Object.entries(p.mods ?? {}) as [string, number][]) {
     if (!v) continue;
-    const flat = ['ini', 'speed', 'shots', 'counters', 'startShield', 'cooldown', 'round1Ini', 'mana'].includes(k);
+    const flat = ['ini', 'speed', 'shots', 'counters', 'startShield', 'cooldown', 'round1Ini', 'mana', 'frost', 'markShots', 'furyMax'].includes(k);
     out.push({ key: `eff.${k}`, v: flat ? v : pct(v) });
   }
   for (const [k, v] of Object.entries(p.run ?? {})) if (v) out.push({ key: `eff.run_${k}`, v: k === 'draft' ? v : pct(v) });

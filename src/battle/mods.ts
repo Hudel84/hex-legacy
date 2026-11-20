@@ -26,12 +26,18 @@ export interface SideMods {
   undeadDmg: number;    // damage against undead
   spellDmg: number;     // hero spell damage and healing
   mana: number;         // extra mana per battle (flat)
+  burn: number;         // hits set targets on fire for this share of the damage per turn (0 = off)
+  frost: number;        // 1 = hits slow the target
+  markShots: number;    // 1 = ranged hits mark the target (+25 % ranged damage taken)
+  furyMax: number;      // higher cap for the orcs' fury
+  pierceDef: number;    // ignore this share of the target's DEF
 }
 
 export const NO_MODS: SideMods = {
   dmg: 0, melee: 0, ranged: 0, taken: 0, hp: 0, ini: 0, speed: 0, shots: 0, counterDmg: 0, counters: 0,
   splitShot: 0, firstStrike: 0, regen: 0, lifesteal: 0, startShield: 0, poison: 0, cooldown: 0, round1Ini: 0,
   vsBig: 0, executioner: 0, thorns: 0, crit: 0, undeadDmg: 0, spellDmg: 0, mana: 0,
+  burn: 0, frost: 0, markShots: 0, furyMax: 0, pierceDef: 0,
 };
 
 export type ModPatch = Partial<SideMods>;

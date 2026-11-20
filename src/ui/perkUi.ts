@@ -19,7 +19,8 @@ export function perkLines(p: PerkDef): string[] {
 }
 
 export function rarityLabel(p: PerkDef): string {
-  return p.cursed ? `${t('rarity.cursed')} · ${t(`rarity.${p.rarity}`)}` : t(`rarity.${p.rarity}`);
+  const base = p.cursed ? `${t('rarity.cursed')} · ${t(`rarity.${p.rarity}`)}` : t(`rarity.${p.rarity}`);
+  return p.heroes ? `${t('rarity.hero')} · ${base}` : base;
 }
 
 export function loadPerkIcons(scene: Phaser.Scene, perks: PerkDef[] = PERKS): void {
@@ -29,7 +30,8 @@ export function loadPerkIcons(scene: Phaser.Scene, perks: PerkDef[] = PERKS): vo
 export function perkCard(scene: Phaser.Scene, x: number, y: number, p: PerkDef, onClick: () => void, w = 300): Phaser.GameObjects.Container {
   return card(scene, x, y, {
     w, h: 520, portrait: perkIconKey(p), title: t(`perk.${p.id}`), subtitle: rarityLabel(p),
-    subtitleColor: RARITY_COLOR[p.cursed ? 'cursed' : p.rarity], lines: perkLines(p), lineSize: 22, onClick,
+    subtitleColor: RARITY_COLOR[p.cursed ? 'cursed' : p.rarity], lines: perkLines(p),
+    lineSize: perkLines(p).join(' ').length > 70 ? 19 : 22, onClick,
   });
 }
 

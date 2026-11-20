@@ -292,6 +292,7 @@ export class Battle {
     if (def.defending && !ignoreDefend) d = Math.ceil(d * (def.def.faction === 'human' ? 1.5 : 1.3));
     if (ranged && attacker && this.has(attacker, 'pierce')) d -= 1;
     if (attacker && this.has(attacker, 'armorPierce')) d = Math.floor(d * 0.7);
+    if (attacker && this.mods[attacker.side].pierceDef > 0) d = Math.floor(d * (1 - this.mods[attacker.side].pierceDef));
     return Math.max(0, d);
   }
 
@@ -392,7 +393,7 @@ export class Battle {
   private fury(s: Stack, ev: BattleEvent[]): void {
     if (s.def.faction !== 'orc' || s.count <= 0) return;
     const f = s.statuses.find((x) => x.id === 'fury');
-    if (f) f.value = Math.min(4, f.value + 1);
+    if (f) f.value = Math.min(4 + this.mods[s.side].furyMax, f.value + 1);
     else { s.statuses.push({ id: 'fury', turns: 999, value: 1 }); ev.push({ type: 'status', uid: s.uid, status: 'fury', on: true }); }
   }
 
@@ -421,6 +422,10 @@ export class Battle {
       if (this.has(att, 'corrode')) this.addStatus(def, 'defDown', 2, 2, ev);
       if (this.has(att, 'burnHit')) this.addStatus(def, 'burn', 2, Math.max(2, Math.round(dmg * 0.15)), ev);
       if (this.has(att, 'frostHit')) this.addStatus(def, 'slow', 2, 1, ev);
+      // talents: fire, frost and marking hits
+      if (am.burn > 0 && o.kind !== 'counter') this.addStatus(def, 'burn', 2, Math.max(1, Math.round(dmg * am.burn)), ev);
+      if (am.frost > 0 && o.kind !== 'counter') this.addStatus(def, 'slow', 2, 1, ev);
+      if (am.markShots > 0 && ranged) this.addStatus(def, 'marked', 2, 1, ev);
     }
     if (def.count === 0) ev.push({ type: 'death', uid: def.uid });
     return ev;
@@ -505,12 +510,14 @@ export class Battle {
         ev.push({ type: 'status', uid: s.uid, status: st.id, on: false });
       }
     }
+    // exhaustion: from round 20 nothing regenerates any more, so two regenerating stacks cannot fight forever
+    const exhausted = this.round >= 20;
     const rg = this.mods[s.side].regen;
-    if (rg > 0 && s.summonRounds === undefined) {
+    if (rg > 0 && s.summonRounds === undefined && !exhausted) {
       const amount = this.heal(s, Math.ceil(s.def.hp * rg * s.count), false);
       if (amount > 0) ev.push({ type: 'heal', uid: s.uid, amount, count: s.count });
     }
-    if (this.has(s, 'regen') && s.topHp < s.def.hp) {
+    if (this.has(s, 'regen') && s.topHp < s.def.hp && !exhausted) {
       const amount = s.def.hp - s.topHp;
       s.topHp = s.def.hp;
       ev.push({ type: 'heal', uid: s.uid, amount, count: s.count });
