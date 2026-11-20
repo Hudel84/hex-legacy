@@ -18,6 +18,7 @@ const GROUPS: Record<string, string[]> = {
 // Acts 2 and 3: every biome has its own creatures (GDD 6.4)
 const BIOME_GROUPS: Record<string, string[][]> = {
   swamp_ruins: [
+    ['elf_t2_archer', 'elf_t3_forest_warden', 'elf_t4_dryad', 'elf_t5_unicorn_rider', 'neutral_will_o_wisps'],
     ['neutral_lizardman_warrior', 'neutral_naga', 'neutral_bog_witch', 'neutral_basilisk'],
     ['neutral_myconid_brute', 'neutral_acid_slime', 'neutral_will_o_wisps', 'neutral_cockatrice', 'neutral_giant_spider'],
   ],
@@ -26,6 +27,7 @@ const BIOME_GROUPS: Record<string, string[][]> = {
     ['neutral_mummy', 'neutral_skeleton_pirate', 'neutral_banshee', 'neutral_giant_bat', 'neutral_werewolf'],
   ],
   snowy_pass: [
+    ['orc_t1_grunt', 'orc_t2_axe_thrower', 'orc_t3_wolf_rider', 'orc_t4_shaman_adept', 'orc_t5_ogre'],
     ['neutral_yeti', 'neutral_ice_elemental', 'neutral_frost_wraith', 'neutral_dire_wolf', 'neutral_ettin'],
     ['neutral_cave_troll', 'neutral_owlbear', 'neutral_giant_bat', 'neutral_hobgoblin_captain', 'neutral_centaur'],
   ],
@@ -34,14 +36,19 @@ const BIOME_GROUPS: Record<string, string[][]> = {
     ['neutral_sand_wurm', 'neutral_dragon_turtle', 'neutral_cyclops', 'neutral_boar_beastman', 'neutral_harpy_v2'],
   ],
   crystal_cavern: [
+    ['dwarf_t2_hammerer', 'dwarf_t3_crossbow_veteran', 'dwarf_t4_shieldwall_guard', 'dwarf_t5_steam_golem', 'dwarf_t6_berserker_thane'],
     ['neutral_moss_stone_golem', 'neutral_stone_gargoyle', 'neutral_clockwork_golem', 'neutral_basilisk', 'neutral_mimic'],
     ['neutral_air_elemental', 'neutral_water_elemental', 'neutral_animated_armor', 'neutral_cyclops', 'neutral_treasure_goblin'],
   ],
   demon_wasteland: [
+    ['demon_t2_hellhound', 'demon_t3_succubus', 'demon_t4_devil', 'demon_t5_fire_lord', 'demon_t6_archdemon'],
     ['neutral_cultist', 'neutral_black_knight', 'neutral_fire_elemental', 'neutral_chimera', 'neutral_hedge_mage'],
     ['neutral_rogue_assassin', 'neutral_bandit_chieftain', 'neutral_manticore', 'neutral_phoenix', 'neutral_harpy'],
   ],
 };
+// the other peoples' scouting parties in act 1
+GROUPS.elves = ['elf_t1_scout', 'elf_t2_archer', 'elf_t3_forest_warden', 'neutral_will_o_wisps'];
+GROUPS.orcs = ['orc_t1_grunt', 'orc_t2_axe_thrower', 'orc_t3_wolf_rider', 'neutral_dire_wolf'];
 // extra act-1 creatures that were not in fights yet
 GROUPS.bandits.push('neutral_bandit_chieftain', 'neutral_rogue_assassin');
 GROUPS.wilds.push('neutral_owlbear', 'neutral_harpy');

@@ -1,22 +1,25 @@
 // Meta progression ("the city"): resources carried over between runs and permanent buildings.
 // Saved separately from the run in localStorage.
 
-export type Res = 'wood' | 'stone' | 'ore' | 'crystals' | 'fame' | 'seal' | 'dust';
-export const RES: Res[] = ['wood', 'stone', 'ore', 'crystals', 'fame', 'seal', 'dust'];
+export type Res = 'wood' | 'stone' | 'ore' | 'crystals' | 'fame' | 'seal' | 'dust' | 'dew' | 'rune' | 'fang' | 'ash';
+export const RES: Res[] = ['wood', 'stone', 'ore', 'crystals', 'fame', 'seal', 'dust', 'dew', 'rune', 'fang', 'ash'];
 /** Each people collects its own resource during its runs. */
-export const FACTION_RES: Record<string, Res> = { human: 'seal', undead: 'dust' };
+export const FACTION_RES: Record<string, Res> = { human: 'seal', undead: 'dust', elf: 'dew', dwarf: 'rune', orc: 'fang', demon: 'ash' };
+const zeroRes = (): Record<Res, number> => Object.fromEntries(RES.map((r) => [r, 0])) as Record<Res, number>;
 export const RES_ICON: Record<Res, string> = {
   wood: 'icons/resources/icon_res_wood.webp', stone: 'icons/resources/icon_res_stone.webp',
   ore: 'icons/resources/icon_res_ore.webp', crystals: 'icons/resources/icon_res_crystals.webp',
   fame: 'icons/resources/icon_res_fame.webp', seal: 'icons/resources/icon_res_human_sun_seal.webp',
   dust: 'icons/resources/icon_res_undead_bone_dust.webp',
+  dew: 'icons/resources/icon_res_elf_moon_dew.webp', rune: 'icons/resources/icon_res_dwarf_runestone.webp',
+  fang: 'icons/resources/icon_res_orc_blood_fang.webp', ash: 'icons/resources/icon_res_demon_hell_ash.webp',
 };
 export type Cost = Partial<Record<Res, number>>;
 
 export interface BuildingDef {
   id: string;
   icon: string;          // icons/buildings/<icon>.webp
-  district: 'center' | 'human' | 'undead';
+  district: 'center' | 'human' | 'undead' | 'elf' | 'dwarf' | 'orc' | 'demon';
   x: number; y: number;  // position on the city overview (1920x1080)
   costs: Cost[];         // one entry per level
 }
@@ -36,7 +39,7 @@ export const BUILDINGS: BuildingDef[] = [
     costs: [{ wood: 15, fame: 8 }, { wood: 25, stone: 10, fame: 20 }] },
   { id: 'academy', icon: 'icon_building_academy', district: 'center', x: 1240, y: 330,
     costs: [{ stone: 20, crystals: 3, fame: 15 }] },
-  { id: 'warehouse', icon: 'icon_building_warehouse', district: 'center', x: 880, y: 300,
+  { id: 'warehouse', icon: 'icon_building_warehouse', district: 'center', x: 740, y: 420,
     costs: [{ wood: 20, stone: 15 }] },
   { id: 'library', icon: 'icon_building_library', district: 'center', x: 1010, y: 690,
     costs: [{ wood: 12, crystals: 2 }, { stone: 20, crystals: 5 }, { stone: 30, ore: 8, crystals: 10, fame: 10 }] },
@@ -54,14 +57,23 @@ export const BUILDINGS: BuildingDef[] = [
     costs: [{ dust: 15, stone: 20, ore: 5 }] },
   { id: 'dragonGraveyard', icon: 'icon_building_undead_dragon_graveyard', district: 'undead', x: 290, y: 830,
     costs: [{ dust: 25, stone: 25, ore: 10, crystals: 3 }] },
+  { id: 'druidGrove', icon: 'icon_building_elf_druid_grove', district: 'elf', x: 870, y: 235, costs: [{ dew: 8, wood: 15 }] },
+  { id: 'unicornGlade', icon: 'icon_building_elf_unicorn_glade', district: 'elf', x: 1010, y: 210, costs: [{ dew: 15, wood: 20, ore: 5 }] },
+  { id: 'moonTemple', icon: 'icon_building_elf_moon_temple', district: 'elf', x: 1150, y: 235, costs: [{ dew: 25, stone: 25, ore: 10, crystals: 3 }] },
+  { id: 'guildHall', icon: 'icon_building_dwarf_guild_hall', district: 'dwarf', x: 1500, y: 235, costs: [{ rune: 8, stone: 15 }] },
+  { id: 'golemWorkshop', icon: 'icon_building_dwarf_golem_workshop', district: 'dwarf', x: 1660, y: 190, costs: [{ rune: 15, stone: 20, ore: 5 }] },
+  { id: 'thaneHall', icon: 'icon_building_dwarf_thane_hall', district: 'dwarf', x: 1730, y: 340, costs: [{ rune: 25, stone: 25, ore: 10, crystals: 3 }] },
+  { id: 'totemPit', icon: 'icon_building_orc_war_totem_pit', district: 'orc', x: 880, y: 905, costs: [{ fang: 8, wood: 15 }] },
+  { id: 'longhouse', icon: 'icon_building_orc_longhouse', district: 'orc', x: 1040, y: 950, costs: [{ fang: 15, wood: 20, ore: 5 }] },
+  { id: 'trollCave', icon: 'icon_building_orc_troll_cave', district: 'orc', x: 1200, y: 905, costs: [{ fang: 25, stone: 25, ore: 10, crystals: 3 }] },
+  { id: 'pactTower', icon: 'icon_building_demon_pact_tower', district: 'demon', x: 1450, y: 655, costs: [{ ash: 8, stone: 15 }] },
+  { id: 'infernalAltar', icon: 'icon_building_demon_infernal_altar', district: 'demon', x: 1620, y: 615, costs: [{ ash: 15, stone: 20, ore: 5 }] },
+  { id: 'hellGate', icon: 'icon_building_demon_hell_gate', district: 'demon', x: 1470, y: 805, costs: [{ ash: 25, stone: 25, ore: 10, crystals: 3 }] },
 ];
 export const buildingById = (id: string): BuildingDef => BUILDINGS.find((b) => b.id === id)!;
 
 /** Districts of the other peoples, shown as locked. */
-export const LOCKED_DISTRICTS = [
-  { id: 'elves', x: 1040, y: 235 }, { id: 'dwarves', x: 1600, y: 260 },
-  { id: 'orcs', x: 1000, y: 930 }, { id: 'demons', x: 1620, y: 800 },
-];
+export const LOCKED_DISTRICTS: { id: string; x: number; y: number }[] = [];
 
 export interface MetaState {
   version: 1;
@@ -76,7 +88,7 @@ const KEY = 'hexlegacy.meta.v1';
 let meta: MetaState | null = null;
 
 function fresh(): MetaState {
-  return { version: 1, res: { wood: 0, stone: 0, ore: 0, crystals: 0, fame: 0, seal: 0, dust: 0 }, buildings: {}, runs: 0, wins: 0, bestFloor: 0 };
+  return { version: 1, res: zeroRes(), buildings: {}, runs: 0, wins: 0, bestFloor: 0 };
 }
 
 export function getMeta(): MetaState {
@@ -126,7 +138,7 @@ export function build(id: string): boolean {
 
 export function addRes(gain: Partial<Record<Res, number>>, factor = 1): Record<Res, number> {
   const m = getMeta();
-  const out = { wood: 0, stone: 0, ore: 0, crystals: 0, fame: 0, seal: 0, dust: 0 } as Record<Res, number>;
+  const out = zeroRes();
   for (const r of RES) {
     const v = Math.floor((gain[r] ?? 0) * factor);
     m.res[r] += v;
@@ -160,6 +172,8 @@ export const bonus = {
 const HERO_TIER: Record<string, number> = {
   human_hero_guard_captain: 1, human_hero_priestess_of_light: 2,
   undead_hero_necromancer: 1, undead_hero_grave_robber: 2,
+  elf_hero_druid: 1, elf_hero_shadow_pathfinder: 2, dwarf_hero_runesmith: 1, dwarf_hero_sapper_master: 2,
+  orc_hero_shaman: 1, orc_hero_raid_master: 2, demon_hero_warlock: 1, demon_hero_pact_maker: 2,
 };
 export function heroUnlocked(heroId: string): boolean {
   return level('tavern') >= (HERO_TIER[heroId] ?? 0);
@@ -177,5 +191,12 @@ export function unitUnlocked(unitId: string): boolean {
   if (unitId === 'undead_t4_vampire') return level('crypt') >= 1;
   if (unitId === 'undead_t5_lich') return level('necroTower') >= 1;
   if (unitId === 'undead_t6_bone_dragon') return level('dragonGraveyard') >= 1;
+  const gate: Record<string, string> = {
+    elf_t4_dryad: 'druidGrove', elf_t5_unicorn_rider: 'unicornGlade', elf_t6_ancient_treant: 'moonTemple',
+    dwarf_t4_shieldwall_guard: 'guildHall', dwarf_t5_steam_golem: 'golemWorkshop', dwarf_t6_berserker_thane: 'thaneHall',
+    orc_t4_shaman_adept: 'totemPit', orc_t5_ogre: 'longhouse', orc_t6_war_troll: 'trollCave',
+    demon_t4_devil: 'pactTower', demon_t5_fire_lord: 'infernalAltar', demon_t6_archdemon: 'hellGate',
+  };
+  if (gate[unitId]) return level(gate[unitId]) >= 1;
   return true;
 }

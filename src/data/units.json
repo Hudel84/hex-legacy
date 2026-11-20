@@ -1681,5 +1681,489 @@
     "ranged": 10,
     "sheet": "bosses/animated/anim_summon_void_eye_tentacle_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/bosses/portrait_summon_void_eye_tentacle.webp"
+  },
+  "elf_t1_scout": {
+    "faction": "elf",
+    "tier": 1,
+    "hp": 8,
+    "atk": 4,
+    "def": 3,
+    "dmg": [
+      1,
+      3
+    ],
+    "ini": 11,
+    "speed": 7,
+    "cost": 5,
+    "active": "mark",
+    "sheet": "units/animated/anim_elf_t1_scout_idle_sheet_8x4.webp",
+    "portrait": "ui/portraits/units/portrait_elf_t1_scout.webp"
+  },
+  "elf_t2_archer": {
+    "faction": "elf",
+    "tier": 2,
+    "hp": 10,
+    "atk": 6,
+    "def": 3,
+    "dmg": [
+      2,
+      4
+    ],
+    "ini": 10,
+    "speed": 4,
+    "cost": 10,
+    "ranged": 12,
+    "passives": [
+      "meleeArcher"
+    ],
+    "active": "doubleShot",
+    "sheet": "units/animated/anim_elf_t2_archer_idle_sheet_8x4.webp",
+    "portrait": "ui/portraits/units/portrait_elf_t2_archer.webp"
+  },
+  "elf_t3_forest_warden": {
+    "faction": "elf",
+    "tier": 3,
+    "hp": 32,
+    "atk": 8,
+    "def": 10,
+    "dmg": [
+      5,
+      8
+    ],
+    "ini": 9,
+    "speed": 5,
+    "cost": 20,
+    "passives": [
+      "barkskin"
+    ],
+    "active": "entangle",
+    "sheet": "units/animated/anim_elf_t3_forest_warden_idle_sheet_8x4.webp",
+    "portrait": "ui/portraits/units/portrait_elf_t3_forest_warden.webp"
+  },
+  "elf_t4_dryad": {
+    "faction": "elf",
+    "tier": 4,
+    "hp": 40,
+    "atk": 9,
+    "def": 9,
+    "dmg": [
+      5,
+      9
+    ],
+    "ini": 11,
+    "speed": 6,
+    "cost": 30,
+    "passives": [
+      "healAura"
+    ],
+    "active": "sporeCloud",
+    "sheet": "units/animated/anim_elf_t4_dryad_idle_sheet_8x4.webp",
+    "portrait": "ui/portraits/units/portrait_elf_t4_dryad.webp"
+  },
+  "elf_t5_unicorn_rider": {
+    "faction": "elf",
+    "tier": 5,
+    "hp": 75,
+    "atk": 14,
+    "def": 12,
+    "dmg": [
+      11,
+      16
+    ],
+    "ini": 15,
+    "speed": 8,
+    "cost": 45,
+    "mounted": true,
+    "passives": [
+      "magicResist"
+    ],
+    "active": "lightLance",
+    "sheet": "units/animated/anim_elf_t5_unicorn_rider_idle_sheet_8x4.webp",
+    "portrait": "ui/portraits/units/portrait_elf_t5_unicorn_rider.webp"
+  },
+  "elf_t6_ancient_treant": {
+    "faction": "elf",
+    "tier": 6,
+    "hp": 170,
+    "atk": 18,
+    "def": 20,
+    "dmg": [
+      22,
+      32
+    ],
+    "ini": 6,
+    "speed": 3,
+    "cost": 70,
+    "passives": [
+      "regen"
+    ],
+    "active": "rootStrike",
+    "sheet": "units/animated/anim_elf_t6_ancient_treant_idle_sheet_8x4.webp",
+    "portrait": "ui/portraits/units/portrait_elf_t6_ancient_treant.webp"
+  },
+  "dwarf_t1_miner": {
+    "faction": "dwarf",
+    "tier": 1,
+    "hp": 10,
+    "atk": 4,
+    "def": 5,
+    "dmg": [
+      1,
+      3
+    ],
+    "ini": 7,
+    "speed": 4,
+    "cost": 5,
+    "passives": [
+      "barkskin"
+    ],
+    "active": "burrow",
+    "sheet": "units/animated/anim_dwarf_t1_miner_idle_sheet_8x4.webp",
+    "portrait": "ui/portraits/units/portrait_dwarf_t1_miner.webp"
+  },
+  "dwarf_t2_hammerer": {
+    "faction": "dwarf",
+    "tier": 2,
+    "hp": 16,
+    "atk": 6,
+    "def": 7,
+    "dmg": [
+      2,
+      4
+    ],
+    "ini": 8,
+    "speed": 4,
+    "cost": 10,
+    "passives": [
+      "rangedResist"
+    ],
+    "active": "quakeStrike",
+    "sheet": "units/animated/anim_dwarf_t2_hammerer_idle_sheet_8x4.webp",
+    "portrait": "ui/portraits/units/portrait_dwarf_t2_hammerer.webp"
+  },
+  "dwarf_t3_crossbow_veteran": {
+    "faction": "dwarf",
+    "tier": 3,
+    "hp": 22,
+    "atk": 8,
+    "def": 8,
+    "dmg": [
+      4,
+      7
+    ],
+    "ini": 8,
+    "speed": 4,
+    "cost": 20,
+    "ranged": 10,
+    "passives": [
+      "pierce"
+    ],
+    "active": "explosiveBolt",
+    "sheet": "units/animated/anim_dwarf_t3_crossbow_veteran_idle_sheet_8x4.webp",
+    "portrait": "ui/portraits/units/portrait_dwarf_t3_crossbow_veteran.webp"
+  },
+  "dwarf_t4_shieldwall_guard": {
+    "faction": "dwarf",
+    "tier": 4,
+    "hp": 50,
+    "atk": 9,
+    "def": 14,
+    "dmg": [
+      5,
+      8
+    ],
+    "ini": 7,
+    "speed": 4,
+    "cost": 30,
+    "passives": [
+      "guardAura"
+    ],
+    "active": "ironStance",
+    "sheet": "units/animated/anim_dwarf_t4_shieldwall_guard_idle_sheet_8x4.webp",
+    "portrait": "ui/portraits/units/portrait_dwarf_t4_shieldwall_guard.webp"
+  },
+  "dwarf_t5_steam_golem": {
+    "faction": "dwarf",
+    "tier": 5,
+    "hp": 90,
+    "atk": 14,
+    "def": 14,
+    "dmg": [
+      12,
+      18
+    ],
+    "ini": 8,
+    "speed": 4,
+    "cost": 45,
+    "passives": [
+      "construct"
+    ],
+    "active": "overpressure",
+    "sheet": "units/animated/anim_dwarf_t5_steam_golem_idle_sheet_8x4.webp",
+    "portrait": "ui/portraits/units/portrait_dwarf_t5_steam_golem.webp"
+  },
+  "dwarf_t6_berserker_thane": {
+    "faction": "dwarf",
+    "tier": 6,
+    "hp": 150,
+    "atk": 20,
+    "def": 17,
+    "dmg": [
+      25,
+      35
+    ],
+    "ini": 10,
+    "speed": 5,
+    "cost": 70,
+    "passives": [
+      "lastStand"
+    ],
+    "active": "finalStand",
+    "sheet": "units/animated/anim_dwarf_t6_berserker_thane_idle_sheet_8x4.webp",
+    "portrait": "ui/portraits/units/portrait_dwarf_t6_berserker_thane.webp"
+  },
+  "orc_t1_grunt": {
+    "faction": "orc",
+    "tier": 1,
+    "hp": 10,
+    "atk": 5,
+    "def": 2,
+    "dmg": [
+      1,
+      3
+    ],
+    "ini": 9,
+    "speed": 5,
+    "cost": 5,
+    "passives": [
+      "bloodthirst"
+    ],
+    "active": "warcry",
+    "sheet": "units/animated/anim_orc_t1_grunt_idle_sheet_8x4.webp",
+    "portrait": "ui/portraits/units/portrait_orc_t1_grunt.webp"
+  },
+  "orc_t2_axe_thrower": {
+    "faction": "orc",
+    "tier": 2,
+    "hp": 12,
+    "atk": 6,
+    "def": 3,
+    "dmg": [
+      3,
+      5
+    ],
+    "ini": 9,
+    "speed": 4,
+    "cost": 10,
+    "ranged": 6,
+    "active": "axeVolley",
+    "sheet": "units/animated/anim_orc_t2_axe_thrower_idle_sheet_8x4.webp",
+    "portrait": "ui/portraits/units/portrait_orc_t2_axe_thrower.webp"
+  },
+  "orc_t3_wolf_rider": {
+    "faction": "orc",
+    "tier": 3,
+    "hp": 26,
+    "atk": 9,
+    "def": 6,
+    "dmg": [
+      4,
+      8
+    ],
+    "ini": 13,
+    "speed": 8,
+    "cost": 20,
+    "mounted": true,
+    "passives": [
+      "charge"
+    ],
+    "active": "hunt",
+    "sheet": "units/animated/anim_orc_t3_wolf_rider_idle_sheet_8x4.webp",
+    "portrait": "ui/portraits/units/portrait_orc_t3_wolf_rider.webp"
+  },
+  "orc_t4_shaman_adept": {
+    "faction": "orc",
+    "tier": 4,
+    "hp": 36,
+    "atk": 9,
+    "def": 7,
+    "dmg": [
+      6,
+      9
+    ],
+    "ini": 10,
+    "speed": 5,
+    "cost": 30,
+    "passives": [
+      "warTotem"
+    ],
+    "active": "bloodSacrifice",
+    "sheet": "units/animated/anim_orc_t4_shaman_adept_idle_sheet_8x4.webp",
+    "portrait": "ui/portraits/units/portrait_orc_t4_shaman_adept.webp"
+  },
+  "orc_t5_ogre": {
+    "faction": "orc",
+    "tier": 5,
+    "hp": 110,
+    "atk": 15,
+    "def": 10,
+    "dmg": [
+      14,
+      20
+    ],
+    "ini": 8,
+    "speed": 5,
+    "cost": 45,
+    "passives": [
+      "rage"
+    ],
+    "active": "smash",
+    "sheet": "units/animated/anim_orc_t5_ogre_idle_sheet_8x4.webp",
+    "portrait": "ui/portraits/units/portrait_orc_t5_ogre.webp"
+  },
+  "orc_t6_war_troll": {
+    "faction": "orc",
+    "tier": 6,
+    "hp": 170,
+    "atk": 20,
+    "def": 15,
+    "dmg": [
+      26,
+      36
+    ],
+    "ini": 9,
+    "speed": 5,
+    "cost": 70,
+    "passives": [
+      "regen",
+      "stunImmune"
+    ],
+    "active": "rampage",
+    "sheet": "units/animated/anim_orc_t6_war_troll_idle_sheet_8x4.webp",
+    "portrait": "ui/portraits/units/portrait_orc_t6_war_troll.webp"
+  },
+  "demon_t1_imp": {
+    "faction": "demon",
+    "tier": 1,
+    "hp": 6,
+    "atk": 4,
+    "def": 3,
+    "dmg": [
+      1,
+      3
+    ],
+    "ini": 11,
+    "speed": 6,
+    "cost": 5,
+    "flying": true,
+    "passives": [
+      "burnHit"
+    ],
+    "active": "fireSpark",
+    "sheet": "units/animated/anim_demon_t1_imp_idle_sheet_8x4.webp",
+    "portrait": "ui/portraits/units/portrait_demon_t1_imp.webp"
+  },
+  "demon_t2_hellhound": {
+    "faction": "demon",
+    "tier": 2,
+    "hp": 18,
+    "atk": 7,
+    "def": 4,
+    "dmg": [
+      3,
+      5
+    ],
+    "ini": 13,
+    "speed": 8,
+    "cost": 10,
+    "passives": [
+      "burnHit"
+    ],
+    "active": "howl",
+    "sheet": "units/animated/anim_demon_t2_hellhound_idle_sheet_8x4.webp",
+    "portrait": "ui/portraits/units/portrait_demon_t2_hellhound.webp"
+  },
+  "demon_t3_succubus": {
+    "faction": "demon",
+    "tier": 3,
+    "hp": 30,
+    "atk": 9,
+    "def": 7,
+    "dmg": [
+      5,
+      8
+    ],
+    "ini": 12,
+    "speed": 6,
+    "cost": 20,
+    "flying": true,
+    "passives": [
+      "charm"
+    ],
+    "active": "seduce",
+    "sheet": "units/animated/anim_demon_t3_succubus_idle_sheet_8x4.webp",
+    "portrait": "ui/portraits/units/portrait_demon_t3_succubus.webp"
+  },
+  "demon_t4_devil": {
+    "faction": "demon",
+    "tier": 4,
+    "hp": 50,
+    "atk": 12,
+    "def": 9,
+    "dmg": [
+      7,
+      11
+    ],
+    "ini": 11,
+    "speed": 6,
+    "cost": 30,
+    "passives": [
+      "armorPierce"
+    ],
+    "active": "hellPortal",
+    "sheet": "units/animated/anim_demon_t4_devil_idle_sheet_8x4.webp",
+    "portrait": "ui/portraits/units/portrait_demon_t4_devil.webp"
+  },
+  "demon_t5_fire_lord": {
+    "faction": "demon",
+    "tier": 5,
+    "hp": 80,
+    "atk": 15,
+    "def": 12,
+    "dmg": [
+      12,
+      18
+    ],
+    "ini": 10,
+    "speed": 5,
+    "cost": 45,
+    "ranged": 8,
+    "passives": [
+      "burnHit"
+    ],
+    "active": "infernoBlast",
+    "sheet": "units/animated/anim_demon_t5_fire_lord_idle_sheet_8x4.webp",
+    "portrait": "ui/portraits/units/portrait_demon_t5_fire_lord.webp"
+  },
+  "demon_t6_archdemon": {
+    "faction": "demon",
+    "tier": 6,
+    "hp": 180,
+    "atk": 22,
+    "def": 17,
+    "dmg": [
+      28,
+      40
+    ],
+    "ini": 12,
+    "speed": 7,
+    "cost": 70,
+    "flying": true,
+    "passives": [
+      "fearAura"
+    ],
+    "active": "worldfire",
+    "sheet": "units/animated/anim_demon_t6_archdemon_idle_sheet_8x4.webp",
+    "portrait": "ui/portraits/units/portrait_demon_t6_archdemon.webp"
   }
 }

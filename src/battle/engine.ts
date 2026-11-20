@@ -38,6 +38,34 @@ export const ABILITIES: Record<string, AbilityInfo> = {
   bloodFrenzy: { id: 'bloodFrenzy', cooldown: 3, target: 'enemy' },
   deathWave: { id: 'deathWave', cooldown: 4, target: 'enemy' },
   decayBreath: { id: 'decayBreath', cooldown: 3, target: 'enemy' },
+  // elves
+  mark: { id: 'mark', cooldown: 3, target: 'enemy' },
+  doubleShot: { id: 'doubleShot', cooldown: 3, target: 'enemy' },
+  entangle: { id: 'entangle', cooldown: 3, target: 'enemy' },
+  sporeCloud: { id: 'sporeCloud', cooldown: 4, target: 'enemy' },
+  lightLance: { id: 'lightLance', cooldown: 3, target: 'enemy' },
+  rootStrike: { id: 'rootStrike', cooldown: 4, target: 'self' },
+  // dwarves
+  burrow: { id: 'burrow', cooldown: 4, target: 'enemy' },
+  quakeStrike: { id: 'quakeStrike', cooldown: 3, target: 'enemy' },
+  explosiveBolt: { id: 'explosiveBolt', cooldown: 4, target: 'enemy' },
+  ironStance: { id: 'ironStance', cooldown: 3, target: 'self' },
+  overpressure: { id: 'overpressure', cooldown: 3, target: 'self' },
+  finalStand: { id: 'finalStand', cooldown: 4, target: 'enemy' },
+  // orcs
+  warcry: { id: 'warcry', cooldown: 3, target: 'self' },
+  axeVolley: { id: 'axeVolley', cooldown: 3, target: 'enemy' },
+  hunt: { id: 'hunt', cooldown: 3, target: 'enemy' },
+  bloodSacrifice: { id: 'bloodSacrifice', cooldown: 4, target: 'ally' },
+  smash: { id: 'smash', cooldown: 4, target: 'enemy' },
+  rampage: { id: 'rampage', cooldown: 3, target: 'self' },
+  // demons
+  fireSpark: { id: 'fireSpark', cooldown: 2, target: 'enemy' },
+  howl: { id: 'howl', cooldown: 3, target: 'self' },
+  seduce: { id: 'seduce', cooldown: 4, target: 'enemy' },
+  hellPortal: { id: 'hellPortal', cooldown: 3, target: 'enemy' },
+  infernoBlast: { id: 'infernoBlast', cooldown: 4, target: 'enemy' },
+  worldfire: { id: 'worldfire', cooldown: 5, target: 'self' },
 };
 
 /** Small deterministic RNG (mulberry32) so battles can be replayed and simulated. */
@@ -177,6 +205,7 @@ export class Battle {
       case 'poison': return !!s.def.undead || this.has(s, 'construct');
       case 'fear': return !!s.def.undead || f === 'human' || !!s.def.sizeScale || this.has(s, 'construct');
       case 'burn': return f === 'demon';
+      case 'stun': return !!s.def.sizeScale || this.has(s, 'stunImmune');
       case 'atkDown': case 'defDown': case 'slow': return f === 'dwarf';
     }
     return false;
@@ -253,13 +282,16 @@ export class Battle {
   effAtk(att: Stack, at: Hex = att.pos): number {
     let a = att.def.atk + this.heroes[att.side].atk - this.status(att, 'atkDown') + this.status(att, 'focus') + this.status(att, 'fury');
     if (this.has(att, 'formation')) a += this.adjacentAllies(att, at).length;
+    a += 2 * this.adjacentAllies(att, at).filter((o) => this.has(o, 'warTotem')).length;
     return a;
   }
 
   effDef(def: Stack, attacker?: Stack, ranged = false, ignoreDefend = false): number {
     let d = def.def.def + this.heroes[def.side].def + this.status(def, 'shield') - this.status(def, 'defDown');
+    d += 2 * this.adjacentAllies(def).filter((o) => this.has(o, 'guardAura')).length;
     if (def.defending && !ignoreDefend) d = Math.ceil(d * (def.def.faction === 'human' ? 1.5 : 1.3));
     if (ranged && attacker && this.has(attacker, 'pierce')) d -= 1;
+    if (attacker && this.has(attacker, 'armorPierce')) d = Math.floor(d * 0.7);
     return Math.max(0, d);
   }
 
@@ -271,7 +303,12 @@ export class Battle {
     if (this.has(def, 'ethereal')) m *= 0.5;
     if (this.has(def, 'antiMounted') && att.def.mounted) m *= 0.6;
     if (this.has(att, 'rage') && att.topHp < att.def.hp / 2 && att.count === 1) m *= 1.5;
-    if (!ranged && att.def.ranged && o.kind !== 'area') m *= 0.5;   // shooters are weak in melee
+    if (!ranged && att.def.ranged && o.kind !== 'area' && !this.has(att, 'meleeArcher')) m *= 0.5;   // shooters are weak in melee
+    if (this.has(def, 'barkskin')) m *= 0.85;
+    if (ranged && this.has(def, 'rangedResist')) m *= 0.6;
+    if (ranged && this.hasStatus(def, 'marked')) m *= 1.25;
+    if (this.has(def, 'lastStand') && def.count * 2 < def.startCount) m *= 0.7;
+    if (this.has(att, 'charge') && att.attacks === 0 && o.kind !== 'counter') m *= 1.3;
     const am = this.mods[att.side], dm = this.mods[def.side];
     let bonus = am.dmg + (ranged ? am.ranged : am.melee);
     if (o.kind === 'counter') bonus += am.counterDmg;
@@ -371,6 +408,7 @@ export class Battle {
     this.wardEvent(def, ev);
     ev.push({ type: 'attack', uid: att.uid, target: def.uid, ranged, counter: kind === 'counter', damage: dmg, kills, left: def.count, crit });
     this.fury(def, ev);
+    if (kills > 0 && this.has(att, 'bloodthirst')) this.fury(att, ev);
     const steal = (this.has(att, 'lifesteal') ? 0.3 : 0) + am.lifesteal;
     if (steal > 0 && att.count > 0 && !o.noLifesteal) {
       const healed = this.heal(att, Math.floor(dmg * steal), true);
@@ -407,7 +445,7 @@ export class Battle {
       if (s.count <= 0) { ev.push({ type: 'death', uid: s.uid }); return ev; }
     }
     const maxCounters = 1 + this.mods[t.side].counters;
-    if (allowCounter && t.count > 0 && !this.hasStatus(t, 'confused') && (t.counters < maxCounters || this.has(t, 'unlimitedRetaliation')) && !this.has(s, 'noRetaliation')) {
+    if (allowCounter && t.count > 0 && !this.hasStatus(t, 'confused') && (t.counters < maxCounters || this.has(t, 'unlimitedRetaliation')) && !this.has(s, 'noRetaliation') && !this.has(s, 'charm')) {
       t.counters++;
       t.retaliated = t.counters >= maxCounters;
       ev.push(...this.strike(t, s, false, { kind: 'counter' }));
@@ -489,6 +527,13 @@ export class Battle {
       ev.push({ type: 'skip', uid: s.uid, reason: 'fear' });
       return false;
     }
+    // stunned stacks lose this turn
+    if (this.hasStatus(s, 'stun')) {
+      s.statuses = s.statuses.filter((x) => x.id !== 'stun');
+      ev.push({ type: 'status', uid: s.uid, status: 'stun', on: false });
+      ev.push({ type: 'skip', uid: s.uid, reason: 'fear' });
+      return false;
+    }
     // the Void God calls its spawn every second round
     if (this.has(s, 'voidCaller') && this.round % 2 === 0) this.voidCall(s, ev);
     // fear spell: half of the turns are lost
@@ -562,7 +607,18 @@ export class Battle {
       case 'dive': return enemies.filter((e) => this.landingHex(s, e, this.speedOf(s)) !== null).map((e) => e.uid);
       case 'bloodFrenzy': return enemies.filter((e) => this.landingHex(s, e) !== null).map((e) => e.uid);
       case 'deathWave': return enemies.map((e) => e.uid);
-      case 'decayBreath': return this.adjacentEnemies(s).filter((e) => this.targetable(e)).map((e) => e.uid);
+      case 'decayBreath': case 'lightLance': case 'quakeStrike': case 'smash': case 'finalStand':
+        return this.adjacentEnemies(s).filter((e) => this.targetable(e) && (ab.id !== 'smash' || !this.immune(e, 'stun'))).map((e) => e.uid);
+      case 'mark': case 'fireSpark': return enemies.map((e) => e.uid);
+      case 'doubleShot': case 'explosiveBolt': case 'axeVolley': case 'infernoBlast': return this.canShoot(s) ? enemies.map((e) => e.uid) : [];
+      case 'entangle': return enemies.filter((e) => this.sdist(s, e) <= 4 && !e.def.flying).map((e) => e.uid);
+      case 'sporeCloud': return enemies.filter((e) => this.sdist(s, e) <= 4).map((e) => e.uid);
+      case 'seduce': return enemies.filter((e) => this.sdist(s, e) <= 4 && !this.immune(e, 'stun')).map((e) => e.uid);
+      case 'burrow': case 'hunt': case 'hellPortal': return enemies.filter((e) => this.landingHex(s, e) !== null).map((e) => e.uid);
+      case 'rootStrike': case 'rampage': case 'overpressure': return this.adjacentEnemies(s).some((e) => this.targetable(e)) ? [s.uid] : [];
+      case 'howl': return enemies.some((e) => this.sdist(s, e) <= 2) ? [s.uid] : [];
+      case 'ironStance': case 'warcry': case 'worldfire': return [s.uid];
+      case 'bloodSacrifice': return s.count > 1 ? this.alliesOf(s).filter((a) => a.summonRounds === undefined && this.hpTotal(a) < a.startCount * a.def.hp).map((a) => a.uid) : [];
     }
     return [];
   }
@@ -634,6 +690,105 @@ export class Battle {
         const bh = behind(s.pos, t.pos);
         const b = inBounds(bh) ? this.stackAt(bh) : undefined;
         if (b && b.side !== s.side && this.targetable(b)) ev.push(...this.strike(s, b, false, { kind: 'area' }));
+        break;
+      }
+      case 'mark': this.addStatus(t, 'marked', 3, 1, ev, true); break;
+      case 'doubleShot':
+        s.shots--;
+        ev.push(...this.strike(s, t, true, { mult: 0.8 }));
+        if (t.count > 0 && s.count > 0) ev.push(...this.strike(s, t, true, { mult: 0.8, noCrit: true }));
+        break;
+      case 'entangle': this.addStatus(t, 'root', 2, 1, ev, true); break;
+      case 'sporeCloud': {
+        for (const v of [t, ...this.enemiesOf(s).filter((e) => e !== t && this.sdist(e, t) === 1)]) {
+          this.addStatus(v, 'poison', 3, Math.max(3, Math.round(s.count * (s.def.dmg[0] + s.def.dmg[1]) / 2 * 0.35)), ev, true);
+        }
+        break;
+      }
+      case 'lightLance': {
+        ev.push(...this.strike(s, t, false, { kind: 'area', mult: 1.1 }));
+        const bh = behind(s.pos, t.pos);
+        const b = inBounds(bh) ? this.stackAt(bh) : undefined;
+        if (b && b.side !== s.side && this.targetable(b)) ev.push(...this.strike(s, b, false, { kind: 'area' }));
+        break;
+      }
+      case 'rootStrike':
+        for (const e of this.adjacentEnemies(s).filter((x) => this.targetable(x))) {
+          ev.push(...this.strike(s, e, false, { kind: 'area', mult: 0.5 }));
+          if (e.count > 0) this.addStatus(e, 'stun', 2, 1, ev, true);
+        }
+        break;
+      case 'burrow': case 'hunt': case 'hellPortal': {
+        const land = this.landingHex(s, t)!;
+        if (!eq(land, s.pos)) { ev.push({ type: 'teleport', uid: s.uid, to: land }); s.pos = land; }
+        ev.push(...this.meleeExchange(s, t, ab.id === 'hunt' ? { mult: 1.2 } : {}));
+        break;
+      }
+      case 'quakeStrike': {
+        ev.push(...this.meleeExchange(s, t));
+        if (t.count > 0 && !t.def.wide && !t.def.sizeScale) {
+          const to = behind(s.pos, t.pos);
+          if (inBounds(to) && this.isFree(to)) { t.pos = to; ev.push({ type: 'teleport', uid: t.uid, to }); }
+        }
+        break;
+      }
+      case 'explosiveBolt': case 'axeVolley': case 'infernoBlast': {
+        s.shots--;
+        const victims = [t, ...this.enemiesOf(s).filter((e) => e !== t && this.targetable(e) && this.sdist(e, t) === 1)];
+        for (const v of victims) {
+          ev.push(...this.strike(s, v, true, { kind: 'area', mult: v === t ? 0.9 : 0.6, noCrit: true }));
+          if (ab.id === 'infernoBlast' && v.count > 0) this.addStatus(v, 'burn', 2, Math.max(3, Math.round(s.count * s.def.dmg[0] * 0.2)), ev);
+        }
+        break;
+      }
+      case 'ironStance':
+        this.addStatus(s, 'shield', 2, 8, ev);
+        this.addStatus(s, 'root', 2, 1, ev);
+        break;
+      case 'overpressure': {
+        const cost = Math.max(1, Math.floor(this.hpTotal(s) * 0.15));
+        const kills = this.damage(s, cost);
+        ev.push({ type: 'dot', uid: s.uid, damage: cost, kills, left: s.count });
+        for (const e of this.adjacentEnemies(s).filter((x) => this.targetable(x))) ev.push(...this.strike(s, e, false, { kind: 'area', mult: 1.1 }));
+        break;
+      }
+      case 'finalStand':
+        ev.push(...this.meleeExchange(s, t, { mult: 0.8 }));
+        if (t.count > 0 && s.count > 0) ev.push(...this.strike(s, t, false, { mult: 0.8, kind: 'area' }));
+        break;
+      case 'warcry':
+        this.addStatus(s, 'bless', 3, 20, ev);
+        this.addStatus(s, 'haste', 3, 1, ev);
+        break;
+      case 'bloodSacrifice': {
+        const lost = Math.max(1, Math.floor(s.count / 4));
+        const kills = this.damage(s, lost * s.def.hp);
+        ev.push({ type: 'dot', uid: s.uid, damage: lost * s.def.hp, kills, left: s.count });
+        const amount = this.heal(t, s.count * 25 + lost * 30, true);
+        if (amount > 0) ev.push({ type: 'heal', uid: t.uid, amount, count: t.count });
+        this.addStatus(t, 'bless', 3, 15, ev);
+        break;
+      }
+      case 'smash':
+        ev.push(...this.meleeExchange(s, t));
+        if (t.count > 0) this.addStatus(t, 'stun', 2, 1, ev, true);
+        break;
+      case 'rampage':
+        for (const e of this.adjacentEnemies(s).filter((x) => this.targetable(x))) ev.push(...this.strike(s, e, false, { kind: 'area', mult: 0.85 }));
+        break;
+      case 'fireSpark': ev.push(...this.strike(s, t, true, { kind: 'area', mult: 0.6 })); break;
+      case 'howl':
+        for (const e of this.enemiesOf(s).filter((x) => this.sdist(s, x) <= 2)) {
+          this.addStatus(e, 'atkDown', 2, 2, ev);
+          this.addStatus(e, 'slow', 3, 1, ev);
+        }
+        break;
+      case 'seduce': this.addStatus(t, 'stun', 2, 1, ev, true); break;
+      case 'worldfire': {
+        const cost = Math.max(1, Math.floor(this.hpTotal(s) * 0.15));
+        const kills = this.damage(s, cost);
+        ev.push({ type: 'dot', uid: s.uid, damage: cost, kills, left: s.count });
+        if (s.count > 0) for (const e of this.enemiesOf(s).filter((x) => this.targetable(x))) ev.push(...this.strike(s, e, true, { kind: 'area', mult: 0.45, noCrit: true }));
         break;
       }
       case 'boneSwarm': {
@@ -708,6 +863,7 @@ export class Battle {
     if (el === 'holy' && (t.def.undead || t.def.faction === 'demon')) m *= 1.5;
     if (el === 'death' && t.def.undead) m *= 0.5;
     if (el === 'fire' && t.def.faction === 'demon') m *= 0.5;
+    if (this.has(t, 'magicResist')) m *= 0.5;
     m *= 1 - this.mods[t.side].taken;
     const raw = Math.max(1, Math.round(base * m));
     const kills = this.damage(t, raw);
@@ -1098,6 +1254,40 @@ export class Battle {
           if (sc > bs) { bs = sc; best = uid; }
         }
         return best !== undefined && bs > 15 ? { score: bs * 1.2, target: best } : null;
+      }
+      case 'mark': return null;   // the AI keeps it simple
+      case 'entangle': case 'seduce': {
+        let best: number | undefined; let bs = 0;
+        for (const uid of targets) { const e = this.stack(uid); const sc = e.count * e.def.cost * (ab.id === 'seduce' ? 0.35 : 0.2); if (sc > bs) { bs = sc; best = uid; } }
+        return best !== undefined && bs > 20 ? { score: bs, target: best } : null;
+      }
+      case 'sporeCloud': case 'infernoBlast': case 'axeVolley': case 'explosiveBolt': {
+        let best: number | undefined; let bs = 0;
+        for (const uid of targets) { const e = this.stack(uid); const n = 1 + this.enemiesOf(s).filter((o) => o !== e && this.sdist(o, e) === 1).length; const sc = n * 30 + e.def.cost; if (sc > bs) { bs = sc; best = uid; } }
+        return best !== undefined ? { score: 1000 + bs, target: best } : null;
+      }
+      case 'rootStrike': case 'rampage': case 'overpressure': {
+        const n = this.adjacentEnemies(s).length;
+        return n >= (ab.id === 'overpressure' ? 2 : 1) ? { score: 1000 + 40 * n } : null;
+      }
+      case 'howl': return this.enemiesOf(s).filter((e) => this.sdist(s, e) <= 2).length >= 2 ? { score: 30 } : null;
+      case 'warcry': return threatened || this.adjacentEnemies(s).length ? { score: 18 } : null;
+      case 'ironStance': return this.adjacentEnemies(s).length >= 2 ? { score: 25 } : null;
+      case 'worldfire': return this.enemiesOf(s).length >= 2 && this.hpTotal(s) > s.startCount * s.def.hp * 0.5 ? { score: 1000 + 50 * this.enemiesOf(s).length } : null;
+      case 'bloodSacrifice': {
+        let best: number | undefined; let bs = 0;
+        for (const uid of targets) { const a = this.stack(uid); const sc = (a.startCount * a.def.hp - this.hpTotal(a)) / a.def.hp * a.def.cost; if (sc > bs) { bs = sc; best = uid; } }
+        return best !== undefined && bs > 40 ? { score: bs * 0.6, target: best } : null;
+      }
+      case 'doubleShot': case 'lightLance': case 'quakeStrike': case 'smash': case 'finalStand': case 'fireSpark':
+      case 'burrow': case 'hunt': case 'hellPortal': {
+        let best: number | undefined; let bs = -1;
+        for (const uid of targets) {
+          const e = this.stack(uid);
+          const sc = exp(this.preview(s, e, ab.id === 'doubleShot' || ab.id === 'fireSpark', s.pos)) * this.value(e);
+          if (sc > bs) { bs = sc; best = uid; }
+        }
+        return best !== undefined ? { score: 1000 + bs, target: best } : null;
       }
       case 'aimedShot': case 'deathWave': case 'decayBreath': case 'dive': case 'bloodFrenzy': {
         let best: number | undefined; let bs = -1;

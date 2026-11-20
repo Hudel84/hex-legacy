@@ -1,0 +1,25 @@
+# Elves, dwarves, orcs, demons (GDD 4.2, 4.3, 4.5, 4.6). Same format as units_act23.txt.
+elf_t1_scout|1|8|4|3|1-3|11|7|5|active=mark|Scouts|Späher
+elf_t2_archer|2|10|6|3|2-4|10|4|10|ranged=12 meleeArcher active=doubleShot|Archers|Bogenschützinnen
+elf_t3_forest_warden|3|32|8|10|5-8|9|5|20|barkskin active=entangle|Forest Wardens|Waldwächter
+elf_t4_dryad|4|40|9|9|5-9|11|6|30|healAura active=sporeCloud|Dryads|Dryaden
+elf_t5_unicorn_rider|5|75|14|12|11-16|15|8|45|mounted magicResist active=lightLance|Unicorn Riders|Einhornreiter
+elf_t6_ancient_treant|6|170|18|20|22-32|6|3|70|regen active=rootStrike|Ancient Treants|Uralte Baumhirten
+dwarf_t1_miner|1|10|4|5|1-3|7|4|5|barkskin active=burrow|Miners|Minenarbeiter
+dwarf_t2_hammerer|2|16|6|7|2-4|8|4|10|rangedResist active=quakeStrike|Hammerers|Hammerträger
+dwarf_t3_crossbow_veteran|3|22|8|8|4-7|8|4|20|ranged=10 pierce active=explosiveBolt|Crossbow Veterans|Armbrust-Veteranen
+dwarf_t4_shieldwall_guard|4|50|9|14|5-8|7|4|30|guardAura active=ironStance|Shieldwall Guards|Schildwall-Wächter
+dwarf_t5_steam_golem|5|90|14|14|12-18|8|4|45|construct active=overpressure|Steam Golems|Dampfgolems
+dwarf_t6_berserker_thane|6|150|20|17|25-35|10|5|70|lastStand active=finalStand|Berserker Thanes|Berserker-Thane
+orc_t1_grunt|1|10|5|2|1-3|9|5|5|bloodthirst active=warcry|Grunts|Grunzer
+orc_t2_axe_thrower|2|12|6|3|3-5|9|4|10|ranged=6 active=axeVolley|Axe Throwers|Axtwerfer
+orc_t3_wolf_rider|3|26|9|6|4-8|13|8|20|mounted charge active=hunt|Wolf Riders|Wolfsreiter
+orc_t4_shaman_adept|4|36|9|7|6-9|10|5|30|warTotem active=bloodSacrifice|Shaman Adepts|Schamanen-Adepten
+orc_t5_ogre|5|110|15|10|14-20|8|5|45|rage active=smash|Ogres|Oger
+orc_t6_war_troll|6|170|20|15|26-36|9|5|70|regen stunImmune active=rampage|War Trolls|Kriegs-Trolle
+demon_t1_imp|1|6|4|3|1-3|11|6|5|flying burnHit active=fireSpark|Imps|Imps
+demon_t2_hellhound|2|18|7|4|3-5|13|8|10|burnHit active=howl|Hellhounds|Höllenhunde
+demon_t3_succubus|3|30|9|7|5-8|12|6|20|flying charm active=seduce|Succubi|Sukkuben
+demon_t4_devil|4|50|12|9|7-11|11|6|30|armorPierce active=hellPortal|Devils|Teufel
+demon_t5_fire_lord|5|80|15|12|12-18|10|5|45|ranged=8 burnHit active=infernoBlast|Fire Lords|Feuerlords
+demon_t6_archdemon|6|180|22|17|28-40|12|7|70|flying fearAura active=worldfire|Archdemons|Erzdämonen

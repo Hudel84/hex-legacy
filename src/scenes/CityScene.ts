@@ -51,9 +51,10 @@ export class CityScene extends Phaser.Scene {
     this.resBar.removeAll(true);
     const m = getMeta();
     const bg = this.add.graphics();
-    bg.fillStyle(0x000000, 0.55).fillRoundedRect(w / 2 - 520, 92, 1040, 58, 14);
-    this.resBar.add(bg);
-    this.resBar.add(resRow(this, w / 2, 121, m.res, 28, '', true));
+    const row = resRow(this, w / 2, 121, m.res, 26, '', true);
+    const bw = Math.max(1040, row.getBounds().width + 60);
+    bg.fillStyle(0x000000, 0.55).fillRoundedRect(w / 2 - bw / 2, 92, bw, 58, 14);
+    this.resBar.add([bg, row]);
   }
 
   private drawBuildings(): void {

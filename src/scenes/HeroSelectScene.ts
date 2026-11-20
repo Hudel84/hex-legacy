@@ -32,8 +32,8 @@ export class HeroSelectScene extends Phaser.Scene {
     this.add.rectangle(0, 0, w, h, 0x000000, 0.35).setOrigin(0);
     this.add.text(w / 2, 62, t('heroSelect.title'), titleStyle(56)).setOrigin(0.5);
     this.faction = heroById(this.selected).faction;
-    this.tabs = FACTIONS.map((f, i) => new Button(this, w / 2 + (i - (FACTIONS.length - 1) / 2) * 360, 190, t(`faction.${f}`), {
-      width: 330, fontSize: 30, style: f === this.faction ? 'red' : 'wood',
+    this.tabs = FACTIONS.map((f, i) => new Button(this, w / 2 + (i - (FACTIONS.length - 1) / 2) * 300, 175, t(`faction.${f}`), {
+      width: 290, fontSize: 26, style: f === this.faction ? 'red' : 'wood',
       onClick: () => { this.faction = f; this.selected = heroesOf(f)[0].id; this.scene.restart({ faction: f, selected: this.selected }); },
     }));
     // the people passive of the chosen people
@@ -43,7 +43,6 @@ export class HeroSelectScene extends Phaser.Scene {
     rb.fillStyle(0x000000, 0.55).fillRoundedRect(w / 2 - race.width / 2 - 20, 248 - race.height / 2 - 8, race.width + 40, race.height + 16, 10);
     race.setDepth(1); rb.setDepth(0.5);
     this.drawCards();
-    this.add.text(w / 2, h - 158, t('heroSelect.more'), textStyle(22, '#c9b896')).setOrigin(0.5);
     new Button(this, w / 2 - 220, h - 85, t('common.back'), { width: 300, fontSize: 28, onClick: () => this.scene.start('Title') });
     new Button(this, w / 2 + 220, h - 85, t('heroSelect.start'), { style: 'red', width: 340, fontSize: 30, onClick: () => this.start() });
     playMusic(this, 'mus_main_menu');

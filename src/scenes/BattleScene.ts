@@ -209,6 +209,8 @@ export class BattleScene extends Phaser.Scene {
       ['vfx_hit_pierce', 'vfx/impacts/vfx_hit_pierce'], ['vfx_hit_heal', 'vfx/impacts/vfx_hit_heal'],
       ['vfx_hit_death_smoke', 'vfx/impacts/vfx_hit_death_smoke'], ['vfx_hit_curse', 'vfx/impacts/vfx_hit_curse'],
       ['vfx_proj_crossbow_bolt', 'vfx/projectiles/vfx_proj_crossbow_bolt'], ['vfx_proj_shadow_bolt', 'vfx/projectiles/vfx_proj_shadow_bolt'],
+      ['vfx_proj_arrow', 'vfx/projectiles/vfx_proj_arrow'], ['vfx_proj_fire_spark', 'vfx/projectiles/vfx_proj_fire_spark'],
+      ['vfx_proj_rune_bolt', 'vfx/projectiles/vfx_proj_rune_bolt'], ['vfx_hit_fire_explosion', 'vfx/impacts/vfx_hit_fire_explosion'],
       ['vfx_status_defense_buff', 'vfx/status/vfx_status_defense_buff'],
       ['obstacle_boulders', 'map/objects/mapdeco_boulders'],
       ['ui_victory_screen', 'ui/screens/ui_victory_screen'], ['ui_defeat_screen', 'ui/screens/ui_defeat_screen'],
@@ -218,7 +220,8 @@ export class BattleScene extends Phaser.Scene {
     ];
     for (const [k, p] of imgs) if (!this.textures.exists(k)) this.load.image(k, `${A}${p}.webp`);
     const sfx = ['cb_move', 'cb_fly', 'cb_hit_sword', 'cb_hit_claw', 'cb_hit_blunt', 'cb_hit_bolt', 'cb_counter', 'cb_block',
-      'cb_heal', 'cb_death_human', 'cb_death_undead', 'cb_turn_start', 'sp_death_cast', 'ev_victory_crowd', 'cb_crit', 'cb_buff', 'ui_open'];
+      'cb_heal', 'cb_death_human', 'cb_death_undead', 'cb_turn_start', 'sp_death_cast', 'ev_victory_crowd', 'cb_crit', 'cb_buff', 'ui_open',
+      'cb_hit_arrow', 'cb_death_demon', 'cb_death_beast', 'sp_fire_cast'];
     for (const k of sfx) if (!this.cache.audio.exists(k)) this.load.audio(k, `${A}audio/sfx/${k}.ogg`);
     // hero magic
     const book = [...(this.cfg.setup.player.hero.spells ?? []), ...(this.cfg.setup.enemy.hero.spells ?? [])].map((x) => x.id);
@@ -1377,12 +1380,14 @@ export class BattleScene extends Phaser.Scene {
     if (e.counter) this.floatText(e.uid, t('battle.counter'), '#ffd27a', -150);
 
     if (e.ranged) {
-      const proj = att.def.faction === 'undead' ? 'vfx_proj_shadow_bolt' : 'vfx_proj_crossbow_bolt';
+      const f = att.def.faction;
+      const proj = f === 'undead' ? 'vfx_proj_shadow_bolt' : f === 'demon' ? 'vfx_proj_fire_spark' : f === 'elf' || f === 'orc' ? 'vfx_proj_arrow'
+        : att.def.passives?.includes('curseHit') ? 'vfx_proj_rune_bolt' : 'vfx_proj_crossbow_bolt';
       const sx = av.box.x + (facing ? -40 : 40), sy = av.box.y - 70;
       const tx = tv.box.x, ty = tv.box.y - 60;
       const p = this.add.image(sx, sy, proj).setDepth(3000);
       p.setScale(110 / p.width).setRotation(Math.atan2(ty - sy, tx - sx));
-      playSfx(this, att.def.faction === 'undead' ? 'sp_death_cast' : 'cb_counter', 0.5);
+      playSfx(this, f === 'undead' ? 'sp_death_cast' : f === 'demon' ? 'sp_fire_cast' : f === 'elf' || f === 'orc' ? 'cb_hit_arrow' : 'cb_counter', 0.5);
       await this.tween({ targets: p, x: tx, y: ty, duration: 120 + Math.hypot(tx - sx, ty - sy) * 0.35 });
       p.destroy();
     } else {
@@ -1426,7 +1431,8 @@ export class BattleScene extends Phaser.Scene {
 
   private async animDeath(uid: number): Promise<void> {
     const v = this.views.get(uid)!;
-    playSfx(this, v.stack.def.undead ? 'cb_death_undead' : 'cb_death_human');
+    const fa = v.stack.def.faction;
+    playSfx(this, v.stack.def.undead ? 'cb_death_undead' : fa === 'demon' ? 'cb_death_demon' : fa === 'neutral' && !v.stack.def.id.includes('bandit') ? 'cb_death_beast' : 'cb_death_human');
     this.log(t('battle.log.death', { a: unitName(v.stack.def) }));
     const smoke = this.add.image(v.box.x, v.box.y - 50, 'vfx_hit_death_smoke').setDepth(3000);
     smoke.setScale(170 / smoke.width).setAlpha(0.9);

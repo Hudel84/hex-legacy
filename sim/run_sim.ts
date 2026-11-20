@@ -20,6 +20,7 @@ let bossKills = 0;
 const byHero: Record<string, [number, number]> = {};
 const lossByType: Record<string, number[]> = {};
 const actBoss: Record<number, number> = {};
+const act1ByHero: Record<string, number> = {};
 for (let i = 0; i < RUNS; i++) {
   const hero = HEROES[i % HEROES.length];
   setRun(newRun(hero.id, 1000 + i));
@@ -50,6 +51,7 @@ for (let i = 0; i < RUNS; i++) {
     if (b2.winner !== 'player') { alive = false; deaths[`${node.type}@${r.act}.${node.floor}`] = (deaths[`${node.type}@${r.act}.${node.floor}`] ?? 0) + 1; break; }
     if (node.type === 'boss') {
       actBoss[r.act] = (actBoss[r.act] ?? 0) + 1;
+      if (r.act === 1) act1ByHero[hero.id] = (act1ByHero[hero.id] ?? 0) + 1;
       if (r.act < 3) { advanceAct(); continue; }
       // final battle
       const fc = finalConfig();
@@ -80,7 +82,8 @@ for (let i = 0; i < RUNS; i++) {
 }
 console.log(`act bosses beaten: ${[1, 2, 3].map((a) => `act ${a} ${(100 * (actBoss[a] ?? 0) / RUNS).toFixed(0)}%`).join(', ')}`);
 console.log(`Void God beaten (run won) in ${(100 * bossKills / RUNS).toFixed(0)}% of runs (AI plays the player)`);
-console.log('by hero:', Object.entries(byHero).map(([k, [w, n]]) => `${k.replace(/_hero/, '')} ${(100 * w / n).toFixed(0)}%`).join(', '));
+console.log('act 1 boss by hero:', Object.entries(byHero).map(([k, [, n]]) => `${k.replace(/_hero/, '')} ${(100 * (act1ByHero[k] ?? 0) / n).toFixed(0)}%`).join(', '));
+console.log('run won by hero:', Object.entries(byHero).map(([k, [w, n]]) => `${k.replace(/_hero/, '')} ${(100 * w / n).toFixed(0)}%`).join(', '));
 console.log('deaths:', Object.entries(deaths).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}:${v}`).join(' '));
 const avg = (a: number[]) => (100 * a.reduce((x, y) => x + y, 0) / a.length).toFixed(0);
 const byFloor: Record<string, number[]> = {};

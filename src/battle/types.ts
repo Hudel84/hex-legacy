@@ -63,7 +63,7 @@ export interface Stack {
 export type StatusId = 'poison' | 'atkDown' | 'defDown' | 'shield' | 'spearwall' | 'disembodied'
   // from hero spells and people passives
   | 'bless' | 'ward' | 'haste' | 'slow' | 'focus' | 'confused' | 'fear' | 'root' | 'regrowth' | 'thornskin'
-  | 'burn' | 'frenzy' | 'fury';
+  | 'burn' | 'frenzy' | 'fury' | 'marked' | 'stun';
 export interface Status { id: StatusId; turns: number; value: number; }
 
 export type BattleEvent =

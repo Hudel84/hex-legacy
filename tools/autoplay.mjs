@@ -14,7 +14,7 @@ await page.goto(url, { waitUntil: 'load' });
 await new Promise((r) => setTimeout(r, 3000));
 await page.evaluate(() => { localStorage.clear(); game.scene.getScene('Title').scene.start('HeroSelect'); });
 await new Promise((r) => setTimeout(r, 2000));
-await page.evaluate(() => game.scene.getScene('HeroSelect').start());
+await page.evaluate((h) => { const s = game.scene.getScene('HeroSelect'); if (h) s.selected = h; s.start(); }, process.env.HERO ?? '');
 // optional: a very strong hero to walk through all acts quickly (tests act changes and the final battle)
 if (process.argv[4] === 'strong') { await new Promise((r) => setTimeout(r, 1500)); await page.evaluate(() => { const r = hexRun(); r.leadership = 900; r.atk = 25; r.def = 25; }); }
 const log = [];

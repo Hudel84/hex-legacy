@@ -11,14 +11,23 @@ export const ABILITY_ICON: Record<string, string> = {
   revival: 'icon_spell_resurrection', dive: 'icon_spell_haste', holyStrike: 'icon_spell_smite', boneSwarm: 'icon_spell_raise_dead',
   rotStench: 'icon_spell_plague', disembody: 'icon_spell_mind_shield', bloodFrenzy: 'icon_spell_vampiric_touch',
   deathWave: 'icon_spell_death_cloud', decayBreath: 'icon_spell_wither',
+  mark: 'icon_spell_clairvoyance', doubleShot: 'icon_talent_triple_shot', entangle: 'icon_spell_entangling_roots',
+  sporeCloud: 'icon_spell_poison_spores', lightLance: 'icon_spell_sun_beam', rootStrike: 'icon_spell_wild_growth',
+  burrow: 'icon_spell_tremor', quakeStrike: 'icon_spell_earthquake', explosiveBolt: 'icon_talent_explosive_bolts',
+  ironStance: 'icon_spell_stone_wall', overpressure: 'icon_talent_eruption', finalStand: 'icon_talent_berserker_axe',
+  warcry: 'icon_talent_lion_roar', axeVolley: 'icon_talent_returning_axe', hunt: 'icon_talent_wolf_pack',
+  bloodSacrifice: 'icon_spell_blood_sacrifice', smash: 'icon_talent_iron_fist', rampage: 'icon_talent_whirlwind',
+  fireSpark: 'icon_spell_static_spark', howl: 'icon_spell_fear', seduce: 'icon_spell_confusion', hellPortal: 'icon_spell_teleport',
+  infernoBlast: 'icon_spell_inferno', worldfire: 'icon_spell_meteor',
 };
+const abilityPath = (k: string): string => (k.startsWith('icon_talent_') ? `icons/talents/${k}` : `icons/spells/${k}`);
 export const STATUS_ICON: Record<string, string> = {
   poison: 'vfx_status_poisoned', atkDown: 'vfx_status_cursed', defDown: 'icon_spell_wither', shield: 'vfx_status_defense_buff',
   spearwall: 'vfx_status_rune_buff', disembodied: 'vfx_status_incorporeal',
   bless: 'vfx_status_blessed', ward: 'icon_spell_divine_shield', haste: 'vfx_status_haste', slow: 'vfx_status_frozen',
   focus: 'icon_spell_battle_focus', confused: 'vfx_status_charmed', fear: 'vfx_status_feared', root: 'vfx_status_rooted',
   regrowth: 'vfx_status_regenerating', thornskin: 'icon_spell_thorn_armor', burn: 'vfx_status_burning', frenzy: 'vfx_status_enraged',
-  fury: 'icon_stat_rage',
+  fury: 'icon_stat_rage', marked: 'icon_spell_clairvoyance', stun: 'vfx_status_stunned',
 };
 /** Where a status icon lives: status effects in vfx/status, the rest are spell or stat icons. */
 const statusPath = (k: string): string =>
@@ -26,7 +35,7 @@ const statusPath = (k: string): string =>
 
 /** Queue the icons the info panel and battle HUD need. */
 export function loadAbilityIcons(scene: Phaser.Scene): void {
-  for (const k of Object.values(ABILITY_ICON)) if (!scene.textures.exists(k)) scene.load.image(k, `assets/icons/spells/${k}.webp`);
+  for (const k of Object.values(ABILITY_ICON)) if (!scene.textures.exists(k)) scene.load.image(k, `assets/${abilityPath(k)}.webp`);
   for (const k of Object.values(STATUS_ICON)) if (!scene.textures.exists(k)) scene.load.image(k, `assets/${statusPath(k)}.webp`);
 }
 
@@ -137,7 +146,7 @@ export function showUnitInfo(scene: Phaser.Scene, o: UnitInfoData): Phaser.GameO
     for (const st of o.statuses) {
       const ik = STATUS_ICON[st.id];
       if (ik && scene.textures.exists(ik)) { const ic = scene.add.image(px + 92, y + 13, ik); ic.setScale(30 / ic.width); root.add(ic); }
-      root.add(scene.add.text(px + 115, y, `${t(`status.${st.id}`, { n: st.value })} (${st.turns})`, textStyle(21)));
+      root.add(scene.add.text(px + 115, y, `${t(`status.${st.id}`, { n: st.value })}${st.turns < 50 ? ` (${st.turns})` : ''}`, textStyle(21)));
       y += 32;
     }
   }
