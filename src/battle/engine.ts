@@ -3,7 +3,7 @@
 // unit passives and active abilities with cooldowns (3.8).
 import { type Hex, key, eq, neighbors, distance, inBounds, allHexes, behind, COLS, ROWS } from './hex';
 import type { UnitDef, Stack, Side, HeroStats, BattleEvent, StatusId, Status } from './types';
-import { NO_MODS, type SideMods } from './mods';
+import { NO_MODS, combine, type SideMods } from './mods';
 import { SPELLS, spellNumbers, maxMana, type SpellSlot } from './spells';
 import { CONSUMABLES, SCROLL_LEVEL } from '../run/items';
 import { UNITS } from '../data/units';
@@ -103,7 +103,12 @@ export class Battle {
   belts: Record<Side, string[]> = { player: [], enemy: [] };
   /** Belt places used up in this battle (removed from the run afterwards). */
   usedItems: Record<Side, number[]> = { player: [], enemy: [] };
+  /** Traps on the board: hex key -> owner side and damage share. */
+  traps = new Map<string, { side: Side; share: number }>();
+  /** Stacks that ran away (treasure goblins). */
+  fled = new Set<number>();
   private lastAbsorb = 0;
+  private unitMods = new Map<number, SideMods>();
   private queue: number[] = [];
   private waitQueue: number[] = [];
   private random: () => number;
@@ -130,13 +135,15 @@ export class Battle {
       this.belts[side] = [...(hs.consumables ?? [])];
     }
     for (const st of this.stacks) {
-      const sh = this.mods[st.side].startShield;
+      const sh = this.sm(st).startShield;
       if (sh > 0) st.statuses.push({ id: 'shield', turns: 2, value: sh });
     }
   }
 
   private addStack(def0: UnitDef, side: Side, count: number, pos: Hex): Stack {
-    const m = this.mods?.[side] ?? NO_MODS;
+    const base = this.mods?.[side] ?? NO_MODS;
+    // per-unit modifiers (unit upgrades, synergies) on top of the side's modifiers
+    const m = def0.mods ? combine(base, def0.mods) : base;
     const def: UnitDef = (m.hp || m.ini || m.speed || (m.shots && def0.ranged))
       ? { ...def0, hp: Math.round(def0.hp * (1 + m.hp)), ini: def0.ini + m.ini, speed: def0.speed + m.speed,
         ranged: def0.ranged ? def0.ranged + m.shots : undefined }
@@ -146,9 +153,13 @@ export class Battle {
       shots: def.ranged ?? 0, retaliated: false, defending: false, waited: false, acted: false,
       cooldown: 0, statuses: [], attacks: 0, counters: 0,
     };
+    if (m !== base) this.unitMods.set(s.uid, m);
     this.stacks.push(s);
     return s;
   }
+
+  /** Modifiers of one stack: its side's modifiers plus its own (upgrades). */
+  sm(s: Stack): SideMods { return this.unitMods.get(s.uid) ?? this.mods[s.side]; }
 
   // ---------- queries ----------
 
@@ -253,10 +264,17 @@ export class Battle {
         seen.add(k);
         const p = [...path, n];
         if (stand) res.set(k, p);
-        frontier.push({ h: n, path: p });
+        // a stack may step onto an enemy trap, but not walk through it
+        if (!this.cells(s, n).some((c) => this.hostileTrap(s, c))) frontier.push({ h: n, path: p });
       }
     }
     return res;
+  }
+
+  /** Is there a trap of the other side on this hex? */
+  hostileTrap(s: Stack, h: Hex): boolean {
+    const tr = this.traps.get(key(h));
+    return !!tr && tr.side !== s.side;
   }
 
   adjacentEnemies(s: Stack, at: Hex = s.pos): Stack[] {
@@ -292,7 +310,7 @@ export class Battle {
     if (def.defending && !ignoreDefend) d = Math.ceil(d * (def.def.faction === 'human' ? 1.5 : 1.3));
     if (ranged && attacker && this.has(attacker, 'pierce')) d -= 1;
     if (attacker && this.has(attacker, 'armorPierce')) d = Math.floor(d * 0.7);
-    if (attacker && this.mods[attacker.side].pierceDef > 0) d = Math.floor(d * (1 - this.mods[attacker.side].pierceDef));
+    if (attacker && this.sm(attacker).pierceDef > 0) d = Math.floor(d * (1 - this.sm(attacker).pierceDef));
     return Math.max(0, d);
   }
 
@@ -310,7 +328,8 @@ export class Battle {
     if (ranged && this.hasStatus(def, 'marked')) m *= 1.25;
     if (this.has(def, 'lastStand') && def.count * 2 < def.startCount) m *= 0.7;
     if (this.has(att, 'charge') && att.attacks === 0 && o.kind !== 'counter') m *= 1.3;
-    const am = this.mods[att.side], dm = this.mods[def.side];
+    if (ranged && this.has(att, 'heavyAxes') && this.sdist(att, def, at) <= 3) m *= 1.25;
+    const am = this.sm(att), dm = this.sm(def);
     let bonus = am.dmg + (ranged ? am.ranged : am.melee);
     if (o.kind === 'counter') bonus += am.counterDmg;
     if (att.attacks === 0 && o.kind !== 'counter') bonus += am.firstStrike;
@@ -393,12 +412,12 @@ export class Battle {
   private fury(s: Stack, ev: BattleEvent[]): void {
     if (s.def.faction !== 'orc' || s.count <= 0) return;
     const f = s.statuses.find((x) => x.id === 'fury');
-    if (f) f.value = Math.min(4 + this.mods[s.side].furyMax, f.value + 1);
+    if (f) f.value = Math.min(4 + this.sm(s).furyMax, f.value + 1);
     else { s.statuses.push({ id: 'fury', turns: 999, value: 1 }); ev.push({ type: 'status', uid: s.uid, status: 'fury', on: true }); }
   }
 
   private strike(att: Stack, def: Stack, ranged: boolean, o: StrikeOpts = {}): BattleEvent[] {
-    const am = this.mods[att.side];
+    const am = this.sm(att);
     const crit = !o.noCrit && am.crit > 0 && this.random() < am.crit;
     const raw = this.roll(att, def, ranged, o) * (crit ? 2 : 1);
     if (o.kind !== 'counter') att.attacks++;
@@ -440,7 +459,7 @@ export class Battle {
     }
     const before = this.hpTotal(t);
     ev.push(...this.strike(s, t, false, o));
-    const thorns = this.mods[t.side].thorns + this.status(t, 'thornskin') / 100;
+    const thorns = this.sm(t).thorns + this.status(t, 'thornskin') / 100;
     if (thorns > 0 && s.count > 0) {
       const dealt = before - this.hpTotal(t);
       const back = Math.max(1, Math.round(dealt * thorns));
@@ -449,8 +468,9 @@ export class Battle {
       ev.push({ type: 'dot', uid: s.uid, damage: back - this.lastAbsorb, kills, left: s.count, source: 'thorns' });
       if (s.count <= 0) { ev.push({ type: 'death', uid: s.uid }); return ev; }
     }
-    const maxCounters = 1 + this.mods[t.side].counters;
-    if (allowCounter && t.count > 0 && !this.hasStatus(t, 'confused') && (t.counters < maxCounters || this.has(t, 'unlimitedRetaliation')) && !this.has(s, 'noRetaliation') && !this.has(s, 'charm')) {
+    const maxCounters = 1 + this.sm(t).counters;
+    if (allowCounter && t.count > 0 && !this.hasStatus(t, 'confused') && (t.counters < maxCounters || this.has(t, 'unlimitedRetaliation')) && !this.has(s, 'noRetaliation') && !this.has(s, 'bladeDance') && !this.has(s, 'charm')
+      && !(this.has(s, 'skirmish') && this.iniOf(t) < this.iniOf(s))) {
       t.counters++;
       t.retaliated = t.counters >= maxCounters;
       ev.push(...this.strike(t, s, false, { kind: 'counter' }));
@@ -464,7 +484,7 @@ export class Battle {
   iniOf(s: Stack): number {
     const h = this.tempoOf(s.statuses.find((x) => x.id === 'haste'));
     const sl = this.tempoOf(s.statuses.find((x) => x.id === 'slow'));
-    return s.def.ini + h.i - sl.i + (this.round <= 1 ? this.mods[s.side].round1Ini : 0);
+    return s.def.ini + h.i - sl.i + (this.round <= 1 ? this.sm(s).round1Ini : 0);
   }
 
   private initiativeOrder(): number[] {
@@ -481,7 +501,194 @@ export class Battle {
     this.waitQueue = [];
     this.castThisRound = { player: false, enemy: false };
     this.itemThisRound = { player: false, enemy: false };
-    return [{ type: 'round', round: this.round }];
+    const ev: BattleEvent[] = [{ type: 'round', round: this.round }];
+    for (const side of ['player', 'enemy'] as Side[]) this.relicSkills(side, ev);
+    for (const s of this.alive) if (s.def.sizeScale && s.summonRounds === undefined) this.bossSkill(s, ev);
+    return ev;
+  }
+
+  // ---------- boss skills, relics and traps ----------
+
+  private hurt(s: Stack, dmg: number, ev: BattleEvent[], source: 'trap' | 'skill'): void {
+    const kills = this.damage(s, dmg);
+    this.wardEvent(s, ev);
+    ev.push({ type: 'dot', uid: s.uid, damage: dmg - this.lastAbsorb, kills, left: s.count, source });
+    if (s.count <= 0) ev.push({ type: 'death', uid: s.uid });
+  }
+  private power(s: Stack): number { return s.count * s.def.cost; }
+  private foesOf(side: Side): Stack[] { return this.alive.filter((o) => o.side !== side && this.targetable(o)); }
+
+  /** Lay up to `n` traps of `side` on free hexes one or two steps in front of enemy stacks. */
+  private layTraps(side: Side, n: number, share: number, max: number, ev: BattleEvent[]): number {
+    const own = [...this.traps.values()].filter((t) => t.side === side).length;
+    const foes = this.alive.filter((o) => o.side !== side);
+    const friends = this.alive.filter((o) => o.side === side);
+    let left = Math.min(n, max - own);
+    let laid = 0;
+    while (left-- > 0) {
+      const opts: { h: Hex; sc: number }[] = [];
+      for (const h of allHexes()) {
+        if (!this.isFree(h) || this.traps.has(key(h))) continue;
+        const d = Math.min(...foes.map((f) => Math.min(...this.cells(f).map((c) => distance(c, h)))));
+        if (d < 1 || d > 2) continue;
+        // between the enemy and our own stacks is best: that is where they will walk
+        const dOwn = friends.length ? Math.min(...friends.map((f) => distance(f.pos, h))) : 0;
+        opts.push({ h, sc: (d === 1 ? 2 : 1) - dOwn * 0.3 + this.random() * 1.5 });
+      }
+      if (!opts.length) break;
+      opts.sort((a, b) => b.sc - a.sc);
+      const h = opts[0].h;
+      this.traps.set(key(h), { side, share });
+      ev.push({ type: 'trap', hex: h, side, on: true });
+      laid++;
+    }
+    return laid;
+  }
+
+  /** A stack that ends its move on an enemy trap is hurt and rooted. Returns true if a trap sprang. */
+  private springTraps(s: Stack, ev: BattleEvent[]): boolean {
+    for (const c of this.cells(s)) {
+      const k = key(c);
+      const tr = this.traps.get(k);
+      if (!tr || tr.side === s.side) continue;
+      this.traps.delete(k);
+      ev.push({ type: 'trap', hex: c, side: tr.side, on: false, uid: s.uid });
+      this.hurt(s, Math.max(1, Math.round(this.hpTotal(s) * tr.share)), ev, 'trap');
+      if (s.count > 0) this.addStatus(s, 'root', 2, 1, ev);
+      return true;
+    }
+    return false;
+  }
+
+  /** Summon `count` creatures of `unitId` for `side` next to its stacks (they don't keep the side alive). */
+  private summonFor(side: Side, unitId: string, count: number, near: Stack[], ev: BattleEvent[]): boolean {
+    const def = UNITS[unitId];
+    if (!def || count <= 0) return false;
+    const around = near.flatMap((x) => this.cells(x).flatMap((c) => neighbors(c))).filter((h) => this.isFree(h) && !this.traps.has(key(h)));
+    const free = around[Math.floor(this.random() * around.length)]
+      ?? allHexes().filter((h) => this.isFree(h)).sort((a, b) => distance(a, near[0]?.pos ?? a) - distance(b, near[0]?.pos ?? b))[0];
+    if (!free) return false;
+    const st = this.addStack(def, side, count, free);
+    st.summonRounds = 99;
+    this.queue.push(st.uid);
+    ev.push({ type: 'summon', uid: st.uid });
+    return true;
+  }
+
+  /** Round-start effects of the legendary boss relics (side modifiers). */
+  private relicSkills(side: Side, ev: BattleEvent[]): void {
+    const m = this.mods[side];
+    const r = this.round;
+    const foes = () => this.foesOf(side);
+    const own = this.alive.filter((o) => o.side === side && o.summonRounds === undefined);
+    if (!own.length) return;
+    const skill = (name: string) => ev.push({ type: 'skill', side, name: `skill.${name}` });
+    if (m.traps > 0) {
+      const at = ev.length;
+      if (this.layTraps(side, m.traps, 0.1, 3 * m.traps, ev)) ev.splice(at, 0, { type: 'skill', side, name: 'skill.traps' });
+    }
+    if (m.entangle > 0 && r % 2 === 1) {
+      const t = foes().filter((e) => !e.def.flying && !this.immune(e, 'root')).sort((a, b) => this.power(b) - this.power(a))[0];
+      if (t) { skill('entangle'); this.addStatus(t, 'root', 2, 1, ev, true); }
+    }
+    if (m.breath > 0 && r % 3 === 0 && foes().length) {
+      skill('breath');
+      for (const e of foes()) this.addStatus(e, 'poison', 2, Math.max(1, Math.round(this.hpTotal(e) * m.breath)), ev, true);
+    }
+    if (m.regrow > 0 && r < 20) {
+      let any = false;
+      for (const a of own) {
+        const amount = this.heal(a, Math.ceil(a.startCount * a.def.hp * m.regrow), true);
+        if (amount > 0) { if (!any) skill('regrow'); any = true; ev.push({ type: 'heal', uid: a.uid, amount, count: a.count }); }
+      }
+    }
+    const army = own.reduce((a, o) => a + o.startCount * o.def.cost, 0);
+    if (m.raise > 0 && r % 3 === 2) {
+      const n = Math.max(2, Math.round(army * 0.1 * m.raise / UNITS.undead_t1_skeleton.cost));
+      const at = ev.length;
+      if (this.summonFor(side, 'undead_t1_skeleton', n, own, ev)) ev.splice(at, 0, { type: 'skill', side, name: 'skill.raise' });
+    }
+    if (m.imps > 0 && r % 3 === 2) {
+      const n = Math.max(2, Math.round(army * 0.1 * m.imps / UNITS.demon_t1_imp.cost));
+      const at = ev.length;
+      if (this.summonFor(side, 'demon_t1_imp', n, own, ev)) ev.splice(at, 0, { type: 'skill', side, name: 'skill.imps' });
+    }
+    if (m.chill > 0 && r % 3 === 1 && foes().length) {
+      skill('chill');
+      for (const e of foes()) this.addStatus(e, 'slow', 2, 1, ev, true);
+    }
+    if (m.eruption > 0) {
+      const list = foes().filter((e) => !this.immune(e, 'burn'));
+      const t = list[Math.floor(this.random() * list.length)];
+      if (t) { skill('eruption'); this.addStatus(t, 'burn', 2, Math.max(1, Math.round(this.hpTotal(t) * m.eruption)), ev, true); }
+    }
+  }
+
+  /** Bosses do something extra at the start of every round (GDD: boss mechanics). */
+  private bossSkill(s: Stack, ev: BattleEvent[]): void {
+    const r = this.round;
+    const skill = (p: string) => ev.push({ type: 'skill', side: s.side, uid: s.uid, name: `passiveName.${p}` });
+    const foes = this.foesOf(s.side);
+    const pick = (list: Stack[]) => list[Math.floor(this.random() * list.length)];
+    if (this.has(s, 'trapper')) {
+      const at = ev.length;
+      if (this.layTraps(s.side, 2, 0.12, 6, ev)) ev.splice(at, 0, { type: 'skill', side: s.side, uid: s.uid, name: 'passiveName.trapper' });
+    }
+    if (this.has(s, 'rootGrasp') && r % 2 === 1) {
+      const t = foes.filter((e) => !e.def.flying).sort((a, b) => this.power(b) - this.power(a))[0];
+      if (t) {
+        skill('rootGrasp');
+        this.hurt(t, Math.max(1, Math.round(this.hpTotal(t) * 0.04)), ev, 'skill');
+        if (t.count > 0) this.addStatus(t, 'root', 2, 1, ev, true);
+      }
+    }
+    if (this.has(s, 'poisonBreath') && r % 2 === 0 && foes.length) {
+      skill('poisonBreath');
+      for (const e of foes) this.addStatus(e, 'poison', 2, Math.max(1, Math.round(this.hpTotal(e) * 0.04)), ev, true);
+    }
+    if (this.has(s, 'regrow') && r < 20) {
+      const amount = this.heal(s, Math.round(s.startCount * s.def.hp * 0.06), true);
+      if (amount > 0) { skill('regrow'); ev.push({ type: 'heal', uid: s.uid, amount, count: s.count }); }
+    }
+    if (this.has(s, 'raiseDead') && r % 2 === 0) {
+      const n = Math.round(s.def.cost * 0.12 / UNITS.undead_t1_skeleton.cost) + Math.floor(r / 2);
+      const at = ev.length;
+      if (this.summonFor(s.side, 'undead_t1_skeleton', n, [s], ev)) ev.splice(at, 0, { type: 'skill', side: s.side, uid: s.uid, name: 'passiveName.raiseDead' });
+    }
+    if (this.has(s, 'blizzard') && r % 2 === 0 && foes.length) {
+      skill('blizzard');
+      for (const e of foes) {
+        this.hurt(e, Math.max(1, Math.round(this.hpTotal(e) * 0.03)), ev, 'skill');
+        if (e.count > 0) this.addStatus(e, 'slow', 2, 1, ev, true);
+      }
+    }
+    if (this.has(s, 'eruption')) {
+      const list = foes.filter((e) => !this.immune(e, 'burn'));
+      if (list.length) skill('eruption');
+      for (let i = 0; i < 2 && list.length; i++) {
+        const t = pick(list);
+        list.splice(list.indexOf(t), 1);
+        this.addStatus(t, 'burn', 2, Math.max(1, Math.round(this.hpTotal(t) * 0.06)), ev, true);
+      }
+    }
+    if (this.has(s, 'stoneSkin')) {
+      const sh = s.statuses.find((x) => x.id === 'shield');
+      if (!sh || sh.value < 12) {
+        skill('stoneSkin');
+        if (sh) { sh.value = Math.min(12, sh.value + 3); sh.turns = Math.max(sh.turns, 3); ev.push({ type: 'status', uid: s.uid, status: 'shield', on: true }); }
+        else this.addStatus(s, 'shield', 3, 3, ev);
+      }
+    }
+    if (this.has(s, 'hellGate') && r % 2 === 0) {
+      const n = Math.round(s.def.cost * 0.12 / UNITS.demon_t1_imp.cost) + Math.floor(r / 2);
+      const at = ev.length;
+      if (this.summonFor(s.side, 'demon_t1_imp', n, [s], ev)) ev.splice(at, 0, { type: 'skill', side: s.side, uid: s.uid, name: 'passiveName.hellGate' });
+    }
+  }
+
+  /** Did the player kill a treasure goblin before it ran away? */
+  treasureKilled(): boolean {
+    return this.stacks.some((s) => s.side === 'enemy' && this.has(s, 'treasure') && s.count <= 0 && !this.fled.has(s.uid));
   }
 
   /** Start-of-turn effects for a stack: statuses tick, regeneration, auras, summons expire, fear. */
@@ -491,6 +698,12 @@ export class Battle {
     if (s.summonRounds !== undefined) {
       s.summonRounds--;
       if (s.summonRounds <= 0) { s.count = 0; ev.push({ type: 'vanish', uid: s.uid }); return false; }
+    }
+    // treasure goblins run away with their loot in round 3
+    if (this.has(s, 'treasure') && this.round >= 3) {
+      s.count = 0; this.fled.add(s.uid);
+      ev.push({ type: 'flee', uid: s.uid });
+      return false;
     }
     // statuses
     for (const st of [...s.statuses]) {
@@ -512,7 +725,7 @@ export class Battle {
     }
     // exhaustion: from round 20 nothing regenerates any more, so two regenerating stacks cannot fight forever
     const exhausted = this.round >= 20;
-    const rg = this.mods[s.side].regen;
+    const rg = this.sm(s).regen;
     if (rg > 0 && s.summonRounds === undefined && !exhausted) {
       const amount = this.heal(s, Math.ceil(s.def.hp * rg * s.count), false);
       if (amount > 0) ev.push({ type: 'heal', uid: s.uid, amount, count: s.count });
@@ -586,8 +799,9 @@ export class Battle {
   private checkEnd(ev: BattleEvent[]): boolean {
     if (this.winner) return true;
     // summoned stacks alone do not keep a side alive
-    const p = this.alive.some((s) => s.side === 'player' && s.summonRounds === undefined);
-    const e = this.alive.some((s) => s.side === 'enemy' && s.summonRounds === undefined);
+    const real = (s: Stack) => s.summonRounds === undefined && !this.has(s, 'treasure');
+    const p = this.alive.some((s) => s.side === 'player' && real(s));
+    const e = this.alive.some((s) => s.side === 'enemy' && real(s));
     if (p && e) return false;
     this.winner = p ? 'player' : 'enemy';
     ev.push({ type: 'end', winner: this.winner });
@@ -644,7 +858,7 @@ export class Battle {
   private useAbility(s: Stack, targetUid: number | undefined): BattleEvent[] {
     const ab = this.ability(s)!;
     const ev: BattleEvent[] = [{ type: 'ability', uid: s.uid, ability: ab.id, target: targetUid }];
-    s.cooldown = ab.cooldown >= 99 ? ab.cooldown : Math.max(1, ab.cooldown - this.mods[s.side].cooldown);
+    s.cooldown = ab.cooldown >= 99 ? ab.cooldown : Math.max(1, ab.cooldown - this.sm(s).cooldown);
     const t = targetUid !== undefined ? this.stack(targetUid) : s;
     switch (ab.id) {
       case 'spearWall': this.addStatus(s, 'spearwall', 1, 1, ev); break;
@@ -871,7 +1085,7 @@ export class Battle {
     if (el === 'death' && t.def.undead) m *= 0.5;
     if (el === 'fire' && t.def.faction === 'demon') m *= 0.5;
     if (this.has(t, 'magicResist')) m *= 0.5;
-    m *= 1 - this.mods[t.side].taken;
+    m *= 1 - this.sm(t).taken;
     const raw = Math.max(1, Math.round(base * m));
     const kills = this.damage(t, raw);
     const dealt = raw - this.lastAbsorb;
@@ -1139,7 +1353,7 @@ export class Battle {
     if (sp.element === 'holy' && (t.def.undead || t.def.faction === 'demon')) m *= 1.5;
     if (sp.element === 'death' && t.def.undead) m *= 0.5;
     if (sp.element === 'fire' && t.def.faction === 'demon') m *= 0.5;
-    m *= 1 - this.mods[t.side].taken;
+    m *= 1 - this.sm(t).taken;
     const damage = Math.max(1, Math.round(n.n * m)) - Math.min(this.status(t, 'ward'), Math.round(n.n * m));
     return { damage, kills: damage > 0 ? this.killsFor(t, damage) : 0 };
   }
@@ -1184,13 +1398,14 @@ export class Battle {
       case 'move': {
         ev.push({ type: 'move', uid: s.uid, path: this.reachable(s).get(key(a.to))! });
         s.pos = a.to;
+        this.springTraps(s, ev);
         break;
       }
       case 'shoot': {
         s.shots--;
         const t = this.stack(a.target);
         ev.push(...this.strike(s, t, true));
-        const split = this.mods[s.side].splitShot;
+        const split = this.sm(s).splitShot;
         if (split > 0) {
           const near = this.enemiesOf(s).filter((e) => e !== t && this.targetable(e) && this.sdist(e, t) === 1);
           if (near.length) ev.push(...this.strike(s, near[Math.floor(this.random() * near.length)], true, { mult: split, kind: 'area', noCrit: true }));
@@ -1202,6 +1417,8 @@ export class Battle {
         if (!eq(a.from, s.pos)) {
           ev.push({ type: 'move', uid: s.uid, path: this.reachable(s).get(key(a.from))! });
           s.pos = a.from;
+          // caught in a trap: the attack does not happen
+          if (this.springTraps(s, ev)) break;
         }
         ev.push(...this.meleeExchange(s, t));
         break;
@@ -1315,6 +1532,7 @@ export class Battle {
   /** Pick an action for the active stack (used for the enemy and for simulations). */
   decide(): Action {
     const s = this.active!;
+    if (this.has(s, 'treasure')) return this.fleeAction(s);
     const enemies = this.enemiesOf(s).filter((e) => this.targetable(e));
     const expected = (p: AttackPreview) => (p.minKills + p.maxKills) / 2;
     const abil = this.abilityChoice(s);
@@ -1337,9 +1555,10 @@ export class Battle {
     for (const e of enemies) {
       for (const from of this.meleeFrom(s, e, reach)) {
         if (s.def.ranged && !eq(from, s.pos)) continue; // shooters don't run into melee
+        if (!eq(from, s.pos) && this.cells(s, from).some((c) => this.hostileTrap(s, c))) continue;
         const p = this.preview(s, e, false, from);
         let sc = expected(p) * this.value(e) + 1;
-        if (!e.retaliated && !this.has(s, 'noRetaliation') && expected(p) < e.count) {
+        if (!e.retaliated && !this.has(s, 'noRetaliation') && !this.has(s, 'bladeDance') && expected(p) < e.count) {
           const counterKills = Math.min(s.count, (this.preview(e, s, false, e.pos).minKills));
           sc -= counterKills * this.value(s) * 0.5;
         }
@@ -1360,11 +1579,25 @@ export class Battle {
     let bestD = this.sdist(s, target);
     for (const [, path] of reach) {
       const h = path[path.length - 1];
+      if (this.cells(s, h).some((c) => this.hostileTrap(s, c))) continue;
       const d = this.sdist(s, target, h);
       if (d < bestD) { bestD = d; bestHex = h; }
     }
     if (bestHex) return { type: 'move', to: bestHex };
     return { type: 'defend' };
+  }
+
+  /** Treasure goblins never fight: they run as far away from the enemy as they can. */
+  private fleeAction(s: Stack): Action {
+    const foes = this.enemiesOf(s);
+    const safety = (h: Hex) => Math.min(99, ...foes.map((e) => this.sdist(s, e, h)));
+    let best: Hex | null = null; let bs = safety(s.pos);
+    for (const [, path] of this.reachable(s)) {
+      const h = path[path.length - 1];
+      const sc = safety(h) + (h.col === s.pos.col ? 0 : 0.01);
+      if (sc > bs) { bs = sc; best = h; }
+    }
+    return best ? { type: 'move', to: best } : { type: 'defend' };
   }
 
   /** Random obstacle layout in the middle columns (never on start columns). */

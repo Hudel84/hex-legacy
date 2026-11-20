@@ -139,6 +139,7 @@ export class BattleScene extends Phaser.Scene {
   private cfg!: BattleConfig;
   private battle!: Battle;
   private views = new Map<number, StackView>();
+  private trapViews = new Map<string, Phaser.GameObjects.Container>();
   private gridG!: Phaser.GameObjects.Graphics;
   private hiG!: Phaser.GameObjects.Graphics;
   private hoverG!: Phaser.GameObjects.Graphics;
@@ -197,6 +198,12 @@ export class BattleScene extends Phaser.Scene {
     if (LOOPS.includes(bg) && !this.cache.video.exists(`${bg}_loop`)) this.load.video(`${bg}_loop`, `${A}backgrounds/animated/${bg}_loop.mp4`, true);
     const defs = new Set<UnitDef>();
     for (const side of ['player', 'enemy'] as Side[]) for (const a of this.cfg.setup[side].army) defs.add(a.def);
+    // creatures that can be summoned during the battle (boss skills, relics, the Void God)
+    const passives = [...defs].flatMap((d) => d.passives ?? []);
+    const mods = [this.cfg.setup.player.mods, this.cfg.setup.enemy.mods];
+    if (passives.includes('raiseDead') || mods.some((m) => (m?.raise ?? 0) > 0)) defs.add(UNITS.undead_t1_skeleton);
+    if (passives.includes('hellGate') || mods.some((m) => (m?.imps ?? 0) > 0)) defs.add(UNITS.demon_t1_imp);
+    if (passives.includes('voidCaller')) for (const id of ['summon_void_spawn', 'summon_void_eye_tentacle']) if (UNITS[id]) defs.add(UNITS[id]);
     for (const d of defs) {
       if (d.still) { if (!this.textures.exists(sheetKey(d))) this.load.image(sheetKey(d), A + d.still); }
       else if (!this.textures.exists(sheetKey(d))) this.load.spritesheet(sheetKey(d), A + d.sheet, { frameWidth: 320, frameHeight: 320 });
@@ -214,7 +221,7 @@ export class BattleScene extends Phaser.Scene {
       ['vfx_proj_arrow', 'vfx/projectiles/vfx_proj_arrow'], ['vfx_proj_fire_spark', 'vfx/projectiles/vfx_proj_fire_spark'],
       ['vfx_proj_rune_bolt', 'vfx/projectiles/vfx_proj_rune_bolt'], ['vfx_hit_fire_explosion', 'vfx/impacts/vfx_hit_fire_explosion'],
       ['vfx_status_defense_buff', 'vfx/status/vfx_status_defense_buff'],
-      ['obstacle_boulders', 'map/objects/mapdeco_boulders'],
+      ['obstacle_boulders', 'map/objects/mapdeco_boulders'], ['trap_bear', 'vfx/fields/vfx_field_bear_trap'],
       ['ui_victory_screen', 'ui/screens/ui_victory_screen'], ['ui_defeat_screen', 'ui/screens/ui_defeat_screen'],
       ['ui_icon_hourglass', 'ui/ui_icon_hourglass'],
       ['cursor_sword', 'icons/equipment/icon_equip_weapon_steel_longsword'],
@@ -1277,11 +1284,14 @@ export class BattleScene extends Phaser.Scene {
           const v = this.views.get(e.uid);
           if (v) {
             const burn = e.source === 'burn';
-            this.floatText(e.uid, `-${e.damage}`, burn ? '#ffa04a' : '#7dff6a');
-            v.sprite.setTint(burn ? 0xffa060 : 0x80ff80);
+            const col = burn ? 0xffa060 : e.source === 'trap' || e.source === 'thorns' ? 0xff8a70 : e.source === 'skill' ? 0x9fd0ff : 0x80ff80;
+            this.floatText(e.uid, `-${e.damage}`, `#${col.toString(16).padStart(6, '0')}`);
+            v.sprite.setTint(col);
             this.time.delayedCall(200, () => v.sprite.clearTint());
             this.setCount(e.uid, e.left);
-            this.log(t(e.source === 'thorns' ? 'battle.log.thorns' : burn ? 'battle.log.burn' : 'battle.log.poison', { a: unitName(v.stack.def), dmg: e.damage, kills: e.kills }));
+            const lk = e.source === 'thorns' ? 'battle.log.thorns' : burn ? 'battle.log.burn' : e.source === 'trap' ? 'battle.log.trapDmg'
+              : e.source === 'skill' ? 'battle.log.skillDmg' : 'battle.log.poison';
+            this.log(t(lk, { a: unitName(v.stack.def), dmg: e.damage, kills: e.kills }));
             await this.wait(350);
           }
           break;
@@ -1319,9 +1329,69 @@ export class BattleScene extends Phaser.Scene {
           await this.wait(500);
           break;
         }
+        case 'skill': {
+          const name = t(e.name);
+          const who = e.uid !== undefined ? unitName(this.battle.stack(e.uid).def) : t(`hero.${e.side === 'player' ? this.cfg.playerHero : this.cfg.enemyHero ?? ''}`);
+          this.log(t('battle.log.skill', { a: who, skill: name }));
+          playSfx(this, 'cb_buff', 0.8);
+          if (e.uid !== undefined) {
+            this.floatText(e.uid, name, '#ffb347', -110);
+            const v = this.views.get(e.uid);
+            if (v) this.tweens.add({ targets: v.sprite, scaleX: v.sprite.scaleX * 1.08, scaleY: v.sprite.scaleY * 1.08, duration: 180, yoyo: true });
+          } else {
+            this.floatTextAt(e.side === 'player' ? 125 : this.scale.width - 125, 400, name, '#ffb347');
+          }
+          await this.wait(650);
+          break;
+        }
+        case 'trap':
+          if (e.on) {
+            this.addTrapView(e.hex, e.side);
+            playSfx(this, 'cb_block', 0.5);
+            await this.wait(220);
+          } else {
+            const tv = this.trapViews.get(key(e.hex));
+            if (tv) { this.trapViews.delete(key(e.hex)); this.tweens.add({ targets: tv, scale: 1.4, alpha: 0, duration: 350, onComplete: () => tv.destroy() }); }
+            if (e.uid !== undefined) {
+              playSfx(this, 'cb_hit_blunt');
+              this.floatText(e.uid, t('battle.trapped'), '#ff8a70', -60);
+              this.log(t('battle.log.trapped', { a: unitName(this.battle.stack(e.uid).def) }));
+            }
+            await this.wait(300);
+          }
+          break;
+        case 'flee': {
+          const v = this.views.get(e.uid);
+          if (v) {
+            this.floatText(e.uid, t('battle.fled'), '#ffe08a', -60);
+            this.log(t('battle.log.fled', { a: unitName(v.stack.def) }));
+            playSfx(this, 'ui_coins', 0.7);
+            await this.tween({ targets: v.box, x: v.box.x + (v.stack.side === 'enemy' ? 260 : -260), alpha: 0, duration: 650, ease: 'Sine.in' });
+            v.box.destroy(); this.views.delete(e.uid);
+          }
+          break;
+        }
         case 'end': break;
       }
     }
+  }
+
+  /** A trap on the board (bear trap with a ring in the owner's colour). */
+  private addTrapView(h: Hex, side: Side): void {
+    const p = hexCenter(h);
+    const c = this.add.container(p.x, p.y + 6).setDepth(1);
+    const ring = this.add.graphics();
+    ring.lineStyle(3, side === 'enemy' ? 0xff5040 : 0x6fb6ff, 0.8).strokeEllipse(0, 4, HEX_W * 0.62, HEX_W * 0.32);
+    c.add(ring);
+    if (this.textures.exists('trap_bear')) {
+      const im = this.add.image(0, 0, 'trap_bear');
+      im.setScale(HEX_W * 0.58 / im.width);
+      c.add(im);
+    }
+    c.setScale(0.3).setAlpha(0);
+    this.tweens.add({ targets: c, scale: 1, alpha: 1, duration: 260, ease: 'Back.out' });
+    this.trapViews.get(key(h))?.destroy();
+    this.trapViews.set(key(h), c);
   }
 
   private async animAbility(uid: number, ability: string): Promise<void> {
@@ -1517,7 +1587,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.cfg.mode === 'run') {
       const cfg = this.cfg;
       buttons.push(new Button(this, w / 2, h - 120, t('common.continue'), { style: 'red', width: 400, fontSize: 30,
-        onClick: () => (won ? this.scene.start('Reward', { config: cfg }) : this.scene.start('RunEnd', { won: false })) }));
+        onClick: () => (won ? this.scene.start('Reward', { config: cfg, treasure: this.battle.treasureKilled() }) : this.scene.start('RunEnd', { won: false })) }));
     } else {
       buttons.push(new Button(this, w / 2 - 230, h - 120, t('battle.again'), { style: 'red', width: 400, fontSize: 30,
         onClick: () => this.scene.restart({ config: testBattleConfig() }) }));

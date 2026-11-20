@@ -1,5 +1,5 @@
 // Text events (act 1). Every option has a requirement check and an effect.
-import { run, addLeadership, rng, commitRng, MAX_UNIT_LEVEL, applyBoon, BOONS, type RunState } from './state';
+import { run, addLeadership, rng, commitRng, MAX_UNIT_LEVEL, applyBoon, BOONS, upgradeOptions, levelUpUnit, type RunState } from './state';
 
 export interface EventOutcome {
   text: string;                       // i18n key
@@ -94,8 +94,10 @@ export const EVENTS: GameEvent[] = [
     options: [
       { key: 'event.dormant_forge.work', hint: 'event.dormant_forge.workHint', can: (r) => r.army.some((s) => s.level < MAX_UNIT_LEVEL),
         run: (r) => {
-          const g = rng(); const s = g.pick(r.army.filter((x) => x.level < MAX_UNIT_LEVEL)); commitRng(g);
-          s.level++;
+          const g = rng(); const s = g.pick(r.army.filter((x) => x.level < MAX_UNIT_LEVEL));
+          const opts = upgradeOptions(s, r);
+          levelUpUnit(s, opts.length ? g.pick(opts).id : null);
+          commitRng(g);
           return { text: 'event.dormant_forge.worked', vars: { unit: `unit.${s.unitId}` } };
         } },
       leave,

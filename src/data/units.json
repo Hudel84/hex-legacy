@@ -17,7 +17,8 @@
     "passives": [
       "antiMounted"
     ],
-    "active": "spearWall"
+    "active": "spearWall",
+    "role": "tank"
   },
   "human_t2_crossbowman": {
     "faction": "human",
@@ -38,7 +39,8 @@
     ],
     "sheet": "units/animated/anim_human_t2_crossbowman_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/units/portrait_human_t2_crossbowman.webp",
-    "active": "aimedShot"
+    "active": "aimedShot",
+    "role": "ranged"
   },
   "human_t3_swordsman": {
     "faction": "human",
@@ -58,7 +60,8 @@
     ],
     "sheet": "units/animated/anim_human_t3_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/units/portrait_human_t3_swordsman.webp",
-    "active": "shieldFormation"
+    "active": "shieldFormation",
+    "role": "fighter"
   },
   "human_t4_cleric": {
     "faction": "human",
@@ -78,7 +81,8 @@
     ],
     "sheet": "units/animated/anim_human_t4_cleric_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/units/portrait_human_t4_cleric.webp",
-    "active": "revival"
+    "active": "revival",
+    "role": "support"
   },
   "human_t5_griffin_rider": {
     "faction": "human",
@@ -100,7 +104,8 @@
     "sheet": "units/animated/anim_human_t5_griffin_rider_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/units/portrait_human_t5_griffin_rider.webp",
     "active": "dive",
-    "mounted": true
+    "mounted": true,
+    "role": "fighter"
   },
   "human_t6_paladin": {
     "faction": "human",
@@ -120,7 +125,8 @@
     ],
     "sheet": "units/animated/anim_human_t6_paladin_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/units/portrait_human_t6_paladin.webp",
-    "active": "holyStrike"
+    "active": "holyStrike",
+    "role": "tank"
   },
   "undead_t1_skeleton": {
     "faction": "undead",
@@ -139,7 +145,11 @@
     "sheet": "units/animated/anim_undead_t1_skeleton_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/units/portrait_undead_t1_skeleton.webp",
     "active": "boneSwarm",
-    "still": "units/undead_t1_skeleton.webp"
+    "still": "units/undead_t1_skeleton.webp",
+    "role": "fighter",
+    "passives": [
+      "rangedResist"
+    ]
   },
   "undead_t2_zombie": {
     "faction": "undead",
@@ -160,7 +170,8 @@
     "passives": [
       "poisonHit"
     ],
-    "active": "rotStench"
+    "active": "rotStench",
+    "role": "tank"
   },
   "undead_t3_ghost": {
     "faction": "undead",
@@ -182,7 +193,8 @@
     ],
     "sheet": "units/animated/anim_undead_t3_ghost_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/units/portrait_undead_t3_ghost.webp",
-    "active": "disembody"
+    "active": "disembody",
+    "role": "tank"
   },
   "undead_t4_vampire": {
     "faction": "undead",
@@ -204,7 +216,8 @@
     ],
     "sheet": "units/animated/anim_undead_t4_vampire_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/units/portrait_undead_t4_vampire.webp",
-    "active": "bloodFrenzy"
+    "active": "bloodFrenzy",
+    "role": "fighter"
   },
   "undead_t5_lich": {
     "faction": "undead",
@@ -226,7 +239,8 @@
     "passives": [
       "curseHit"
     ],
-    "active": "deathWave"
+    "active": "deathWave",
+    "role": "mage"
   },
   "undead_t6_bone_dragon": {
     "faction": "undead",
@@ -248,7 +262,8 @@
     "passives": [
       "fearAura"
     ],
-    "active": "decayBreath"
+    "active": "decayBreath",
+    "role": "fighter"
   },
   "neutral_giant_rat": {
     "faction": "neutral",
@@ -605,7 +620,10 @@
     "sheet": "bosses/animated/anim_boss_act1_bandit_king_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/bosses/portrait_boss_act1_bandit_king.webp",
     "mounted": true,
-    "wide": true
+    "wide": true,
+    "passives": [
+      "trapper"
+    ]
   },
   "neutral_giant_bat": {
     "faction": "neutral",
@@ -637,11 +655,14 @@
       1,
       2
     ],
-    "ini": 12,
-    "speed": 6,
+    "ini": 9,
+    "speed": 3,
     "cost": 5,
     "sheet": "neutrals/animated/anim_neutral_treasure_goblin_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/neutrals/portrait_neutral_treasure_goblin.webp"
+    "portrait": "ui/portraits/neutrals/portrait_neutral_treasure_goblin.webp",
+    "passives": [
+      "treasure"
+    ]
   },
   "neutral_skeleton_pirate": {
     "faction": "neutral",
@@ -1467,6 +1488,7 @@
     "wide": true,
     "sizeScale": 1.7,
     "passives": [
+      "rootGrasp",
       "poisonHit",
       "unlimitedRetaliation"
     ],
@@ -1490,6 +1512,7 @@
     "sizeScale": 1.7,
     "flying": true,
     "passives": [
+      "poisonBreath",
       "poisonHit"
     ],
     "sheet": "bosses/animated/anim_boss_extra_green_dragon_idle_sheet_8x4.webp",
@@ -1511,6 +1534,7 @@
     "wide": true,
     "sizeScale": 1.7,
     "passives": [
+      "regrow",
       "poisonHit",
       "unlimitedRetaliation"
     ],
@@ -1535,6 +1559,7 @@
     "ranged": 12,
     "undead": true,
     "passives": [
+      "raiseDead",
       "curseHit"
     ],
     "sheet": "bosses/animated/anim_boss_extra_lich_sovereign_idle_sheet_8x4.webp",
@@ -1556,6 +1581,7 @@
     "wide": true,
     "sizeScale": 1.7,
     "passives": [
+      "blizzard",
       "frostHit"
     ],
     "sheet": "bosses/animated/anim_boss_extra_frost_giant_idle_sheet_8x4.webp",
@@ -1578,6 +1604,7 @@
     "sizeScale": 1.7,
     "flying": true,
     "passives": [
+      "eruption",
       "burnHit"
     ],
     "sheet": "bosses/animated/anim_boss_act3_magma_wyrm_idle_sheet_8x4.webp",
@@ -1599,6 +1626,7 @@
     "wide": true,
     "sizeScale": 1.7,
     "passives": [
+      "stoneSkin",
       "construct",
       "unlimitedRetaliation"
     ],
@@ -1621,6 +1649,7 @@
     "wide": true,
     "sizeScale": 1.7,
     "passives": [
+      "hellGate",
       "fearAura",
       "burnHit"
     ],
@@ -1697,7 +1726,12 @@
     "cost": 5,
     "active": "mark",
     "sheet": "units/animated/anim_elf_t1_scout_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/units/portrait_elf_t1_scout.webp"
+    "portrait": "ui/portraits/units/portrait_elf_t1_scout.webp",
+    "role": "fighter",
+    "passives": [
+      "skirmish"
+    ],
+    "still": "units/elf_t1_scout.webp"
   },
   "elf_t2_archer": {
     "faction": "elf",
@@ -1718,7 +1752,8 @@
     ],
     "active": "doubleShot",
     "sheet": "units/animated/anim_elf_t2_archer_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/units/portrait_elf_t2_archer.webp"
+    "portrait": "ui/portraits/units/portrait_elf_t2_archer.webp",
+    "role": "ranged"
   },
   "elf_t3_forest_warden": {
     "faction": "elf",
@@ -1738,7 +1773,8 @@
     ],
     "active": "entangle",
     "sheet": "units/animated/anim_elf_t3_forest_warden_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/units/portrait_elf_t3_forest_warden.webp"
+    "portrait": "ui/portraits/units/portrait_elf_t3_forest_warden.webp",
+    "role": "tank"
   },
   "elf_t4_dryad": {
     "faction": "elf",
@@ -1758,7 +1794,8 @@
     ],
     "active": "sporeCloud",
     "sheet": "units/animated/anim_elf_t4_dryad_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/units/portrait_elf_t4_dryad.webp"
+    "portrait": "ui/portraits/units/portrait_elf_t4_dryad.webp",
+    "role": "support"
   },
   "elf_t5_unicorn_rider": {
     "faction": "elf",
@@ -1779,7 +1816,8 @@
     ],
     "active": "lightLance",
     "sheet": "units/animated/anim_elf_t5_unicorn_rider_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/units/portrait_elf_t5_unicorn_rider.webp"
+    "portrait": "ui/portraits/units/portrait_elf_t5_unicorn_rider.webp",
+    "role": "fighter"
   },
   "elf_t6_ancient_treant": {
     "faction": "elf",
@@ -1799,7 +1837,8 @@
     ],
     "active": "rootStrike",
     "sheet": "units/animated/anim_elf_t6_ancient_treant_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/units/portrait_elf_t6_ancient_treant.webp"
+    "portrait": "ui/portraits/units/portrait_elf_t6_ancient_treant.webp",
+    "role": "tank"
   },
   "dwarf_t1_miner": {
     "faction": "dwarf",
@@ -1819,7 +1858,8 @@
     ],
     "active": "burrow",
     "sheet": "units/animated/anim_dwarf_t1_miner_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/units/portrait_dwarf_t1_miner.webp"
+    "portrait": "ui/portraits/units/portrait_dwarf_t1_miner.webp",
+    "role": "fighter"
   },
   "dwarf_t2_hammerer": {
     "faction": "dwarf",
@@ -1839,7 +1879,8 @@
     ],
     "active": "quakeStrike",
     "sheet": "units/animated/anim_dwarf_t2_hammerer_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/units/portrait_dwarf_t2_hammerer.webp"
+    "portrait": "ui/portraits/units/portrait_dwarf_t2_hammerer.webp",
+    "role": "tank"
   },
   "dwarf_t3_crossbow_veteran": {
     "faction": "dwarf",
@@ -1860,7 +1901,8 @@
     ],
     "active": "explosiveBolt",
     "sheet": "units/animated/anim_dwarf_t3_crossbow_veteran_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/units/portrait_dwarf_t3_crossbow_veteran.webp"
+    "portrait": "ui/portraits/units/portrait_dwarf_t3_crossbow_veteran.webp",
+    "role": "ranged"
   },
   "dwarf_t4_shieldwall_guard": {
     "faction": "dwarf",
@@ -1880,7 +1922,8 @@
     ],
     "active": "ironStance",
     "sheet": "units/animated/anim_dwarf_t4_shieldwall_guard_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/units/portrait_dwarf_t4_shieldwall_guard.webp"
+    "portrait": "ui/portraits/units/portrait_dwarf_t4_shieldwall_guard.webp",
+    "role": "support"
   },
   "dwarf_t5_steam_golem": {
     "faction": "dwarf",
@@ -1900,7 +1943,8 @@
     ],
     "active": "overpressure",
     "sheet": "units/animated/anim_dwarf_t5_steam_golem_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/units/portrait_dwarf_t5_steam_golem.webp"
+    "portrait": "ui/portraits/units/portrait_dwarf_t5_steam_golem.webp",
+    "role": "tank"
   },
   "dwarf_t6_berserker_thane": {
     "faction": "dwarf",
@@ -1920,7 +1964,8 @@
     ],
     "active": "finalStand",
     "sheet": "units/animated/anim_dwarf_t6_berserker_thane_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/units/portrait_dwarf_t6_berserker_thane.webp"
+    "portrait": "ui/portraits/units/portrait_dwarf_t6_berserker_thane.webp",
+    "role": "fighter"
   },
   "orc_t1_grunt": {
     "faction": "orc",
@@ -1940,7 +1985,8 @@
     ],
     "active": "warcry",
     "sheet": "units/animated/anim_orc_t1_grunt_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/units/portrait_orc_t1_grunt.webp"
+    "portrait": "ui/portraits/units/portrait_orc_t1_grunt.webp",
+    "role": "fighter"
   },
   "orc_t2_axe_thrower": {
     "faction": "orc",
@@ -1958,7 +2004,11 @@
     "ranged": 6,
     "active": "axeVolley",
     "sheet": "units/animated/anim_orc_t2_axe_thrower_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/units/portrait_orc_t2_axe_thrower.webp"
+    "portrait": "ui/portraits/units/portrait_orc_t2_axe_thrower.webp",
+    "role": "ranged",
+    "passives": [
+      "heavyAxes"
+    ]
   },
   "orc_t3_wolf_rider": {
     "faction": "orc",
@@ -1979,7 +2029,8 @@
     ],
     "active": "hunt",
     "sheet": "units/animated/anim_orc_t3_wolf_rider_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/units/portrait_orc_t3_wolf_rider.webp"
+    "portrait": "ui/portraits/units/portrait_orc_t3_wolf_rider.webp",
+    "role": "fighter"
   },
   "orc_t4_shaman_adept": {
     "faction": "orc",
@@ -1999,7 +2050,8 @@
     ],
     "active": "bloodSacrifice",
     "sheet": "units/animated/anim_orc_t4_shaman_adept_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/units/portrait_orc_t4_shaman_adept.webp"
+    "portrait": "ui/portraits/units/portrait_orc_t4_shaman_adept.webp",
+    "role": "support"
   },
   "orc_t5_ogre": {
     "faction": "orc",
@@ -2019,7 +2071,8 @@
     ],
     "active": "smash",
     "sheet": "units/animated/anim_orc_t5_ogre_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/units/portrait_orc_t5_ogre.webp"
+    "portrait": "ui/portraits/units/portrait_orc_t5_ogre.webp",
+    "role": "tank"
   },
   "orc_t6_war_troll": {
     "faction": "orc",
@@ -2040,7 +2093,8 @@
     ],
     "active": "rampage",
     "sheet": "units/animated/anim_orc_t6_war_troll_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/units/portrait_orc_t6_war_troll.webp"
+    "portrait": "ui/portraits/units/portrait_orc_t6_war_troll.webp",
+    "role": "fighter"
   },
   "demon_t1_imp": {
     "faction": "demon",
@@ -2061,7 +2115,8 @@
     ],
     "active": "fireSpark",
     "sheet": "units/animated/anim_demon_t1_imp_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/units/portrait_demon_t1_imp.webp"
+    "portrait": "ui/portraits/units/portrait_demon_t1_imp.webp",
+    "role": "fighter"
   },
   "demon_t2_hellhound": {
     "faction": "demon",
@@ -2081,7 +2136,8 @@
     ],
     "active": "howl",
     "sheet": "units/animated/anim_demon_t2_hellhound_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/units/portrait_demon_t2_hellhound.webp"
+    "portrait": "ui/portraits/units/portrait_demon_t2_hellhound.webp",
+    "role": "fighter"
   },
   "demon_t3_succubus": {
     "faction": "demon",
@@ -2102,7 +2158,8 @@
     ],
     "active": "seduce",
     "sheet": "units/animated/anim_demon_t3_succubus_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/units/portrait_demon_t3_succubus.webp"
+    "portrait": "ui/portraits/units/portrait_demon_t3_succubus.webp",
+    "role": "mage"
   },
   "demon_t4_devil": {
     "faction": "demon",
@@ -2122,7 +2179,8 @@
     ],
     "active": "hellPortal",
     "sheet": "units/animated/anim_demon_t4_devil_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/units/portrait_demon_t4_devil.webp"
+    "portrait": "ui/portraits/units/portrait_demon_t4_devil.webp",
+    "role": "fighter"
   },
   "demon_t5_fire_lord": {
     "faction": "demon",
@@ -2143,7 +2201,8 @@
     ],
     "active": "infernoBlast",
     "sheet": "units/animated/anim_demon_t5_fire_lord_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/units/portrait_demon_t5_fire_lord.webp"
+    "portrait": "ui/portraits/units/portrait_demon_t5_fire_lord.webp",
+    "role": "mage"
   },
   "demon_t6_archdemon": {
     "faction": "demon",
@@ -2164,6 +2223,7 @@
     ],
     "active": "worldfire",
     "sheet": "units/animated/anim_demon_t6_archdemon_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/units/portrait_demon_t6_archdemon.webp"
+    "portrait": "ui/portraits/units/portrait_demon_t6_archdemon.webp",
+    "role": "fighter"
   }
 }

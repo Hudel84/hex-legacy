@@ -10,15 +10,17 @@ import { bonus, unitUnlocked, FACTION_RES, type Res } from '../meta/meta';
 import { SPELLS, FACTION_SCHOOLS, MAX_SPELL_LEVEL, MAX_FOREIGN_LEVEL, SCHOOLS, type SpellSlot, type School } from '../battle/spells';
 import type { Faction } from '../battle/types';
 import { combine } from '../battle/mods';
+import { applyUpgrades, activeSynergies, synergyMods, roleOf, upgradeOffer, type SynergyDef, type UpgradeDef } from './upgrades';
 import {
   ITEMS, EQUIP_SLOTS, BAG_SIZE, BELT_SIZE, slotOf, itemStats, itemMods, setBonuses, addStats, sellPrice,
   type EquipSlot, type ItemInst, type Stats,
 } from './items';
 
 export const MAX_SLOTS = 3;
-export const MAX_UNIT_LEVEL = 2;
+export const MAX_UNIT_LEVEL = 5;
 
-export interface ArmySlot { unitId: string; alloc: number; level: number; }
+/** level = upgrade level (0-5), ups = the upgrade chosen at each level (old saves: missing). */
+export interface ArmySlot { unitId: string; alloc: number; level: number; ups?: string[]; }
 
 export interface RunState {
   version: 1;
@@ -156,18 +158,38 @@ export function count(slot: ArmySlot, r = run()): number {
 
 export function freeLeadership(_r?: RunState): number { return 0; }
 
-/** Unit stats with the slot's upgrade level applied (+12 % HP and damage per level). */
-export function upgradedDef(slot: ArmySlot): UnitDef {
-  const d = unitDef(slot.unitId);
-  if (!slot.level) return d;
-  const m = 1 + 0.12 * slot.level;
-  return {
-    ...d, level: slot.level,
-    hp: Math.round(d.hp * m),
-    dmg: [Math.max(1, Math.round(d.dmg[0] * m)), Math.max(1, Math.round(d.dmg[1] * m))],
-    atk: d.atk + slot.level, def: d.def + slot.level,
-  };
+/** Synergies of the current army (units on level 3+ of different pools). */
+export function armySynergies(r: RunState | null = current): SynergyDef[] {
+  if (!r) return [];
+  return activeSynergies(r.army.map((s) => ({ def: unitDef(s.unitId), level: s.level })));
 }
+
+/** Unit stats with the slot's upgrades (base growth per level, chosen upgrades) and the army's synergies. */
+export function upgradedDef(slot: ArmySlot, r: RunState | null = current): UnitDef {
+  const d = unitDef(slot.unitId);
+  const syn = synergyMods(roleOf(d), armySynergies(r));
+  if (!slot.level && !syn.length) return d;
+  return applyUpgrades(d, slot.level, slot.ups ?? [], syn);
+}
+
+/** Raise a unit type by one level with the chosen upgrade. */
+export function levelUpUnit(slot: ArmySlot, upgradeId: string | null): void {
+  if (slot.level >= MAX_UNIT_LEVEL) return;
+  slot.level++;
+  slot.ups ??= [];
+  if (upgradeId) slot.ups.push(upgradeId);
+}
+
+/** Deterministic offer for a slot's next level, so leaving and coming back shows the same choice. */
+export function upgradeOptions(slot: ArmySlot, r = run()): UpgradeDef[] {
+  let h = r.seed >>> 0;
+  for (const ch of slot.unitId) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+  const g = new Rng((h ^ ((slot.level + 1) * 0x9e3779b1)) >>> 0);
+  return upgradeOffer(unitDef(slot.unitId), slot.ups ?? [], slot.level + 1, g);
+}
+
+/** Upgrades get more expensive with the level (shop). */
+export const upgradePrice = (slot: ArmySlot): number => 45 + 25 * slot.level;
 
 /** Kept for old save games: leadership is no longer split between stacks. */
 export function rebalance(_r?: RunState): void { /* nothing to do */ }

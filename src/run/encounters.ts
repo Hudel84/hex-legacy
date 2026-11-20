@@ -38,7 +38,7 @@ const BIOME_GROUPS: Record<string, string[][]> = {
   crystal_cavern: [
     ['dwarf_t2_hammerer', 'dwarf_t3_crossbow_veteran', 'dwarf_t4_shieldwall_guard', 'dwarf_t5_steam_golem', 'dwarf_t6_berserker_thane'],
     ['neutral_moss_stone_golem', 'neutral_stone_gargoyle', 'neutral_clockwork_golem', 'neutral_basilisk', 'neutral_mimic'],
-    ['neutral_air_elemental', 'neutral_water_elemental', 'neutral_animated_armor', 'neutral_cyclops', 'neutral_treasure_goblin'],
+    ['neutral_air_elemental', 'neutral_water_elemental', 'neutral_animated_armor', 'neutral_cyclops', 'neutral_mimic'],
   ],
   demon_wasteland: [
     ['demon_t2_hellhound', 'demon_t3_succubus', 'demon_t4_devil', 'demon_t5_fire_lord', 'demon_t6_archdemon'],
@@ -52,7 +52,7 @@ GROUPS.orcs = ['orc_t1_grunt', 'orc_t2_axe_thrower', 'orc_t3_wolf_rider', 'neutr
 // extra act-1 creatures that were not in fights yet
 GROUPS.bandits.push('neutral_bandit_chieftain', 'neutral_rogue_assassin');
 GROUPS.wilds.push('neutral_owlbear', 'neutral_harpy');
-GROUPS.goblins.push('neutral_hobgoblin_captain', 'neutral_treasure_goblin', 'neutral_boar_beastman');
+GROUPS.goblins.push('neutral_hobgoblin_captain', 'neutral_boar_beastman');
 GROUPS.forest.push('neutral_satyr_piper', 'neutral_werewolf', 'neutral_centaur');
 
 const ELITES: Record<string, string[]> = {
@@ -102,7 +102,14 @@ export function actScaled(def: UnitDef, act: number): UnitDef {
   };
 }
 
-export interface EnemyArmy { army: { id: string; count: number; act?: number }[]; hero: { atk: number; def: number }; }
+export interface EnemyArmy { army: { id: string; count: number; act?: number; boss?: number }[]; hero: { atk: number; def: number }; }
+
+/** Late bosses and the Void God are a bit tougher since unit upgrades go up to level 5 (20.11.). */
+export const BOSS_SCALE: Record<number, number> = { 1: 1, 2: 1.35, 3: 1.6 };
+export function bossScaled(def: UnitDef, k: number): UnitDef {
+  if (k <= 1) return def;
+  return { ...def, hp: Math.round(def.hp * k), dmg: [Math.round(def.dmg[0] * (1 + (k - 1) * 0.6)), Math.round(def.dmg[1] * (1 + (k - 1) * 0.6))] };
+}
 
 /** Player army strength in leadership points (with upgrades counted a bit higher). */
 function playerPower(r: RunState): number {
@@ -110,7 +117,10 @@ function playerPower(r: RunState): number {
     * (1 + 0.04 * (heroTotals(r).atk + heroTotals(r).def));
 }
 
-export const DIFFICULTY = { base: 360, start: 0.5, perFloor: 0.075, perFloorLate: 0.035, elite: 1.1, boss: 0.55 };
+export const TREASURE_GOBLIN = 'neutral_treasure_goblin';
+export const TREASURE_CHANCE = 0.1;
+
+export const DIFFICULTY = { base: 360, start: 0.5, perFloor: 0.075, perFloorLate: 0.09, elite: 1.1, boss: 0.55, bossEscort: 1.2, final: 1.8 };
 
 /** Enemy budget factor: steep in act 1, flatter in acts 2 and 3 (the player's growth slows down there too). */
 export function curveAt(gf: number): number {
@@ -125,13 +135,13 @@ export function buildEnemy(node: MapNode, groupOverride?: string): EnemyArmy {
   const curve = DIFFICULTY.base * curveAt(floor);
   void playerPower(r);
   const heroBonus = Math.floor(floor / 4);
-  const out: { id: string; count: number; act?: number }[] = [];
+  const out: EnemyArmy['army'] = [];
 
   if (node.type === 'boss') {
     const b = BOSSES[r.biome] ?? BOSSES.meadows;
-    out.push({ id: b.id, count: 1 });
+    out.push({ id: b.id, count: 1, boss: BOSS_SCALE[r.act] ?? 1 });
     // the escort grows with the act like normal fights (act 1: as before)
-    const rest = Math.max(40, DIFFICULTY.base * DIFFICULTY.boss * (1 + 0.9 * (r.act - 1)));
+    const rest = Math.max(40, DIFFICULTY.base * DIFFICULTY.boss * (1 + DIFFICULTY.bossEscort * (r.act - 1)));
     for (const e of b.escort) out.push({ id: e, count: Math.max(2, Math.round(rest * 0.5 / UNITS[e].cost)) });
     commitRng(g);
     return { army: out, hero: { atk: 1 + 3 * (r.act - 1), def: 1 + 3 * (r.act - 1) } };
@@ -165,6 +175,10 @@ export function buildEnemy(node: MapNode, groupOverride?: string): EnemyArmy {
   const chosen = g.shuffle([...pool]).slice(0, n);
   for (const id of chosen) {
     out.push({ id, count: Math.max(1, Math.round(budget / n / UNITS[id].cost)) });
+  }
+  // rare treasure goblin: runs away in round 3, killing it gives bonus gold and an item
+  if (g.next() < TREASURE_CHANCE && out.length < 4) {
+    out.push({ id: TREASURE_GOBLIN, count: Math.max(3, Math.round(budget * 0.1 / UNITS[TREASURE_GOBLIN].cost)), act: r.act });
   }
   commitRng(g);
   return { army: out, hero: { atk: heroBonus, def: heroBonus } };
@@ -210,7 +224,7 @@ export function battleConfig(node: MapNode, enemy: EnemyArmy, rewardMul = 1): Ru
         mods: playerMods(r),
         army: r.army.filter((s) => count(s) > 0).map((s) => ({ def: upgradedDef(s), count: count(s) })),
       },
-      enemy: { hero: enemy.hero, army: enemy.army.map((a) => ({ def: a.act ? actScaled(UNITS[a.id], a.act) : UNITS[a.id], count: a.count })) },
+      enemy: { hero: enemy.hero, army: enemy.army.map((a) => ({ def: a.boss ? bossScaled(UNITS[a.id], a.boss) : a.act ? actScaled(UNITS[a.id], a.act) : UNITS[a.id], count: a.count })) },
     },
     reward: {
       gold: Math.round(baseGold * rewardMul * (1 + perkFactor('gold', r))),
@@ -225,8 +239,8 @@ export function finalConfig(): RunBattleConfig {
   const r = run();
   const node = r.map.find((n) => n.id === r.currentNode) ?? r.map[r.map.length - 1];
   const enemy: EnemyArmy = {
-    army: [{ id: 'boss_final_void_god', count: 1 }, { id: 'summon_void_spawn', count: 10 }],
-    hero: { atk: 9, def: 9 },
+    army: [{ id: 'boss_final_void_god', count: 1, boss: DIFFICULTY.final }, { id: 'summon_void_spawn', count: 14 }],
+    hero: { atk: 11, def: 11 },
   };
   const cfg = battleConfig(node, enemy);
   cfg.final = true;

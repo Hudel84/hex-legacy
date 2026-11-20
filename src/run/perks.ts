@@ -14,6 +14,7 @@ export interface PerkDef {
   heroes?: string[];          // hero-specific talents
   faction?: string;           // faction-specific artifacts
   stack?: boolean;            // can be taken several times
+  boss?: string;              // legendary boss relic: dropped by this boss only (never in normal offers)
   mods?: ModPatch;
   once?: { atk?: number; def?: number; lead?: number; gold?: number; power?: number; knowledge?: number };
   run?: { gold?: number; xp?: number; draft?: number };
@@ -170,6 +171,16 @@ export const PERKS: PerkDef[] = [
   A('shadowMirror', 'cursed_shadow_mirror', 'rare', { cursed: true, mods: { counters: 2, speed: -1 } }),
   A('poisonRose', 'cursed_poison_rose', 'rare', { cursed: true, mods: { poison: 0.3, ini: -1 } }),
   A('thornBook', 'cursed_thorn_book', 'rare', { cursed: true, mods: { spellDmg: 0.45, hp: -0.1 } }),
+  // ---- legendary boss relics (one of three after a boss: its own relic and two others) ----
+  A('kingsSignet', 'golden_king_piece', 'legendary', { boss: 'boss_act1_bandit_king', run: { gold: 0.35 }, mods: { traps: 1, firstStrike: 0.15 } }),
+  A('mandrakeHeart', 'mandrake_root', 'legendary', { boss: 'boss_extra_corrupted_treant', mods: { entangle: 1, regen: 0.05 } }),
+  A('dragonEgg', 'dragon_egg', 'legendary', { boss: 'boss_extra_green_dragon', mods: { breath: 0.06, hp: 0.1 } }),
+  A('hydraHeart', 'caged_heart', 'legendary', { boss: 'boss_act2_swamp_hydra', mods: { regrow: 0.04, poison: 0.15 } }),
+  A('deathCrown', 'cursed_rotten_crown', 'legendary', { boss: 'boss_extra_lich_sovereign', mods: { raise: 1, lifesteal: 0.1 } }),
+  A('frozenStar', 'frozen_star', 'legendary', { boss: 'boss_extra_frost_giant', mods: { chill: 1, frost: 1 } }),
+  A('magmaHeart', 'ruby_flame_prism', 'legendary', { boss: 'boss_act3_magma_wyrm', mods: { eruption: 0.08, burn: 0.15 } }),
+  A('colossusCore', 'golem_core', 'legendary', { boss: 'boss_extra_stone_colossus', mods: { taken: 0.15, counters: 1, startShield: 5 } }),
+  A('demonHorn', 'cursed_demon_horn', 'legendary', { boss: 'boss_extra_archdemon', mods: { imps: 1, dmg: 0.12 } }),
 ];
 
 export const perkById = (id: string): PerkDef => PERKS.find((p) => p.id === id)!;
@@ -183,6 +194,7 @@ interface Owner { heroId: string; faction: string; talents?: string[]; artifacts
 function eligible(p: PerkDef, o: Owner): boolean {
   const owned = [...(o.talents ?? []), ...(o.artifacts ?? [])];
   if (!p.stack && owned.includes(p.id)) return false;
+  if (p.boss) return false;   // boss relics only come from bosses
   if (p.heroes && !p.heroes.includes(o.heroId)) return false;
   if (p.faction && p.faction !== o.faction) return false;
   return true;
@@ -204,6 +216,15 @@ export function offer(kind: 'talent' | 'artifact', n: number, o: Owner, rng: Rng
   return out;
 }
 
+/** Relic choice after a boss: the boss's own relic first, then two other boss relics the hero doesn't have yet. */
+export function bossRelics(bossId: string, o: Owner, rng: Rng): PerkDef[] {
+  const owned = new Set([...(o.talents ?? []), ...(o.artifacts ?? [])]);
+  const all = PERKS.filter((p) => p.boss && !owned.has(p.id));
+  const own = all.filter((p) => p.boss === bossId);
+  const rest = rng.shuffle(all.filter((p) => p.boss !== bossId));
+  return [...own, ...rest].slice(0, 3);
+}
+
 export function perksOf(o: Owner): PerkDef[] {
   return [...(o.talents ?? []), ...(o.artifacts ?? [])].map(perkById).filter(Boolean);
 }
@@ -223,7 +244,7 @@ export function effectParts(p: PerkDef): { key: string; v: number }[] {
   for (const [k, v] of Object.entries(p.once ?? {})) if (v) out.push({ key: `eff.${k}`, v });
   for (const [k, v] of Object.entries(p.mods ?? {}) as [string, number][]) {
     if (!v) continue;
-    const flat = ['ini', 'speed', 'shots', 'counters', 'startShield', 'cooldown', 'round1Ini', 'mana', 'frost', 'markShots', 'furyMax'].includes(k);
+    const flat = ['ini', 'speed', 'shots', 'counters', 'startShield', 'cooldown', 'round1Ini', 'mana', 'frost', 'markShots', 'furyMax', 'traps', 'entangle', 'raise', 'chill', 'imps'].includes(k);
     out.push({ key: `eff.${k}`, v: flat ? v : pct(v) });
   }
   for (const [k, v] of Object.entries(p.run ?? {})) if (v) out.push({ key: `eff.run_${k}`, v: k === 'draft' ? v : pct(v) });

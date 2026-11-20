@@ -20,7 +20,10 @@ export interface UnitDef {
   active?: string;          // active ability id (see abilities in engine)
   mounted?: boolean;        // riders and beasts of burden (spearmen resist them)
   wide?: boolean;           // occupies two hexes (bosses)
-  level?: number;           // upgrade level of the player's unit type (0-2)
+  level?: number;           // upgrade level of the player's unit type (0-5)
+  ups?: string[];           // chosen upgrades (shown in the unit info)
+  role?: string;            // upgrade pool: tank, fighter, ranged, mage, support
+  mods?: Partial<import('./mods').SideMods>;   // per-unit battle modifiers (upgrades, synergies)
   flying?: boolean;
   undead?: boolean;
   /** passive keys handled by the engine */
@@ -73,13 +76,18 @@ export type BattleEvent =
   | { type: 'heal'; uid: number; amount: number; count: number }
   | { type: 'ability'; uid: number; ability: string; target?: number }
   | { type: 'status'; uid: number; status: StatusId; on: boolean }
-  | { type: 'dot'; uid: number; damage: number; kills: number; left: number; source?: 'thorns' | 'burn' }
+  | { type: 'dot'; uid: number; damage: number; kills: number; left: number; source?: 'thorns' | 'burn' | 'trap' | 'skill' }
   | { type: 'cast'; side: Side; spell: string; target?: number; mana: number }
   | { type: 'spellHit'; uid: number; spell: string; damage: number; kills: number; left: number; absorbed?: number }
   | { type: 'resist'; uid: number; status: StatusId }
   | { type: 'useItem'; side: Side; item: string; index: number; target?: number }
   | { type: 'summon'; uid: number }
   | { type: 'vanish'; uid: number }
+  | { type: 'flee'; uid: number }
+  /** A boss skill or relic effect at the start of a round (name = i18n key). */
+  | { type: 'skill'; side: Side; uid?: number; name: string }
+  /** A trap was laid (on) or sprung by stack `uid` (off). */
+  | { type: 'trap'; hex: Hex; side: Side; on: boolean; uid?: number }
   | { type: 'teleport'; uid: number; to: Hex }
   | { type: 'skip'; uid: number; reason: 'fear' }
   | { type: 'ward'; uid: number; absorbed: number }

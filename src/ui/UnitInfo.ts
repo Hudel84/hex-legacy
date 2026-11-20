@@ -1,3 +1,7 @@
+import { roleOf } from '../run/upgrades';
+import { roleName, upgradeName } from './upgradeUi';
+import { perkLines } from './perkUi';
+import type { PerkDef } from '../run/perks';
 import Phaser from 'phaser';
 import { t } from '../core/i18n';
 import { COLOR, FONT_BODY } from '../core/theme';
@@ -64,7 +68,8 @@ export function showUnitInfo(scene: Phaser.Scene, o: UnitInfoData): Phaser.GameO
   const root = scene.add.container(0, 0).setDepth(9000).setScrollFactor(0);
   const dim = scene.add.rectangle(0, 0, w, h, 0x000000, 0.55).setOrigin(0).setInteractive();
   root.add(dim);
-  const PW = 900, PH = 760;
+  const nPass = (d.passives?.length ?? 0) + (d.ranged ? 1 : 0) + (d.flying ? 1 : 0) + (d.mounted ? 1 : 0) + 1;
+  const PW = 900, PH = Math.min(h - 30, 760 + Math.max(0, nPass - 3) * 38 + (d.ups?.length || d.mods ? 110 : 0));
   const px = w / 2 - PW / 2, py = h / 2 - PH / 2;
   root.add(panel(scene, w / 2, h / 2, PW, PH, 'ui_panel_dark_wood', 70));
 
@@ -125,6 +130,16 @@ export function showUnitInfo(scene: Phaser.Scene, o: UnitInfoData): Phaser.GameO
       y += Math.max(30, dx.height + 4);
     }
     y += 10;
+  }
+  // upgrades: pool, chosen upgrades and their modifiers
+  if (d.ups?.length || d.mods) {
+    const role = roleOf(d);
+    section(`${t('info.upgrades')} · ${roleName(role)}`);
+    const names = (d.ups ?? []).map(upgradeName).join(', ');
+    const mods = d.mods ? perkLines({ mods: d.mods } as PerkDef).join(' · ') : '';
+    const tx = scene.add.text(px + 75, y, [names, mods].filter(Boolean).join('\n'), { fontFamily: FONT_BODY, fontSize: '20px', color: '#efe3c8', lineSpacing: 4, wordWrap: { width: PW - 150 } });
+    root.add(tx);
+    y += tx.height + 14;
   }
   // active
   if (d.active && ABILITIES[d.active]) {

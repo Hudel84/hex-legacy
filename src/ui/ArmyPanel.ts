@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { levelLabel, roleName, ROLE_COLOR, synergyName, synergyLines } from './upgradeUi';
+import { roleOf } from '../run/upgrades';
 import { t } from '../core/i18n';
 import { COLOR } from '../core/theme';
 import { run, count, xpForLevel, unitDef, heroTotals } from '../run/state';
@@ -6,7 +8,7 @@ import { heroById } from '../run/heroes';
 import { loadHeroPortrait, loadPortrait } from '../core/assets';
 import { panel, textStyle, titleStyle, stat, fitWidth } from './widgets';
 import { showUnitInfo, loadAbilityIcons } from './UnitInfo';
-import { upgradedDef } from '../run/state';
+import { upgradedDef, armySynergies } from '../run/state';
 import { loadSpellIcons } from './spellUi';
 import { tooltip } from './perkUi';
 import { maxMana } from '../battle/spells';
@@ -108,14 +110,22 @@ export class ArmyPanel extends Phaser.GameObjects.Container {
       const pk2 = `portrait_${s.unitId}`;
       if (sc.textures.exists(pk2)) { const p = sc.add.image(80, y, pk2); p.setDisplaySize(88, 88); c.add(p); }
       c.add(fitWidth(sc.add.text(134, y - 40, t(`unit.${s.unitId}`), textStyle(21, COLOR.gold, true)), 232));
-      c.add(sc.add.text(134, y - 12, `×${count(s)}   ${'★'.repeat(s.level)}${'☆'.repeat(2 - s.level)}`, textStyle(24, '#ffffff', true)));
-      c.add(sc.add.text(134, y + 20, t('run.costEach', { n: d.cost }), textStyle(17, '#eadcbc')));
+      c.add(sc.add.text(134, y - 12, `×${count(s)}  ${levelLabel(s)}`, textStyle(22, '#ffffff', true)));
+      const role = roleOf(d);
+      c.add(sc.add.text(134, y + 20, `${roleName(role)} · ${t('run.costEach', { n: d.cost })}`, textStyle(17, ROLE_COLOR[role])));
     });
     const hy = 625 + r.army.length * 125 - 30;
-    const hint = sc.add.text(200, hy, t('run.armyHint'), { ...textStyle(19, '#f0e2c0'), align: 'center', wordWrap: { width: 330 } }).setOrigin(0.5, 0);
+    const syn = armySynergies(r);
+    const hint = sc.add.text(200, hy, syn.length ? t('run.synergies', { list: syn.map(synergyName).join(', ') }) : t('run.armyHint'),
+      { ...textStyle(19, syn.length ? '#9fd0ff' : '#f0e2c0', !!syn.length), align: 'center', wordWrap: { width: 330 } }).setOrigin(0.5, 0);
     const hb = sc.add.graphics();
     hb.fillStyle(0x000000, 0.45).fillRoundedRect(200 - 175, hy - 8, 350, hint.height + 16, 10);
     c.add([hb, hint]);
+    if (syn.length) {
+      const z = sc.add.zone(200, hy + hint.height / 2, 350, hint.height + 16).setInteractive();
+      tooltip(sc, z, t('run.synergyTitle'), syn.flatMap((x) => [`${synergyName(x)}:`, ...synergyLines(x).map((l) => `  ${l}`)]));
+      c.add(z);
+    }
     this.setScrollFactor(0, 0, true);
     c.setScrollFactor(0, 0, true);
   }

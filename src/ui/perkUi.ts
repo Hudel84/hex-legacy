@@ -20,6 +20,7 @@ export function perkLines(p: PerkDef): string[] {
 
 export function rarityLabel(p: PerkDef): string {
   const base = p.cursed ? `${t('rarity.cursed')} · ${t(`rarity.${p.rarity}`)}` : t(`rarity.${p.rarity}`);
+  if (p.boss) return t('rarity.boss');
   return p.heroes ? `${t('rarity.hero')} · ${base}` : base;
 }
 

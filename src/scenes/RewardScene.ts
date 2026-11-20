@@ -13,12 +13,14 @@ import { advanceAct, LAST_ACT } from '../run/state';
 import { stashItem, addToBag, equipItem, bagFull, beltFull, addConsumable, slotsFor, heroFaction, equipped } from '../run/state';
 import { withItemTextures, loadItemAssets, itemIcon, itemInfo, itemInfoBlock, consumableIcon, consumableName, consumableDesc, itemName } from '../ui/itemUi';
 import { setCounts } from '../run/items';
-import { offer, type PerkDef } from '../run/perks';
+import { offer, bossRelics, type PerkDef } from '../run/perks';
 import { perkCard, loadPerkIcons } from '../ui/perkUi';
 import { bonus } from '../meta/meta';
 import type { RunBattleConfig } from '../run/encounters';
 import { card, titleStyle, textStyle, stat, resRow, panel } from '../ui/widgets';
 import { Button, toast } from '../ui/Button';
+import { openUpgradeChoice, levelLabel } from '../ui/upgradeUi';
+import { levelUpUnit } from '../run/state';
 
 
 export class RewardScene extends Phaser.Scene {
@@ -31,11 +33,17 @@ export class RewardScene extends Phaser.Scene {
   private itemFind: ItemInst | null = null;
   private consFind: string | null = null;
   private eliteItem: ItemInst | null = null;
+  private relicDone = false;
+  /** Treasure goblin killed: bonus gold and an extra item. */
+  private treasure = false;
+  private treasureGold = 0;
+  private extraItems: ItemInst[] = [];
 
   constructor() { super('Reward'); }
 
-  init(data: { config: RunBattleConfig }): void {
+  init(data: { config: RunBattleConfig; treasure?: boolean }): void {
     this.cfg = data.config; this.artifactDone = false; this.itemFind = null; this.consFind = null; this.eliteItem = null;
+    this.relicDone = false; this.treasure = !!data.treasure; this.treasureGold = 0; this.extraItems = [];
   }
 
   preload(): void {
@@ -50,9 +58,14 @@ export class RewardScene extends Phaser.Scene {
       if (g.next() < 0.35) this.itemFind = rollItem(g, globalFloor(node.floor));
       if (g.next() < 0.15) this.consFind = rollConsumable(g);
     }
+    if (this.treasure) {
+      const gf = globalFloor(node.floor);
+      this.treasureGold = Math.round((40 + gf * 6) * (1 + perkFactor('gold')));
+      this.extraItems.push(rollItem(g, gf + 2, 'rare'));
+    }
     commitRng(g);
     this.draft = pool.slice(0, 3 + perkFactor('draft'));
-    loadItemAssets(this, [this.itemFind, this.eliteItem, ...equipped(), ...(run().bag ?? [])].filter((x): x is ItemInst => !!x).map((x) => x.id));
+    loadItemAssets(this, [this.itemFind, this.eliteItem, ...this.extraItems, ...equipped(), ...(run().bag ?? [])].filter((x): x is ItemInst => !!x).map((x) => x.id));
     loadPerkIcons(this);
     loadSpellIcons(this);
     for (const id of [...this.draft, ...run().army.map((s) => s.unitId)]) loadPortrait(this, id);
@@ -69,7 +82,7 @@ export class RewardScene extends Phaser.Scene {
     this.time.delayedCall(3500, () => playMusic(this, mapMusic(r.act), 2000)); // after the victory stinger
 
     // apply gold and xp once
-    r.gold += this.cfg.reward.gold;
+    r.gold += this.cfg.reward.gold + this.treasureGold;
     r.battlesWon++;
     this.levelUps = gainXp(this.cfg.reward.xp);
     const node = nodeById(this.cfg.nodeId);
@@ -90,13 +103,18 @@ export class RewardScene extends Phaser.Scene {
     this.layer.add(this.add.text(w / 2 + 60, 260, `+${this.cfg.reward.xp} XP`, textStyle(40, '#bcd8f0', true)).setOrigin(0, 0.5));
     this.layer.add(this.add.text(w / 2, 345, t('reward.loot'), textStyle(24, '#e8dcc0')).setOrigin(0.5));
     this.layer.add(resRow(this, w / 2, 395, this.loot, 30, '+'));
+    if (this.treasure) {
+      this.layer.add(this.add.text(w / 2, 470, t('reward.treasureGoblin', { n: this.treasureGold }), textStyle(30, '#ffe08a', true)).setOrigin(0.5));
+    }
     this.time.delayedCall(1300, () => this.next());
   }
 
   private next(): void {
     if (this.levelUps > 0) { this.levelUp(); return; }
     const node = nodeById(this.cfg.nodeId);
+    if (node.type === 'boss' && !this.relicDone) { this.relicChoice(); return; }
     if (node.type === 'elite' && !this.artifactDone) { this.artifactChoice(); return; }
+    if (!this.itemFind && this.extraItems.length) this.itemFind = this.extraItems.shift()!;
     if (this.itemFind) { this.showItemFind(); return; }
     if (this.consFind) { this.showConsFind(); return; }
     if (this.cfg.reward.draft && this.draft.length) { this.showDraft(); return; }
@@ -165,6 +183,26 @@ export class RewardScene extends Phaser.Scene {
     }
   }
 
+
+  /** After a boss: one of three legendary boss relics (the boss's own and two others). */
+  private relicChoice(): void {
+    const { width: w } = this.scale;
+    this.relicDone = true;
+    const bossId = this.cfg.setup.enemy.army.find((a) => a.def.id.startsWith('boss_'))?.def.id ?? '';
+    const g = rng();
+    const opts = bossRelics(bossId, owner(), g);
+    commitRng(g);
+    if (!opts.length) { this.next(); return; }
+    playSfx(this, 'ui_reward');
+    this.clear();
+    this.layer.add(this.add.text(w / 2, 120, t('reward.relic'), titleStyle(60)).setOrigin(0.5));
+    this.layer.add(this.add.text(w / 2, 195, t('reward.chooseRelic'), textStyle(30)).setOrigin(0.5));
+    opts.forEach((p, i) => {
+      const c = perkCard(this, w / 2 + (i - (opts.length - 1) / 2) * 360, 590, p, () => { grantPerk(p.id); save(); playSfx(this, 'ui_equip'); this.next(); });
+      if (p.boss === bossId) this.layer.add(this.add.text(c.x, 300, t('reward.relicOwn'), textStyle(22, '#ffb347', true)).setOrigin(0.5));
+      this.layer.add(c);
+    });
+  }
 
   /** A found item: put on, into the backpack or sell. */
   private showItemFind(): void {
@@ -267,9 +305,12 @@ export class RewardScene extends Phaser.Scene {
   private pick(id: string): void {
     const r = run();
     const owned = r.army.find((s) => s.unitId === id);
-    if (owned) { owned.level = Math.min(MAX_UNIT_LEVEL, owned.level + 1); save(); this.finish(); return; }
+    if (owned) {
+      openUpgradeChoice(this, owned, (up) => { levelUpUnit(owned, up); save(); this.finish(); }, () => this.showDraft());
+      return;
+    }
     if (r.army.length < MAX_SLOTS) {
-      r.army.push({ unitId: id, alloc: 0, level: 0 });
+      r.army.push({ unitId: id, alloc: 0, level: 0, ups: [] });
       rebalance(); save(); this.finish(); return;
     }
     this.replace(id);
@@ -284,8 +325,8 @@ export class RewardScene extends Phaser.Scene {
     r.army.forEach((s, i) => {
       const c = card(this, w / 2 + (i - 1) * 380, 560, {
         w: 300, portrait: `portrait_${s.unitId}`, title: t(`unit.${s.unitId}`),
-        subtitle: `${'★'.repeat(s.level)}${'☆'.repeat(MAX_UNIT_LEVEL - s.level)}`,
-        onClick: () => { r.army[i] = { unitId: id, alloc: s.alloc, level: 0 }; rebalance(); save(); this.finish(); },
+        subtitle: levelLabel(s),
+        onClick: () => { r.army[i] = { unitId: id, alloc: s.alloc, level: 0, ups: [] }; rebalance(); save(); this.finish(); },
       });
       this.layer.add(c);
     });

@@ -18,6 +18,9 @@ import { rollItem, rollConsumable, sellPrice, ITEM_PRICE, ITEMS, CONSUMABLES, ty
 import { stashItem, slotsFor, bagFull, beltFull, addConsumable, sellItem, addToBag, heroFaction } from '../run/state';
 import { itemName, itemInfo, consumableName, consumableDesc, rarityName } from '../ui/itemUi';
 import { loadSpellIcons, spellName, spellDesc, levelStars } from '../ui/spellUi';
+import { openUpgradeChoice, levelLabel, roleName, upgradeName } from '../ui/upgradeUi';
+import { roleOf } from '../run/upgrades';
+import { upgradePrice, levelUpUnit } from '../run/state';
 import { offer, perkById } from '../run/perks';
 import { perkLines } from '../ui/perkUi';
 import { panel, titleStyle, inkStyle } from '../ui/widgets';
@@ -183,11 +186,12 @@ export class NodeScene extends Phaser.Scene {
   }
 
   /** Let the player choose one of the army slots (for upgrades). */
-  private chooseSlot(title: string, filter: (s: ArmySlot) => boolean, then: (s: ArmySlot) => void, back: () => void): void {
+  private chooseSlot(title: string, filter: (s: ArmySlot) => boolean, then: (s: ArmySlot) => void, back: () => void, price?: (s: ArmySlot) => number): void {
     const r = run();
     const opts: Opt[] = r.army.map((s) => ({
-      label: `${t(`unit.${s.unitId}`)}  ${'★'.repeat(s.level)}${'☆'.repeat(MAX_UNIT_LEVEL - s.level)}`,
-      hint: s.level < MAX_UNIT_LEVEL ? t('node.upgradeHint') : t('node.maxLevel'),
+      label: `${t(`unit.${s.unitId}`)}  ${levelLabel(s)}`,
+      hint: s.level < MAX_UNIT_LEVEL ? `${roleName(roleOf(unitDef(s.unitId)))} · ${t('node.upgradeHint')}` : t('node.maxLevel'),
+      price: price?.(s),
       enabled: filter(s),
       action: () => then(s),
     }));
@@ -216,13 +220,20 @@ export class NodeScene extends Phaser.Scene {
       { label: t('shop.training'), hint: t('shop.trainingHint'), action: () => this.training() },
       { label: t('shop.magic'), hint: t('shop.magicHint'), action: () => this.magicShop() },
       { label: t('shop.gear'), hint: t('shop.gearHint'), action: () => this.gearShop() },
-      {
-        label: t('shop.upgrade'), hint: t('shop.upgradeHint'), price: this.price(55),
-        enabled: r.gold >= this.price(55) && r.army.some((s) => s.level < MAX_UNIT_LEVEL),
-        action: () => this.chooseSlot(t('shop.upgrade'), (s) => s.level < MAX_UNIT_LEVEL, (s) => {
-          r.gold -= this.price(55); r.shopBuys++; s.level++; playSfx(this, 'ui_equip'); save(); this.shop();
-        }, () => this.shop()),
-      },
+      (() => {
+        const cost = (s: ArmySlot) => this.price(upgradePrice(s));
+        const open = r.army.filter((s) => s.level < MAX_UNIT_LEVEL);
+        const cheapest = open.length ? Math.min(...open.map(cost)) : 0;
+        return {
+          label: t('shop.upgrade'), hint: t('shop.upgradeHint'), price: cheapest || undefined,
+          enabled: open.some((s) => r.gold >= cost(s)),
+          action: () => this.chooseSlot(t('shop.upgrade'), (s) => s.level < MAX_UNIT_LEVEL && r.gold >= cost(s), (s) => {
+            openUpgradeChoice(this, s, (up) => {
+              r.gold -= cost(s); r.shopBuys++; levelUpUnit(s, up); playSfx(this, 'ui_equip'); save(); this.shop();
+            }, () => this.shop());
+          }, () => this.shop(), cost),
+        };
+      })(),
     ];
     if (this.shopUnit) {
       const id = this.shopUnit;
@@ -233,7 +244,7 @@ export class NodeScene extends Phaser.Scene {
         hint: full ? t('shop.unitFull') : t('shop.unitHint'),
         price: cost, enabled: r.gold >= cost && !full,
         action: () => {
-          r.gold -= cost; r.army.push({ unitId: id, alloc: 0, level: 0 }); rebalance(); this.shopUnit = '';
+          r.gold -= cost; r.army.push({ unitId: id, alloc: 0, level: 0, ups: [] }); rebalance(); this.shopUnit = '';
           playSfx(this, 'ui_buy'); save(); this.scene.restart({ kind: 'shop' });
         },
       });
@@ -394,9 +405,11 @@ export class NodeScene extends Phaser.Scene {
       {
         label: t('rest.upgrade'), hint: t('rest.upgradeHint'), enabled: r.army.some((s) => s.level < MAX_UNIT_LEVEL),
         action: () => this.chooseSlot(t('rest.upgrade'), (s) => s.level < MAX_UNIT_LEVEL, (s) => {
-          s.level++; playSfx(this, 'ui_equip');
-          if (bonus.campLeadership()) addLeadership(bonus.campLeadership());
-          this.result(t('node.rest'), t('rest.upgraded', { unit: t(`unit.${s.unitId}`) }));
+          openUpgradeChoice(this, s, (up) => {
+            levelUpUnit(s, up); playSfx(this, 'ui_equip');
+            if (bonus.campLeadership()) addLeadership(bonus.campLeadership());
+            this.result(t('node.rest'), t('rest.upgraded', { unit: t(`unit.${s.unitId}`), up: up ? upgradeName(up) : '' }));
+          }, () => this.rest());
         }, () => this.rest()),
       },
       {

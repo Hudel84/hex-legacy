@@ -31,6 +31,15 @@ export interface SideMods {
   markShots: number;    // 1 = ranged hits mark the target (+25 % ranged damage taken)
   furyMax: number;      // higher cap for the orcs' fury
   pierceDef: number;    // ignore this share of the target's DEF
+  // boss relics: effects at the start of every round
+  traps: number;        // lay this many traps next to enemy stacks every round
+  entangle: number;     // 1 = every second round the strongest enemy stack is rooted
+  breath: number;       // every third round all enemies are poisoned for this share of their hit points
+  regrow: number;       // every round own stacks heal this share of their full strength (revives)
+  raise: number;        // 1 = every third round skeletons rise for this side
+  chill: number;        // 1 = in round 1 and every third round all enemies are slowed
+  eruption: number;     // every round one enemy stack burns for this share of its hit points
+  imps: number;         // 1 = every third round imps come through a portal
 }
 
 export const NO_MODS: SideMods = {
@@ -38,6 +47,7 @@ export const NO_MODS: SideMods = {
   splitShot: 0, firstStrike: 0, regen: 0, lifesteal: 0, startShield: 0, poison: 0, cooldown: 0, round1Ini: 0,
   vsBig: 0, executioner: 0, thorns: 0, crit: 0, undeadDmg: 0, spellDmg: 0, mana: 0,
   burn: 0, frost: 0, markShots: 0, furyMax: 0, pierceDef: 0,
+  traps: 0, entangle: 0, breath: 0, regrow: 0, raise: 0, chill: 0, eruption: 0, imps: 0,
 };
 
 export type ModPatch = Partial<SideMods>;
