@@ -20,7 +20,7 @@ import { itemName, itemInfo, consumableName, consumableDesc, rarityName } from '
 import { loadSpellIcons, spellName, spellDesc, levelStars } from '../ui/spellUi';
 import { openUpgradeChoice, levelLabel, roleName, upgradeName } from '../ui/upgradeUi';
 import { roleOf } from '../run/upgrades';
-import { upgradePrice, levelUpUnit } from '../run/state';
+import { upgradePrice, levelUpUnit, trainPrice } from '../run/state';
 import { offer, perkById } from '../run/perks';
 import { perkLines } from '../ui/perkUi';
 import { panel, titleStyle, inkStyle } from '../ui/widgets';
@@ -332,14 +332,19 @@ export class NodeScene extends Phaser.Scene {
     const r = run();
     const buy = (cost: number, fn: () => void) => () => {
       if (r.gold < cost) { playSfx(this, 'ui_error'); return; }
-      r.gold -= cost; r.shopBuys++; fn(); playSfx(this, 'ui_buy'); save(); this.training();
+      r.gold -= cost; fn(); playSfx(this, 'ui_buy'); save(); this.training();
     };
-    const row = (key: string, base: number, fn: () => void): Opt =>
-      ({ label: t(`shop.${key}`), hint: t(`shop.${key}Hint`), price: this.price(base), enabled: r.gold >= this.price(base), action: buy(this.price(base), fn) });
+    // every attribute has its own price: +50 % per purchase of that attribute (Ben, 21.11.)
+    const cost = (key: string, base: number) => trainPrice(base, r.trainBuys?.[key] ?? 0, bonus.shopDiscount());
+    const row = (key: string, base: number, fn: () => void): Opt => {
+      const c = cost(key, base);
+      return { label: t(`shop.${key}`), hint: t(`shop.${key}Hint`), price: c, enabled: r.gold >= c,
+        action: buy(c, () => { fn(); (r.trainBuys ??= {})[key] = (r.trainBuys[key] ?? 0) + 1; }) };
+    };
     this.show(t('shop.training'), t('shop.trainingText'), [
       row('atk', 45, () => { r.atk += 1; }),
       row('def', 45, () => { r.def += 1; }),
-      row('power', 45, () => { r.power = (heroTotals(r).power) + 1; }),
+      row('power', 45, () => { r.power = (r.power ?? 0) + 1; }),
       row('knowledge', 45, () => { r.knowledge = (r.knowledge ?? 0) + 1; }),
       row('lead', 50, () => addLeadership(15)),
       { label: t('common.back'), action: () => this.shop() },

@@ -660,7 +660,7 @@
   "reward.spellUpgrade": "Improve spell to level {n}",
   "shop.training": "Training",
   "shop.trainingHint": "Attack, defense, spell power, knowledge, leadership",
-  "shop.trainingText": "\"Every drill costs gold – and every drill costs a bit more than the last.\"",
+  "shop.trainingText": "\"Every drill costs gold – and the same drill costs a lot more each time.\"",
   "shop.power": "Spell lessons: +1 spell power",
   "shop.powerHint": "Damage and healing of all spells grow.",
   "shop.knowledge": "Old tomes: +1 knowledge",

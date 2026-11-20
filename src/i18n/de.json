@@ -660,7 +660,7 @@
   "reward.spellUpgrade": "Zauber auf Stufe {n} verbessern",
   "shop.training": "Training",
   "shop.trainingHint": "Angriff, Verteidigung, Zauberkraft, Wissen, Führung",
-  "shop.trainingText": "\"Jede Übung kostet Gold – und jede ein bisschen mehr als die letzte.\"",
+  "shop.trainingText": "\"Jede Übung kostet Gold – und dieselbe Übung wird jedes Mal deutlich teurer.\"",
   "shop.power": "Zauberunterricht: +1 Zauberkraft",
   "shop.powerHint": "Schaden und Heilung aller Zauber steigen.",
   "shop.knowledge": "Alte Folianten: +1 Wissen",

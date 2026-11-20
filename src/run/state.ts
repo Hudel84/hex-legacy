@@ -40,6 +40,8 @@ export interface RunState {
   currentNode: number | null;
   visited: number[];
   shopBuys: number;
+  /** Training purchases per attribute (each attribute gets 50 % dearer with every purchase). */
+  trainBuys?: Record<string, number>;
   battlesWon: number;
   pending?: { kind: 'reward'; nodeId: number } | null;
   seenEvents?: string[];
@@ -201,6 +203,10 @@ export function upgradeOptions(slot: ArmySlot, r = run()): UpgradeDef[] {
   const g = new Rng((h ^ ((slot.level + 1) * 0x9e3779b1)) >>> 0);
   return upgradeOffer(unitDef(slot.unitId), slot.ups ?? [], slot.level + 1, g);
 }
+
+/** Training price: +50 % per earlier purchase of the same attribute, rounded to 5 gold. */
+export const trainPrice = (base: number, bought: number, discount = 0): number =>
+  Math.max(5, Math.round(base * Math.pow(1.5, bought) * (1 - discount) / 5) * 5);
 
 /** Upgrades get more expensive with the level (shop). */
 export const upgradePrice = (slot: ArmySlot): number => 45 + 25 * slot.level;
