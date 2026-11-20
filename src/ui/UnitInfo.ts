@@ -13,15 +13,26 @@ export const ABILITY_ICON: Record<string, string> = {
   deathWave: 'icon_spell_death_cloud', decayBreath: 'icon_spell_wither',
 };
 export const STATUS_ICON: Record<string, string> = {
-  poison: 'vfx_status_poisoned', atkDown: 'vfx_status_cursed', defDown: 'vfx_status_rooted', shield: 'vfx_status_defense_buff',
+  poison: 'vfx_status_poisoned', atkDown: 'vfx_status_cursed', defDown: 'icon_spell_wither', shield: 'vfx_status_defense_buff',
   spearwall: 'vfx_status_rune_buff', disembodied: 'vfx_status_incorporeal',
+  bless: 'vfx_status_blessed', ward: 'icon_spell_divine_shield', haste: 'vfx_status_haste', slow: 'vfx_status_frozen',
+  focus: 'icon_spell_battle_focus', confused: 'vfx_status_charmed', fear: 'vfx_status_feared', root: 'vfx_status_rooted',
+  regrowth: 'vfx_status_regenerating', thornskin: 'icon_spell_thorn_armor', burn: 'vfx_status_burning', frenzy: 'vfx_status_enraged',
+  fury: 'icon_stat_rage',
 };
+/** Where a status icon lives: status effects in vfx/status, the rest are spell or stat icons. */
+const statusPath = (k: string): string =>
+  k.startsWith('vfx_status_') ? `vfx/status/${k}` : k.startsWith('icon_stat_') ? `icons/stats/${k}` : `icons/spells/${k}`;
 
 /** Queue the icons the info panel and battle HUD need. */
 export function loadAbilityIcons(scene: Phaser.Scene): void {
   for (const k of Object.values(ABILITY_ICON)) if (!scene.textures.exists(k)) scene.load.image(k, `assets/icons/spells/${k}.webp`);
-  for (const k of Object.values(STATUS_ICON)) if (!scene.textures.exists(k)) scene.load.image(k, `assets/vfx/status/${k}.webp`);
+  for (const k of Object.values(STATUS_ICON)) if (!scene.textures.exists(k)) scene.load.image(k, `assets/${statusPath(k)}.webp`);
 }
+
+/** The people passive of a unit (every people has one, neutrals none). */
+export const PEOPLES = ['human', 'elf', 'dwarf', 'undead', 'orc', 'demon'];
+export const racePassive = (d: UnitDef): string | null => (PEOPLES.includes(d.faction) ? d.faction : null);
 
 export interface UnitInfoData {
   def: UnitDef;
@@ -82,9 +93,10 @@ export function showUnitInfo(scene: Phaser.Scene, o: UnitInfoData): Phaser.GameO
   // passives
   let y = py + 330;
   const passives: string[] = [];
+  const race = racePassive(d);
+  if (race) passives.push(`race:${race}`);
   if (d.ranged) passives.push('ranged');
   if (d.flying) passives.push('flying');
-  if (d.undead) passives.push('undead');
   if (d.mounted) passives.push('mounted');
   passives.push(...(d.passives ?? []));
   const section = (title: string) => {
@@ -94,9 +106,11 @@ export function showUnitInfo(scene: Phaser.Scene, o: UnitInfoData): Phaser.GameO
   if (passives.length) {
     section(t('info.passives'));
     for (const p of passives) {
-      const desc = p === 'ranged' ? `${o.shots ?? d.ranged ?? 0} ${t('info.shots')}` : t(`passive.${p}`);
-      const label = p === 'ranged' ? t('passiveName.ranged') : p === 'flying' ? t('passiveName.flying') : t(`passiveName.${p}`);
-      const tx = scene.add.text(px + 75, y, `• ${label}: `, { fontFamily: FONT_BODY, fontSize: '22px', fontStyle: '700', color: COLOR.gold });
+      const isRace = p.startsWith('race:');
+      const rk = p.slice(5);
+      const desc = isRace ? t(`race.${rk}.desc`) : p === 'ranged' ? `${o.shots ?? d.ranged ?? 0} ${t('info.shots')}` : t(`passive.${p}`);
+      const label = isRace ? t(`race.${rk}.name`) : p === 'ranged' ? t('passiveName.ranged') : p === 'flying' ? t('passiveName.flying') : t(`passiveName.${p}`);
+      const tx = scene.add.text(px + 75, y, `• ${label}: `, { fontFamily: FONT_BODY, fontSize: '22px', fontStyle: '700', color: isRace ? '#9fe0ff' : COLOR.gold });
       const dx = scene.add.text(tx.x + tx.width, y, p === 'flying' ? '' : desc, { fontFamily: FONT_BODY, fontSize: '22px', color: '#efe3c8', wordWrap: { width: PW - 160 - tx.width } });
       root.add([tx, dx]);
       y += Math.max(30, dx.height + 4);

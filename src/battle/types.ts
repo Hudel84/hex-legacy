@@ -30,7 +30,13 @@ export interface UnitDef {
   portrait: string;
 }
 
-export interface HeroStats { atk: number; def: number; }
+export interface HeroStats {
+  atk: number;
+  def: number;
+  power?: number;          // spell power (Zauberkraft)
+  knowledge?: number;      // 10 mana per point (Wissen)
+  spells?: { id: string; level: number }[];
+}
 
 /** One stack on the battlefield. */
 export interface Stack {
@@ -53,7 +59,10 @@ export interface Stack {
   summonRounds?: number;    // summoned stacks vanish when this reaches 0
 }
 
-export type StatusId = 'poison' | 'atkDown' | 'defDown' | 'shield' | 'spearwall' | 'disembodied';
+export type StatusId = 'poison' | 'atkDown' | 'defDown' | 'shield' | 'spearwall' | 'disembodied'
+  // from hero spells and people passives
+  | 'bless' | 'ward' | 'haste' | 'slow' | 'focus' | 'confused' | 'fear' | 'root' | 'regrowth' | 'thornskin'
+  | 'burn' | 'frenzy' | 'fury';
 export interface Status { id: StatusId; turns: number; value: number; }
 
 export type BattleEvent =
@@ -63,11 +72,15 @@ export type BattleEvent =
   | { type: 'heal'; uid: number; amount: number; count: number }
   | { type: 'ability'; uid: number; ability: string; target?: number }
   | { type: 'status'; uid: number; status: StatusId; on: boolean }
-  | { type: 'dot'; uid: number; damage: number; kills: number; left: number; source?: 'thorns' }
+  | { type: 'dot'; uid: number; damage: number; kills: number; left: number; source?: 'thorns' | 'burn' }
+  | { type: 'cast'; side: Side; spell: string; target?: number; mana: number }
+  | { type: 'spellHit'; uid: number; spell: string; damage: number; kills: number; left: number; absorbed?: number }
+  | { type: 'resist'; uid: number; status: StatusId }
   | { type: 'summon'; uid: number }
   | { type: 'vanish'; uid: number }
   | { type: 'teleport'; uid: number; to: Hex }
   | { type: 'skip'; uid: number; reason: 'fear' }
+  | { type: 'ward'; uid: number; absorbed: number }
   | { type: 'death'; uid: number }
   | { type: 'wait'; uid: number }
   | { type: 'defend'; uid: number }

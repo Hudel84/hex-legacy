@@ -15,7 +15,7 @@ export interface PerkDef {
   faction?: string;           // faction-specific artifacts
   stack?: boolean;            // can be taken several times
   mods?: ModPatch;
-  once?: { atk?: number; def?: number; lead?: number; gold?: number };
+  once?: { atk?: number; def?: number; lead?: number; gold?: number; power?: number; knowledge?: number };
   run?: { gold?: number; xp?: number; draft?: number };
 }
 
@@ -57,6 +57,13 @@ export const PERKS: PerkDef[] = [
   T('generalsBaton', 'generals_baton', 'legendary', { mods: { counters: 1, dmg: 0.1, taken: 0.1 } }),
   T('glory', 'glory', 'legendary', { once: { atk: 2, def: 2, lead: 20 } }),
   T('phoenixFeather', 'phoenix_feather', 'legendary', { mods: { lifesteal: 0.25 } }),
+  // ---- talents: magic ----
+  T('arcaneStudy', 'spellwriting', 'common', { stack: true, once: { knowledge: 2 } }),
+  T('spellFocus', 'spell_focus', 'common', { stack: true, once: { power: 2 } }),
+  T('scholar', 'rune_tome', 'common', { stack: true, once: { power: 1, knowledge: 1 } }),
+  T('channeling', 'channeling', 'rare', { mods: { spellDmg: 0.25 } }),
+  T('manaChalice', 'mana_chalice', 'rare', { mods: { mana: 12 } }),
+  T('archmage', 'wizard_hat', 'legendary', { once: { power: 2, knowledge: 2 }, mods: { spellDmg: 0.2 } }),
   // ---- talents: hero-specific ----
   T('knightBanner', 'crossed_swords_banner', 'rare', { heroes: ['human_hero_knight_commander'], once: { lead: 10 }, mods: { melee: 0.1 } }),
   T('commandTent', 'command_tent', 'common', { heroes: ['human_hero_knight_commander'], stack: true, once: { lead: 12 } }),
@@ -64,10 +71,12 @@ export const PERKS: PerkDef[] = [
   T('warDrum', 'war_drum', 'common', { heroes: ['human_hero_guard_captain'], stack: true, once: { atk: 2, def: 1 } }),
   T('holyBell', 'holy_bell', 'rare', { heroes: ['human_hero_priestess_of_light'], mods: { regen: 0.06, undeadDmg: 0.25 } }),
   T('newDawn', 'new_dawn', 'rare', { heroes: ['human_hero_priestess_of_light'], mods: { lifesteal: 0.1, startShield: 3 } }),
+  T('sunAndMoon', 'sun_and_moon', 'rare', { heroes: ['human_hero_priestess_of_light'], once: { knowledge: 1 }, mods: { spellDmg: 0.2 } }),
   T('restlessDead', 'restless_dead', 'rare', { heroes: ['undead_hero_death_lord'], mods: { regen: 0.06, hp: 0.05 } }),
   T('boneCrown', 'bone_crown', 'common', { heroes: ['undead_hero_death_lord'], stack: true, once: { lead: 15, def: 1 } }),
   T('soulJar', 'soul_jar', 'rare', { heroes: ['undead_hero_necromancer'], mods: { lifesteal: 0.18 } }),
   T('deathHourglass', 'death_hourglass', 'rare', { heroes: ['undead_hero_necromancer'], mods: { cooldown: 1, ranged: 0.15 } }),
+  T('spectralHand', 'spectral_hand', 'rare', { heroes: ['undead_hero_necromancer'], once: { power: 2 }, mods: { spellDmg: 0.15 } }),
   T('treasureHunter', 'treasure_hunter', 'common', { heroes: ['undead_hero_grave_robber'], run: { gold: 0.5 } }),
   T('soulGrasp', 'soul_grasp', 'rare', { heroes: ['undead_hero_grave_robber'], mods: { executioner: 0.25, firstStrike: 0.2 } }),
 
@@ -95,6 +104,11 @@ export const PERKS: PerkDef[] = [
   A('phylactery', 'undead_phylactery', 'legendary', { faction: 'undead', mods: { lifesteal: 0.2, hp: 0.1 } }),
   A('skullCandle', 'undead_skull_candle', 'common', { faction: 'undead', mods: { poison: 0.15, melee: 0.05 } }),
   A('victoryChalice', 'victory_chalice', 'legendary', { once: { atk: 2, def: 2 }, mods: { dmg: 0.1 } }),
+  A('moonstoneOrb', 'moonstone_orb', 'rare', { mods: { mana: 10 } }),
+  A('lightQuill', 'light_quill', 'common', { once: { knowledge: 2 } }),
+  A('starCandle', 'star_candle', 'common', { once: { power: 1, knowledge: 1 } }),
+  A('chainedBook', 'chained_book', 'rare', { mods: { spellDmg: 0.25 } }),
+  A('liquidStarlight', 'liquid_starlight', 'legendary', { once: { power: 3 }, mods: { mana: 10 } }),
   // cursed: strong with a price
   A('obsidianDagger', 'cursed_obsidian_dagger', 'rare', { cursed: true, mods: { dmg: 0.35, hp: -0.2 } }),
   A('vampireGoblet', 'cursed_vampire_goblet', 'rare', { cursed: true, mods: { lifesteal: 0.25 }, once: { def: -2 } }),
@@ -102,6 +116,7 @@ export const PERKS: PerkDef[] = [
   A('loadedDice', 'cursed_loaded_dice', 'rare', { cursed: true, mods: { crit: 0.3, dmg: -0.1 } }),
   A('shadowMirror', 'cursed_shadow_mirror', 'rare', { cursed: true, mods: { counters: 2, speed: -1 } }),
   A('poisonRose', 'cursed_poison_rose', 'rare', { cursed: true, mods: { poison: 0.3, ini: -1 } }),
+  A('thornBook', 'cursed_thorn_book', 'rare', { cursed: true, mods: { spellDmg: 0.45, hp: -0.1 } }),
 ];
 
 export const perkById = (id: string): PerkDef => PERKS.find((p) => p.id === id)!;
@@ -155,7 +170,7 @@ export function effectParts(p: PerkDef): { key: string; v: number }[] {
   for (const [k, v] of Object.entries(p.once ?? {})) if (v) out.push({ key: `eff.${k}`, v });
   for (const [k, v] of Object.entries(p.mods ?? {}) as [string, number][]) {
     if (!v) continue;
-    const flat = ['ini', 'speed', 'shots', 'counters', 'startShield', 'cooldown', 'round1Ini'].includes(k);
+    const flat = ['ini', 'speed', 'shots', 'counters', 'startShield', 'cooldown', 'round1Ini', 'mana'].includes(k);
     out.push({ key: `eff.${k}`, v: flat ? v : pct(v) });
   }
   for (const [k, v] of Object.entries(p.run ?? {})) if (v) out.push({ key: `eff.run_${k}`, v: k === 'draft' ? v : pct(v) });

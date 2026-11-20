@@ -38,6 +38,8 @@ export const BUILDINGS: BuildingDef[] = [
     costs: [{ stone: 20, crystals: 3, fame: 15 }] },
   { id: 'warehouse', icon: 'icon_building_warehouse', district: 'center', x: 880, y: 300,
     costs: [{ wood: 20, stone: 15 }] },
+  { id: 'library', icon: 'icon_building_library', district: 'center', x: 1010, y: 690,
+    costs: [{ wood: 12, crystals: 2 }, { stone: 20, crystals: 5 }, { stone: 30, ore: 8, crystals: 10, fame: 10 }] },
   { id: 'fieldCamp', icon: 'icon_building_field_camp', district: 'center', x: 700, y: 800,
     costs: [{ wood: 8, stone: 4 }, { wood: 25, stone: 15, ore: 4 }] },
   { id: 'cathedral', icon: 'icon_building_human_cathedral', district: 'human', x: 420, y: 250,
@@ -148,6 +150,10 @@ export const bonus = {
   keepOnDefeat: () => (level('warehouse') ? 0.85 : 0.6),
   campLeadership: () => (level('fieldCamp') >= 1 ? 6 : 0),
   campDrill: () => (level('fieldCamp') >= 2 ? 20 : 12),
+  knowledge: () => (level('library') >= 1 ? 1 : 0),
+  power: () => (level('library') >= 2 ? 1 : 0),
+  /** one extra start spell from the hero's schools */
+  extraSpell: () => level('library') >= 3,
 };
 
 /** Heroes: the first hero of every people is free, the tavern unlocks the second and third. */

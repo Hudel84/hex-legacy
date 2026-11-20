@@ -10,7 +10,9 @@ import { eventById, type EventOutcome } from '../run/events';
 import { buildEnemy, battleConfig } from '../run/encounters';
 import { ArmyPanel } from '../ui/ArmyPanel';
 import { bonus } from '../meta/meta';
-import { addLoot, lootFor, owner, grantPerk } from '../run/state';
+import { addLoot, lootFor, owner, grantPerk, learnable, learnSpell, upgradable, spellMax, spellReward } from '../run/state';
+import { SPELLS } from '../battle/spells';
+import { loadSpellIcons, spellName, spellDesc, levelStars } from '../ui/spellUi';
 import { offer, perkById } from '../run/perks';
 import { perkLines } from '../ui/perkUi';
 import { panel, titleStyle, inkStyle } from '../ui/widgets';
@@ -31,6 +33,8 @@ export class NodeScene extends Phaser.Scene {
   private armyPanel!: ArmyPanel;
   private shopUnit: string | null = null;
   private shopArtifact: string | null = null;
+  private shopSpell: string | null = null;
+  private shopForeign: string | null = null;
 
   constructor() { super('Node'); }
 
@@ -39,11 +43,14 @@ export class NodeScene extends Phaser.Scene {
     this.eventId = data.eventId ?? '';
     this.shopUnit = null;
     this.shopArtifact = null;
+    this.shopSpell = null;
+    this.shopForeign = null;
   }
 
   preload(): void {
     loadRunUi(this);
     ArmyPanel.preload(this);
+    loadSpellIcons(this);
     if (this.kind === 'event') {
       const ev = eventById(this.eventId);
       img(this, ev.image, `events/${ev.image}.webp`);
@@ -186,9 +193,8 @@ export class NodeScene extends Phaser.Scene {
       r.gold -= cost; r.shopBuys++; fn(); playSfx(this, 'ui_buy'); save(); this.shop();
     };
     const opts: Opt[] = [
-      { label: t('shop.atk'), hint: t('shop.atkHint'), price: this.price(45), enabled: r.gold >= this.price(45), action: buy(this.price(45), () => { r.atk += 1; }) },
-      { label: t('shop.def'), hint: t('shop.defHint'), price: this.price(45), enabled: r.gold >= this.price(45), action: buy(this.price(45), () => { r.def += 1; }) },
-      { label: t('shop.lead'), hint: t('shop.leadHint'), price: this.price(50), enabled: r.gold >= this.price(50), action: buy(this.price(50), () => addLeadership(15)) },
+      { label: t('shop.training'), hint: t('shop.trainingHint'), action: () => this.training() },
+      { label: t('shop.magic'), hint: t('shop.magicHint'), action: () => this.magicShop() },
       {
         label: t('shop.upgrade'), hint: t('shop.upgradeHint'), price: this.price(55),
         enabled: r.gold >= this.price(55) && r.army.some((s) => s.level < MAX_UNIT_LEVEL),
@@ -228,6 +234,82 @@ export class NodeScene extends Phaser.Scene {
     this.show(t('node.shop'), t('shop.text'), opts);
   }
 
+
+  /** Training: hero stats for gold (price rises with every purchase). */
+  private training(): void {
+    const r = run();
+    const buy = (cost: number, fn: () => void) => () => {
+      if (r.gold < cost) { playSfx(this, 'ui_error'); return; }
+      r.gold -= cost; r.shopBuys++; fn(); playSfx(this, 'ui_buy'); save(); this.training();
+    };
+    const row = (key: string, base: number, fn: () => void): Opt =>
+      ({ label: t(`shop.${key}`), hint: t(`shop.${key}Hint`), price: this.price(base), enabled: r.gold >= this.price(base), action: buy(this.price(base), fn) });
+    this.show(t('shop.training'), t('shop.trainingText'), [
+      row('atk', 45, () => { r.atk += 1; }),
+      row('def', 45, () => { r.def += 1; }),
+      row('power', 45, () => { r.power = (r.power ?? 0) + 1; }),
+      row('knowledge', 45, () => { r.knowledge = (r.knowledge ?? 0) + 1; }),
+      row('lead', 50, () => addLeadership(15)),
+      { label: t('common.back'), action: () => this.shop() },
+    ]);
+  }
+
+  /** Magic shop: one new spell of the hero's schools, sometimes one of a foreign school, and spell upgrades. */
+  private magicShop(): void {
+    const r = run();
+    if (this.shopSpell === null) {
+      const g = rng();
+      const own = learnable(false);
+      this.shopSpell = own.length ? g.pick(own) : '';
+      const foreign = learnable(true);
+      this.shopForeign = foreign.length && g.next() < 0.5 ? g.pick(foreign) : '';
+      commitRng(g);
+    }
+    const disc = 1 - bonus.shopDiscount();
+    const opts: Opt[] = [];
+    const learnOpt = (id: string, base: number, foreign: boolean): Opt => {
+      const cost = Math.round(base * disc);
+      return {
+        label: t(foreign ? 'shop.learnForeign' : 'shop.learn', { spell: spellName(id), school: t(`school.${SPELLS[id].school}`) }),
+        hint: spellDesc(id, r.power ?? 0, 1), price: cost, enabled: r.gold >= cost,
+        action: () => {
+          r.gold -= cost; learnSpell(id);
+          if (foreign) this.shopForeign = ''; else this.shopSpell = '';
+          playSfx(this, 'ui_talent_pick'); save(); this.magicShop();
+        },
+      };
+    };
+    if (this.shopSpell) opts.push(learnOpt(this.shopSpell, 70, false));
+    if (this.shopForeign) opts.push(learnOpt(this.shopForeign, 120, true));
+    const up = upgradable();
+    opts.push({
+      label: t('shop.upgradeSpell'), hint: t('shop.upgradeSpellHint'), enabled: up.length > 0,
+      action: () => this.chooseSpellUpgrade(),
+    });
+    opts.push({ label: t('common.back'), action: () => this.shop() });
+    const known = (r.spells ?? []).map((x) => `${spellName(x.id)} ${levelStars(x.level, spellMax(x.id))}`).join(', ');
+    this.show(t('shop.magic'), t('shop.magicText', { list: known || '–' }), opts);
+  }
+
+  private chooseSpellUpgrade(): void {
+    const r = run();
+    const opts: Opt[] = (r.spells ?? []).map((x) => {
+      const max = spellMax(x.id);
+      const cost = this.price(40 + 25 * x.level);
+      const can = x.level < max;
+      return {
+        label: `${spellName(x.id)}  ${levelStars(x.level, max)}`,
+        hint: can ? t('shop.spellNext', { desc: spellDesc(x.id, r.power ?? 0, x.level + 1) }) : t('shop.spellMax'),
+        price: can ? cost : undefined, enabled: can && r.gold >= cost,
+        action: () => {
+          r.gold -= cost; r.shopBuys++; learnSpell(x.id); playSfx(this, 'ui_equip'); save(); this.chooseSpellUpgrade();
+        },
+      };
+    });
+    opts.push({ label: t('common.back'), action: () => this.magicShop() });
+    this.show(t('shop.upgradeSpell'), t('shop.upgradeSpellText'), opts);
+  }
+
   // ---------- rest ----------
 
   private rest(): void {
@@ -263,10 +345,16 @@ export class NodeScene extends Phaser.Scene {
     const art = g2.next() < 0.4 ? offer('artifact', 1, owner(), g2)[0] : undefined;
     commitRng(g2);
     if (art) grantPerk(art.id);
+    const g3 = rng();
+    const scroll = g3.next() < 0.35 ? spellReward(g3) : null;
+    commitRng(g3);
+    if (scroll) learnSpell(scroll.id);
     playSfx(this, 'ui_reward');
     save();
+    const lvl = scroll ? r.spells?.find((x) => x.id === scroll.id)?.level ?? 1 : 1;
     const text = t('treasure.text', { gold }) + (boon ? `\n\n${t('treasure.boon', { boon: t(`boon.${boon}`) })}` : '')
-      + (art ? `\n\n${t('treasure.artifact', { name: t(`perk.${art.id}`) })}\n${perkLines(art).join(' · ')}` : '');
+      + (art ? `\n\n${t('treasure.artifact', { name: t(`perk.${art.id}`) })}\n${perkLines(art).join(' · ')}` : '')
+      + (scroll ? `\n\n${t(scroll.kind === 'learn' ? 'treasure.spell' : 'treasure.spellUp', { spell: spellName(scroll.id), n: lvl })}` : '');
     this.show(t('node.treasure'), text, [this.leaveOpt(t('common.continue'))]);
   }
 

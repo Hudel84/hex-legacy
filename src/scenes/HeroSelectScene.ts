@@ -36,8 +36,14 @@ export class HeroSelectScene extends Phaser.Scene {
       width: 330, fontSize: 30, style: f === this.faction ? 'red' : 'wood',
       onClick: () => { this.faction = f; this.selected = heroesOf(f)[0].id; this.scene.restart({ faction: f, selected: this.selected }); },
     }));
+    // the people passive of the chosen people
+    const race = this.add.text(w / 2, 248, `${t(`race.${this.faction}.name`)}: ${t(`race.${this.faction}.desc`)}`,
+      { ...textStyle(23, '#9fe0ff', true), align: 'center', wordWrap: { width: 1300 } }).setOrigin(0.5);
+    const rb = this.add.graphics();
+    rb.fillStyle(0x000000, 0.55).fillRoundedRect(w / 2 - race.width / 2 - 20, 248 - race.height / 2 - 8, race.width + 40, race.height + 16, 10);
+    race.setDepth(1); rb.setDepth(0.5);
     this.drawCards();
-    this.add.text(w / 2, h - 175, t('heroSelect.more'), textStyle(22, '#c9b896')).setOrigin(0.5);
+    this.add.text(w / 2, h - 158, t('heroSelect.more'), textStyle(22, '#c9b896')).setOrigin(0.5);
     new Button(this, w / 2 - 220, h - 85, t('common.back'), { width: 300, fontSize: 28, onClick: () => this.scene.start('Title') });
     new Button(this, w / 2 + 220, h - 85, t('heroSelect.start'), { style: 'red', width: 340, fontSize: 30, onClick: () => this.start() });
     playMusic(this, 'mus_main_menu');
@@ -53,14 +59,16 @@ export class HeroSelectScene extends Phaser.Scene {
       const army = hero.startArmy.map((u) => t(`unit.${u}`)).join(', ');
       const unlocked = heroUnlocked(hero.id);
       const lockInfo = heroUnlockText(hero.id);
-      const c = card(this, x, 560, {
-        w: 360, h: 600,
+      const c = card(this, x, 590, {
+        w: 360, h: 620,
         portrait: `heroportrait_${hero.id}`,
         title: t(`hero.${hero.id}`),
         subtitle: t(hero.bonus),
         lines: [
           `${t('stat.atk')} ${hero.atk}   ${t('stat.def')} ${hero.def}   ${t('stat.lead')} ${hero.leadership}`,
+          `${t('stat.power')} ${hero.power}   ${t('stat.knowledge')} ${hero.knowledge}`,
           army,
+          `${t('heroSelect.spells')}: ${hero.spells.map((x) => t(`spell.${x}.name`)).join(', ')}`,
         ],
         highlight: this.selected === hero.id,
         disabled: !unlocked,

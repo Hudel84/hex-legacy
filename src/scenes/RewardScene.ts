@@ -4,8 +4,9 @@ import { playSfx, playMusic } from '../core/audio';
 import { img, loadRunUi, loadPortrait } from '../core/assets';
 import {
   run, save, gainXp, rng, commitRng, draftPool, nodeById, MAX_SLOTS, MAX_UNIT_LEVEL, rebalance, unitDef,
-  addLoot, lootFor, owner, grantPerk, perkFactor,
+  addLoot, lootFor, owner, grantPerk, perkFactor, spellReward, learnSpell, spellMax, magicGrowth,
 } from '../run/state';
+import { loadSpellIcons, spellCard } from '../ui/spellUi';
 import { offer, type PerkDef } from '../run/perks';
 import { perkCard, loadPerkIcons } from '../ui/perkUi';
 import { bonus } from '../meta/meta';
@@ -35,6 +36,7 @@ export class RewardScene extends Phaser.Scene {
     commitRng(g);
     this.draft = pool.slice(0, 3 + perkFactor('draft'));
     loadPerkIcons(this);
+    loadSpellIcons(this);
     for (const id of [...this.draft, ...run().army.map((s) => s.unitId)]) loadPortrait(this, id);
   }
 
@@ -85,11 +87,27 @@ export class RewardScene extends Phaser.Scene {
     playSfx(this, 'ui_levelup');
     this.clear();
     this.layer.add(this.add.text(w / 2, 120, t('reward.levelUp', { n: r.level - this.levelUps + 1 }), titleStyle(60)).setOrigin(0.5));
-    this.layer.add(this.add.text(w / 2, 195, t('reward.chooseTalent'), textStyle(30)).setOrigin(0.5));
+    // every level: +5 leadership, every second level also +1 spell power or knowledge (see gainXp)
+    const growth = magicGrowth(r.level - this.levelUps + 1);
+    this.layer.add(this.add.text(w / 2, 188, growth ? t('reward.levelStats', { stat: t(`stat.${growth}`) }) : t('reward.levelLead'),
+      textStyle(26, '#9fd0ff', true)).setOrigin(0.5));
+    const head = this.add.text(w / 2, 238, t('reward.chooseTalent'), textStyle(30)).setOrigin(0.5);
+    this.layer.add(head);
     const g = rng();
     const opts = offer('talent', bonus.levelUpChoices(), owner(), g);
+    // sometimes the last card is a spell instead of a talent (GDD 5.5: spells from level-ups)
+    const sr = g.next() < 0.4 ? spellReward(g) : null;
     commitRng(g);
-    this.perkCards(opts, (p) => { grantPerk(p.id); this.levelUps--; save(); playSfx(this, 'ui_talent_pick'); this.next(); });
+    const done = () => { this.levelUps--; save(); playSfx(this, 'ui_talent_pick'); this.next(); };
+    const cards: ((x: number) => Phaser.GameObjects.Container)[] = opts.map((p) => (x: number) => perkCard(this, x, 610, p, () => { grantPerk(p.id); done(); }));
+    if (sr && cards.length) {
+      const cur = r.spells?.find((s) => s.id === sr.id)?.level ?? 0;
+      const lvl = Math.min(spellMax(sr.id), cur + 1);
+      cards[cards.length - 1] = (x: number) => spellCard(this, x, 610, sr.kind, sr.id, r.power ?? 0, lvl, () => { learnSpell(sr.id); done(); });
+      head.setText(t('reward.chooseBoon'));
+    }
+    const gap = cards.length > 3 ? 330 : 360;
+    cards.forEach((mk, i) => this.layer.add(mk(w / 2 + (i - (cards.length - 1) / 2) * gap)));
   }
 
   private perkCards(opts: PerkDef[], pick: (p: PerkDef) => void): void {

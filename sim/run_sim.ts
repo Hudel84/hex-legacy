@@ -1,6 +1,6 @@
 // Simulates whole act-1 runs with the AI playing both sides. Usage: npx tsx sim/run_sim.ts [runs]
 import { Battle } from '../src/battle/engine';
-import { newRun, setRun, run, availableNodes, gainXp, draftPool, rebalance, MAX_SLOTS, addLeadership, count, grantPerk, owner } from '../src/run/state';
+import { newRun, setRun, run, availableNodes, gainXp, draftPool, rebalance, MAX_SLOTS, addLeadership, count, grantPerk, owner, spellReward, learnSpell } from '../src/run/state';
 import { offer } from '../src/run/perks';
 import { buildEnemy, battleConfig, DIFFICULTY } from '../src/run/encounters';
 import { HEROES } from '../src/run/heroes';
@@ -9,6 +9,7 @@ import { Rng } from '../src/run/rng';
 const RUNS = Number(process.argv[2] ?? 200);
 if (process.argv[3]) Object.assign(DIFFICULTY, JSON.parse(process.argv[3]));
 const PERKS_ON = process.argv[4] !== 'noperks';
+const MAGIC_ON = process.argv[5] !== 'nomagic';
 console.log('DIFFICULTY', JSON.stringify(DIFFICULTY));
 const deaths: Record<string, number> = {};
 let bossKills = 0;
@@ -33,15 +34,21 @@ for (let i = 0; i < RUNS; i++) {
     const cfg = battleConfig(node, buildEnemy(node));
     const b = new Battle(cfg.setup);
     let g = 0;
-    while (!b.winner && g++ < 600) { b.nextTurn(); if (b.winner) break; b.act(b.decide()); }
-    const pl = b.stacks.filter((s) => s.side === 'player');
+    if (!MAGIC_ON) { cfg.setup.player.hero.spells = []; }
+    const b2 = MAGIC_ON ? b : new Battle(cfg.setup);
+    while (!b2.winner && g++ < 600) { b2.nextTurn(); if (b2.winner) break; if (MAGIC_ON) b2.aiCast(b2.active!.side); if (b2.winner) break; b2.act(b2.decide()); }
+    const pl = b2.stacks.filter((s) => s.side === 'player');
     const loss = 1 - pl.reduce((a, s) => a + s.count * s.def.cost, 0) / pl.reduce((a, s) => a + s.startCount * s.def.cost, 0);
     (lossByType[`${node.type}@${node.floor}`] ??= []).push(loss);
-    if (b.winner !== 'player') { alive = false; deaths[`${node.type}@${node.floor}`] = (deaths[`${node.type}@${node.floor}`] ?? 0) + 1; break; }
+    if (b2.winner !== 'player') { alive = false; deaths[`${node.type}@${node.floor}`] = (deaths[`${node.type}@${node.floor}`] ?? 0) + 1; break; }
     if (node.type === 'boss') { bossKills++; byHero[hero.id][0]++; break; }
     r.gold += cfg.reward.gold;
     const ups = gainXp(cfg.reward.xp);
-    for (let u = 0; u < ups && PERKS_ON; u++) { const o = offer('talent', 3, owner(), pick); if (o.length) grantPerk(pick.pick(o).id); }
+    for (let u = 0; u < ups && PERKS_ON; u++) {
+      const sr = MAGIC_ON && pick.next() < 0.3 ? spellReward(pick) : null;
+      if (sr) { learnSpell(sr.id); continue; }
+      const o = offer('talent', 3, owner(), pick); if (o.length) grantPerk(pick.pick(o).id);
+    }
     if (node.type === 'elite' && PERKS_ON) { const o = offer('artifact', 3, owner(), pick); if (o.length) grantPerk(pick.pick(o).id); }
     if (cfg.reward.draft) {
       const id = pick.pick(draftPool(owner().faction, node.floor));

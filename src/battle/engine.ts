@@ -2,8 +2,9 @@
 // Follows GDD chapter 3: stacks, initiative, damage formula 3.3, one counter per round,
 // unit passives and active abilities with cooldowns (3.8).
 import { type Hex, key, eq, neighbors, distance, inBounds, allHexes, behind, COLS, ROWS } from './hex';
-import type { UnitDef, Stack, Side, HeroStats, BattleEvent, StatusId } from './types';
+import type { UnitDef, Stack, Side, HeroStats, BattleEvent, StatusId, Status } from './types';
 import { NO_MODS, type SideMods } from './mods';
+import { SPELLS, spellNumbers, maxMana, type SpellSlot } from './spells';
 
 export interface ArmySetup { hero: HeroStats; army: { def: UnitDef; count: number }[]; mods?: SideMods; }
 export interface BattleSetup { player: ArmySetup; enemy: ArmySetup; seed?: number; obstacles?: Hex[]; startCols?: [number, number]; }
@@ -49,6 +50,9 @@ function rng(seed: number): () => number {
   };
 }
 
+/** Harmful statuses that holy heal can remove. */
+const NEGATIVE = new Set<StatusId>(['poison', 'atkDown', 'defDown', 'slow', 'fear', 'root', 'burn', 'confused']);
+
 const START_ROWS: Record<number, number[]> = { 1: [3], 2: [2, 4], 3: [1, 3, 5], 4: [0, 2, 4, 6] };
 
 interface StrikeOpts { mult?: number; ignoreDefend?: boolean; noLifesteal?: boolean; kind?: 'normal' | 'counter' | 'first' | 'area'; noCrit?: boolean }
@@ -61,6 +65,11 @@ export class Battle {
   round = 0;
   activeUid = -1;
   winner: Side | null = null;
+  /** Hero mana left in this battle and whether the hero already cast a spell this round. */
+  mana: Record<Side, number> = { player: 0, enemy: 0 };
+  maxMana: Record<Side, number> = { player: 0, enemy: 0 };
+  castThisRound: Record<Side, boolean> = { player: false, enemy: false };
+  private lastAbsorb = 0;
   private queue: number[] = [];
   private waitQueue: number[] = [];
   private random: () => number;
@@ -80,6 +89,11 @@ export class Battle {
       });
     }
     for (const h of setup.obstacles ?? []) this.obstacles.add(key(h));
+    for (const side of ['player', 'enemy'] as Side[]) {
+      const hs = this.heroes[side];
+      this.maxMana[side] = hs.spells?.length ? maxMana(hs.knowledge ?? 0, this.mods[side].mana) : 0;
+      this.mana[side] = this.maxMana[side];
+    }
     for (const st of this.stacks) {
       const sh = this.mods[st.side].startShield;
       if (sh > 0) st.statuses.push({ id: 'shield', turns: 2, value: sh });
@@ -129,6 +143,39 @@ export class Battle {
   has(s: Stack, passive: string): boolean { return !!s.def.passives?.includes(passive); }
   status(s: Stack, id: StatusId): number { return s.statuses.find((x) => x.id === id)?.value ?? 0; }
   hasStatus(s: Stack, id: StatusId): boolean { return s.statuses.some((x) => x.id === id); }
+  /** Spell-based speed/initiative changes: haste and slow store the spell level. */
+  private tempoOf(st: Status | undefined): { s: number; i: number } {
+    return st ? { s: st.value >= 2 ? 2 : 1, i: st.value + 1 } : { s: 0, i: 0 };
+  }
+  /** Movement this turn (haste, slow, roots, talents already in def.speed). */
+  speedOf(s: Stack): number {
+    if (this.hasStatus(s, 'root')) return 0;
+    const h = this.tempoOf(s.statuses.find((x) => x.id === 'haste'));
+    const sl = this.tempoOf(s.statuses.find((x) => x.id === 'slow'));
+    return Math.max(1, s.def.speed + h.s - sl.s);
+  }
+
+  /**
+   * People passives (one per people):
+   * humans – Discipline: immune to fear, defending gives +50 % DEF instead of +30 %;
+   * elves – Light-footed: walk through obstacles and other stacks (must end on a free hex);
+   * dwarves – Unyielding: immune to weakening (−ATK, −DEF) and slow;
+   * undead – Undead: immune to poison (and fear);
+   * orcs – Fury: +1 ATK each time they are attacked (max +4 per battle);
+   * demons – Hellborn: immune to burning, fire spells deal only half damage.
+   */
+  immune(s: Stack, id: StatusId): boolean {
+    const f = s.def.faction;
+    switch (id) {
+      case 'poison': return !!s.def.undead || this.has(s, 'construct');
+      case 'fear': return !!s.def.undead || f === 'human' || !!s.def.sizeScale || this.has(s, 'construct');
+      case 'burn': return f === 'demon';
+      case 'atkDown': case 'defDown': case 'slow': return f === 'dwarf';
+    }
+    return false;
+  }
+  private lightFooted(s: Stack): boolean { return s.def.faction === 'elf' && !s.def.wide; }
+
   /** Disembodied ghosts cannot be attacked. */
   targetable(s: Stack): boolean { return s.count > 0 && !this.hasStatus(s, 'disembodied'); }
 
@@ -137,31 +184,39 @@ export class Battle {
     const out: { uid: number; nextRound: boolean }[] = [];
     const cur = [this.activeUid, ...this.queue, ...this.waitQueue].filter((u) => u > 0 && this.stack(u).count > 0);
     for (const u of cur) out.push({ uid: u, nextRound: false });
+    // the next round is ordered by the current initiative (haste and slow included)
+    const saved = this.round; this.round = Math.max(this.round, 2);
     for (const u of this.initiativeOrder()) out.push({ uid: u, nextRound: true });
+    this.round = saved;
     return out.slice(0, max);
   }
 
   /** Hexes the stack can move to this turn, with the path to each. */
   reachable(s: Stack): Map<string, Hex[]> {
     const res = new Map<string, Hex[]>();
+    const speed = this.speedOf(s);
+    if (this.hasStatus(s, 'root')) return res;
     if (s.def.flying) {
       for (const h of allHexes()) {
         const d = distance(s.pos, h);
-        if (d > 0 && d <= s.def.speed && this.fits(s, h)) res.set(key(h), [h]);
+        if (d > 0 && d <= speed && this.fits(s, h)) res.set(key(h), [h]);
       }
       return res;
     }
+    const pass = this.lightFooted(s);
     const frontier: { h: Hex; path: Hex[] }[] = [{ h: s.pos, path: [] }];
     const seen = new Set([key(s.pos)]);
     while (frontier.length) {
       const { h, path } = frontier.shift()!;
-      if (path.length >= s.def.speed) continue;
+      if (path.length >= speed) continue;
       for (const n of neighbors(h)) {
         const k = key(n);
-        if (seen.has(k) || !this.fits(s, n)) continue;
+        if (seen.has(k)) continue;
+        const stand = this.fits(s, n);
+        if (!stand && !pass) continue;   // elves may walk through, but not stop on, blocked hexes
         seen.add(k);
         const p = [...path, n];
-        res.set(k, p);
+        if (stand) res.set(k, p);
         frontier.push({ h: n, path: p });
       }
     }
@@ -189,14 +244,14 @@ export class Battle {
   // ---------- damage ----------
 
   effAtk(att: Stack, at: Hex = att.pos): number {
-    let a = att.def.atk + this.heroes[att.side].atk - this.status(att, 'atkDown');
+    let a = att.def.atk + this.heroes[att.side].atk - this.status(att, 'atkDown') + this.status(att, 'focus') + this.status(att, 'fury');
     if (this.has(att, 'formation')) a += this.adjacentAllies(att, at).length;
     return a;
   }
 
   effDef(def: Stack, attacker?: Stack, ranged = false, ignoreDefend = false): number {
     let d = def.def.def + this.heroes[def.side].def + this.status(def, 'shield') - this.status(def, 'defDown');
-    if (def.defending && !ignoreDefend) d = Math.ceil(d * 1.3);
+    if (def.defending && !ignoreDefend) d = Math.ceil(d * (def.def.faction === 'human' ? 1.5 : 1.3));
     if (ranged && attacker && this.has(attacker, 'pierce')) d -= 1;
     return Math.max(0, d);
   }
@@ -216,6 +271,8 @@ export class Battle {
     if (att.attacks === 0 && o.kind !== 'counter') bonus += am.firstStrike;
     if (def.def.sizeScale) bonus += am.vsBig;
     if (def.def.undead) bonus += am.undeadDmg;
+    bonus += (this.status(att, 'bless') + this.status(att, 'frenzy')) / 100;
+    if (this.hasStatus(def, 'frenzy')) m *= 1.2;
     if (def.count * 2 < def.startCount) bonus += am.executioner;
     m *= Math.max(0.1, 1 + bonus) * (1 - dm.taken);
     return m * (o.mult ?? 1);
@@ -244,8 +301,16 @@ export class Battle {
     return Math.max(1, Math.round(base * this.multiplier(att, def, ranged, att.pos, o)));
   }
 
-  /** Apply raw damage to a stack. */
+  /** Apply raw damage to a stack. A divine shield (ward) absorbs damage first; the absorbed part is in lastAbsorb. */
   private damage(def: Stack, dmg: number): number {
+    this.lastAbsorb = 0;
+    const w = def.statuses.find((x) => x.id === 'ward');
+    if (w && dmg > 0) {
+      const a = Math.min(w.value, dmg);
+      w.value -= a; dmg -= a; this.lastAbsorb = a;
+      if (w.value <= 0) def.statuses = def.statuses.filter((x) => x !== w);
+    }
+    if (dmg <= 0) return 0;
     const kills = this.killsFor(def, dmg);
     const total = (def.count - 1) * def.def.hp + def.topHp - dmg;
     if (total <= 0) { def.count = 0; def.topHp = 0; }
@@ -264,21 +329,41 @@ export class Battle {
     return nt - cur;
   }
 
-  private addStatus(s: Stack, id: StatusId, turns: number, value: number, ev: BattleEvent[]): void {
-    if (id === 'poison' && (s.def.undead || s.def.passives?.includes('construct'))) return;
+  /** Add or refresh a status. Returns false if the stack is immune (spells then show "resisted"). */
+  private addStatus(s: Stack, id: StatusId, turns: number, value: number, ev: BattleEvent[], announce = false): boolean {
+    if (this.immune(s, id)) { if (announce) ev.push({ type: 'resist', uid: s.uid, status: id }); return false; }
     const ex = s.statuses.find((x) => x.id === id);
     if (ex) { ex.turns = Math.max(ex.turns, turns); ex.value = Math.max(ex.value, value); }
     else { s.statuses.push({ id, turns, value }); ev.push({ type: 'status', uid: s.uid, status: id, on: true }); }
+    return true;
+  }
+
+  private wardEvent(s: Stack, ev: BattleEvent[]): void {
+    if (this.lastAbsorb <= 0) return;
+    ev.push({ type: 'ward', uid: s.uid, absorbed: this.lastAbsorb });
+    if (!this.hasStatus(s, 'ward')) ev.push({ type: 'status', uid: s.uid, status: 'ward', on: false });
+  }
+
+  /** Orc fury: +1 ATK each time the stack is attacked (max +4). */
+  private fury(s: Stack, ev: BattleEvent[]): void {
+    if (s.def.faction !== 'orc' || s.count <= 0) return;
+    const f = s.statuses.find((x) => x.id === 'fury');
+    if (f) f.value = Math.min(4, f.value + 1);
+    else { s.statuses.push({ id: 'fury', turns: 999, value: 1 }); ev.push({ type: 'status', uid: s.uid, status: 'fury', on: true }); }
   }
 
   private strike(att: Stack, def: Stack, ranged: boolean, o: StrikeOpts = {}): BattleEvent[] {
     const am = this.mods[att.side];
     const crit = !o.noCrit && am.crit > 0 && this.random() < am.crit;
-    const dmg = this.roll(att, def, ranged, o) * (crit ? 2 : 1);
+    const raw = this.roll(att, def, ranged, o) * (crit ? 2 : 1);
     if (o.kind !== 'counter') att.attacks++;
-    const kills = this.damage(def, dmg);
+    const kills = this.damage(def, raw);
+    const dmg = raw - this.lastAbsorb;
     const kind = o.kind ?? 'normal';
-    const ev: BattleEvent[] = [{ type: 'attack', uid: att.uid, target: def.uid, ranged, counter: kind === 'counter', damage: dmg, kills, left: def.count, crit }];
+    const ev: BattleEvent[] = [];
+    this.wardEvent(def, ev);
+    ev.push({ type: 'attack', uid: att.uid, target: def.uid, ranged, counter: kind === 'counter', damage: dmg, kills, left: def.count, crit });
+    this.fury(def, ev);
     const steal = (this.has(att, 'lifesteal') ? 0.3 : 0) + am.lifesteal;
     if (steal > 0 && att.count > 0 && !o.noLifesteal) {
       const healed = this.heal(att, Math.floor(dmg * steal), true);
@@ -303,16 +388,17 @@ export class Battle {
     }
     const before = this.hpTotal(t);
     ev.push(...this.strike(s, t, false, o));
-    const thorns = this.mods[t.side].thorns;
+    const thorns = this.mods[t.side].thorns + this.status(t, 'thornskin') / 100;
     if (thorns > 0 && s.count > 0) {
       const dealt = before - this.hpTotal(t);
       const back = Math.max(1, Math.round(dealt * thorns));
       const kills = this.damage(s, back);
-      ev.push({ type: 'dot', uid: s.uid, damage: back, kills, left: s.count, source: 'thorns' });
+      this.wardEvent(s, ev);
+      ev.push({ type: 'dot', uid: s.uid, damage: back - this.lastAbsorb, kills, left: s.count, source: 'thorns' });
       if (s.count <= 0) { ev.push({ type: 'death', uid: s.uid }); return ev; }
     }
     const maxCounters = 1 + this.mods[t.side].counters;
-    if (allowCounter && t.count > 0 && (t.counters < maxCounters || this.has(t, 'unlimitedRetaliation')) && !this.has(s, 'noRetaliation')) {
+    if (allowCounter && t.count > 0 && !this.hasStatus(t, 'confused') && (t.counters < maxCounters || this.has(t, 'unlimitedRetaliation')) && !this.has(s, 'noRetaliation')) {
       t.counters++;
       t.retaliated = t.counters >= maxCounters;
       ev.push(...this.strike(t, s, false, { kind: 'counter' }));
@@ -323,7 +409,11 @@ export class Battle {
   // ---------- turn flow ----------
 
   /** Initiative including the round-1 bonus (the queue is built right after the round counter rises). */
-  iniOf(s: Stack): number { return s.def.ini + (this.round <= 1 ? this.mods[s.side].round1Ini : 0); }
+  iniOf(s: Stack): number {
+    const h = this.tempoOf(s.statuses.find((x) => x.id === 'haste'));
+    const sl = this.tempoOf(s.statuses.find((x) => x.id === 'slow'));
+    return s.def.ini + h.i - sl.i + (this.round <= 1 ? this.mods[s.side].round1Ini : 0);
+  }
 
   private initiativeOrder(): number[] {
     return this.alive
@@ -337,6 +427,7 @@ export class Battle {
     for (const s of this.alive) { s.retaliated = false; s.counters = 0; s.waited = false; s.acted = false; }
     this.queue = this.initiativeOrder();
     this.waitQueue = [];
+    this.castThisRound = { player: false, enemy: false };
     return [{ type: 'round', round: this.round }];
   }
 
@@ -350,10 +441,15 @@ export class Battle {
     }
     // statuses
     for (const st of [...s.statuses]) {
-      if (st.id === 'poison') {
+      if (st.id === 'poison' || st.id === 'burn') {
         const kills = this.damage(s, st.value);
-        ev.push({ type: 'dot', uid: s.uid, damage: st.value, kills, left: s.count });
+        this.wardEvent(s, ev);
+        ev.push({ type: 'dot', uid: s.uid, damage: st.value - this.lastAbsorb, kills, left: s.count, source: st.id === 'burn' ? 'burn' : undefined });
         if (s.count <= 0) { ev.push({ type: 'death', uid: s.uid }); return false; }
+      }
+      if (st.id === 'regrowth') {
+        const amount = this.heal(s, st.value, false);
+        if (amount > 0) ev.push({ type: 'heal', uid: s.uid, amount, count: s.count });
       }
       st.turns--;
       if (st.turns <= 0) {
@@ -379,7 +475,12 @@ export class Battle {
     }
     // fear: next to a bone dragon there is a chance to lose the turn
     const dragons = this.enemiesOf(s).filter((e) => this.has(e, 'fearAura') && this.sdist(s, e) === 1);
-    if (dragons.length && !s.def.undead && this.random() < 0.25) {
+    if (dragons.length && !this.immune(s, 'fear') && this.random() < 0.25) {
+      ev.push({ type: 'skip', uid: s.uid, reason: 'fear' });
+      return false;
+    }
+    // fear spell: half of the turns are lost
+    if (this.hasStatus(s, 'fear') && this.random() < 0.5) {
       ev.push({ type: 'skip', uid: s.uid, reason: 'fear' });
       return false;
     }
@@ -430,7 +531,7 @@ export class Battle {
       case 'boneSwarm': return neighbors(s.pos).some((h) => this.isFree(h)) ? [s.uid] : [];
       case 'aimedShot': return this.canShoot(s) ? enemies.map((e) => e.uid) : [];
       case 'revival': return [s, ...this.alliesOf(s)].filter((a) => a.summonRounds === undefined && (a.count - 1) * a.def.hp + a.topHp < a.startCount * a.def.hp).map((a) => a.uid);
-      case 'dive': return enemies.filter((e) => this.landingHex(s, e, s.def.speed) !== null).map((e) => e.uid);
+      case 'dive': return enemies.filter((e) => this.landingHex(s, e, this.speedOf(s)) !== null).map((e) => e.uid);
       case 'bloodFrenzy': return enemies.filter((e) => this.landingHex(s, e) !== null).map((e) => e.uid);
       case 'deathWave': return enemies.map((e) => e.uid);
       case 'decayBreath': return this.adjacentEnemies(s).filter((e) => this.targetable(e)).map((e) => e.uid);
@@ -474,7 +575,7 @@ export class Battle {
       }
       case 'dive': {
         const from = s.pos;
-        const land = this.landingHex(s, t, s.def.speed)!;
+        const land = this.landingHex(s, t, this.speedOf(s))!;
         if (!eq(land, s.pos)) { ev.push({ type: 'teleport', uid: s.uid, to: land }); s.pos = land; }
         ev.push(...this.meleeExchange(s, t));
         if (s.count > 0 && !eq(from, s.pos) && this.fits(s, from)) { ev.push({ type: 'teleport', uid: s.uid, to: from }); s.pos = from; }
@@ -518,6 +619,249 @@ export class Battle {
       }
     }
     return ev;
+  }
+
+
+  // ---------- hero magic ----------
+
+  spellbook(side: Side): SpellSlot[] { return this.heroes[side].spells ?? []; }
+  spellPower(side: Side): number { return this.heroes[side].power ?? 0; }
+  spellLevel(side: Side, id: string): number { return this.spellbook(side).find((x) => x.id === id)?.level ?? 0; }
+  /** Effect numbers of a spell for this side (power and level applied). */
+  spellValues(side: Side, id: string): Record<string, number> { return spellNumbers(id, this.spellPower(side), this.spellLevel(side, id)); }
+
+  /** Can this side's hero cast a spell right now? (once per round, during one of its own stacks' turns) */
+  canCast(side: Side): boolean {
+    const a = this.active;
+    return !this.winner && !!a && a.side === side && !this.castThisRound[side] && this.spellbook(side).length > 0;
+  }
+
+  /** Stacks the spell may target now; for mass spells the stacks it would hit. [] = cannot be cast. */
+  spellTargets(side: Side, id: string): number[] {
+    const sp = SPELLS[id];
+    if (!sp || !this.spellLevel(side, id) || this.mana[side] < sp.cost) return [];
+    const enemies = this.alive.filter((o) => o.side !== side && this.targetable(o));
+    const allies = this.alive.filter((o) => o.side === side);
+    const missing = (a: Stack, revive: boolean) => (revive ? a.startCount : a.count) * a.def.hp - this.hpTotal(a) > 0;
+    const can = (e: Stack, st: StatusId) => !this.immune(e, st);
+    let list: Stack[];
+    switch (id) {
+      case 'holyHeal': list = allies.filter((a) => missing(a, false) || a.statuses.some((x) => NEGATIVE.has(x.id))); break;
+      case 'resurrection': list = allies.filter((a) => a.summonRounds === undefined && !a.def.undead && !this.has(a, 'construct') && missing(a, true)); break;
+      case 'raiseDead': list = allies.filter((a) => a.summonRounds === undefined && a.def.undead && missing(a, true)); break;
+      case 'regrowth': list = allies.filter((a) => missing(a, false)); break;
+      case 'slow': list = enemies.filter((e) => can(e, 'slow')); break;
+      case 'curseOfWeakness': list = enemies.filter((e) => can(e, 'atkDown')); break;
+      case 'quicksand': list = enemies.filter((e) => can(e, 'defDown')); break;
+      case 'fear': list = enemies.filter((e) => can(e, 'fear')); break;
+      case 'inferno': list = enemies.filter((e) => can(e, 'burn')); break;
+      case 'earthquake': list = enemies.filter((e) => !e.def.flying); break;
+      default: list = sp.target === 'ally' ? allies : enemies;
+    }
+    return list.map((x) => x.uid);
+  }
+
+  /** Stacks an area spell hits when aimed at `t`: the target and every enemy next to it. */
+  areaOf(side: Side, t: Stack): Stack[] {
+    return [t, ...this.alive.filter((o) => o.side !== side && o !== t && this.targetable(o) && this.sdist(o, t) === 1)];
+  }
+
+  isLegalCast(side: Side, id: string, target?: number): boolean {
+    if (!this.canCast(side)) return false;
+    const targets = this.spellTargets(side, id);
+    if (!targets.length) return false;
+    return SPELLS[id].target === 'massEnemy' || (target !== undefined && targets.includes(target));
+  }
+
+  /** Spell damage: ignores ATK/DEF and the ghosts' ethereal passive, but not elements and "damage taken" talents. */
+  private spellHit(side: Side, t: Stack, spell: string, base: number, ev: BattleEvent[]): number {
+    const el = SPELLS[spell].element;
+    let m = 1 + this.mods[side].spellDmg;
+    if (el === 'holy' && (t.def.undead || t.def.faction === 'demon')) m *= 1.5;
+    if (el === 'death' && t.def.undead) m *= 0.5;
+    if (el === 'fire' && t.def.faction === 'demon') m *= 0.5;
+    m *= 1 - this.mods[t.side].taken;
+    const raw = Math.max(1, Math.round(base * m));
+    const kills = this.damage(t, raw);
+    const dealt = raw - this.lastAbsorb;
+    this.wardEvent(t, ev);
+    ev.push({ type: 'spellHit', uid: t.uid, spell, damage: dealt, kills, left: t.count });
+    if (t.count === 0) ev.push({ type: 'death', uid: t.uid });
+    return dealt;
+  }
+
+  private spellHeal(side: Side, a: Stack, amount: number, revive: boolean, ev: BattleEvent[]): number {
+    const healed = this.heal(a, Math.round(amount * (1 + this.mods[side].spellDmg)), revive);
+    if (healed > 0) ev.push({ type: 'heal', uid: a.uid, amount: healed, count: a.count });
+    return healed;
+  }
+
+  /** Cast a hero spell. Does not end the active stack's turn. */
+  cast(side: Side, id: string, target?: number): BattleEvent[] {
+    if (!this.isLegalCast(side, id, target)) throw new Error(`illegal spell ${id} -> ${target}`);
+    const sp = SPELLS[id];
+    const n = this.spellValues(side, id);
+    this.mana[side] -= sp.cost;
+    this.castThisRound[side] = true;
+    const ev: BattleEvent[] = [{ type: 'cast', side, spell: id, target, mana: this.mana[side] }];
+    const t = target !== undefined ? this.stack(target) : undefined;
+    // statuses that matter during the target's own turns get one extra tick (they count down at turn start)
+    const buff = (s: Stack, st: StatusId, turns: number, value: number) => this.addStatus(s, st, turns + 1, value, ev, true);
+    switch (id) {
+      case 'holyHeal':
+        if (this.spellLevel(side, id) >= 2) this.cleanse(t!, ev);
+        this.spellHeal(side, t!, n.n, false, ev);
+        break;
+      case 'resurrection': case 'raiseDead': this.spellHeal(side, t!, n.n, true, ev); break;
+      case 'smite': case 'rockSpike': case 'lightningBolt': this.spellHit(side, t!, id, n.n, ev); break;
+      case 'lifeDrain': {
+        const dealt = this.spellHit(side, t!, id, n.n, ev);
+        const own = this.alive.filter((a) => a.side === side && a.summonRounds === undefined)
+          .sort((a, b) => (b.startCount * b.def.hp - this.hpTotal(b)) - (a.startCount * a.def.hp - this.hpTotal(a)))[0];
+        if (own && dealt > 0) this.spellHeal(side, own, dealt * 0.5, true, ev);
+        break;
+      }
+      case 'chainLightning': {
+        let cur: Stack | undefined = t!;
+        const hit = new Set<number>();
+        let mult = 1;
+        for (let i = 0; i < 3 && cur; i++) {
+          hit.add(cur.uid);
+          this.spellHit(side, cur, id, n.n * mult, ev);
+          mult *= 0.5;
+          const from: Stack = cur;
+          cur = this.alive.filter((o) => o.side !== side && this.targetable(o) && !hit.has(o.uid))
+            .sort((a, b) => this.sdist(a, from) - this.sdist(b, from))[0];
+        }
+        break;
+      }
+      case 'deathCloud': case 'fireball':
+        for (const v of this.areaOf(side, t!)) if (v.count > 0) this.spellHit(side, v, id, n.n, ev);
+        break;
+      case 'earthquake':
+        for (const v of this.alive.filter((o) => o.side !== side && this.targetable(o) && !o.def.flying)) this.spellHit(side, v, id, n.n, ev);
+        break;
+      case 'poisonSpores':
+        for (const v of this.areaOf(side, t!)) this.addStatus(v, 'poison', n.t, n.n, ev, true);
+        break;
+      case 'inferno': this.addStatus(t!, 'burn', n.t, n.n, ev, true); break;
+      case 'blessing': buff(t!, 'bless', n.t, n.n); break;
+      case 'bloodRage': buff(t!, 'frenzy', n.t, n.n); break;
+      case 'divineShield': this.addStatus(t!, 'ward', n.t, Math.round(n.n * (1 + this.mods[side].spellDmg)), ev, true); break;
+      case 'haste': buff(t!, 'haste', n.t, this.spellLevel(side, id)); break;
+      case 'slow': buff(t!, 'slow', n.t, this.spellLevel(side, id)); break;
+      case 'battleFocus': buff(t!, 'focus', n.t, n.n); break;
+      case 'confusion': buff(t!, 'confused', n.t, 1); break;
+      case 'curseOfWeakness': buff(t!, 'atkDown', n.t, n.n); break;
+      case 'quicksand': buff(t!, 'defDown', n.t, n.n); break;
+      case 'fear': buff(t!, 'fear', n.t, 1); break;
+      case 'entanglingRoots':
+        buff(t!, 'root', n.t, 1);
+        if (n.d) buff(t!, 'defDown', n.t, n.d);
+        break;
+      case 'regrowth': this.addStatus(t!, 'regrowth', n.t, Math.round(n.n * (1 + this.mods[side].spellDmg)), ev, true); break;
+      case 'thornArmor': buff(t!, 'thornskin', n.t, n.n); break;
+      case 'stoneSkin': buff(t!, 'shield', n.t, n.n); break;
+    }
+    this.checkEnd(ev);
+    return ev;
+  }
+
+  /** Remove harmful statuses (holy heal from level 2). */
+  private cleanse(s: Stack, ev: BattleEvent[]): void {
+    for (const st of s.statuses.filter((x) => NEGATIVE.has(x.id))) {
+      s.statuses = s.statuses.filter((x) => x !== st);
+      ev.push({ type: 'status', uid: s.uid, status: st.id, on: false });
+    }
+  }
+
+  /** AI: the most useful spell (and target) for this side right now, or null. Scores are in leadership points. */
+  spellChoice(side: Side): { id: string; target?: number; score: number } | null {
+    if (!this.canCast(side)) return null;
+    let best: { id: string; target?: number; score: number } | null = null;
+    const power = (s: Stack) => s.count * s.def.cost;
+    const killValue = (e: Stack, dmg: number) => Math.min(e.count, dmg / e.def.hp) * e.def.cost;
+    const contact = (s: Stack) => this.enemiesOf(s).some((e) => this.sdist(s, e) <= this.speedOf(e) + 1 || e.def.ranged);
+    for (const slot of this.spellbook(side)) {
+      const sp = SPELLS[slot.id];
+      const n = this.spellValues(side, slot.id);
+      const targets = this.spellTargets(side, slot.id);
+      if (!targets.length) continue;
+      const elMul = (e: Stack) => {
+        const el = sp.element;
+        return (el === 'holy' && (e.def.undead || e.def.faction === 'demon') ? 1.5 : 1)
+          * (el === 'death' && e.def.undead ? 0.5 : 1) * (el === 'fire' && e.def.faction === 'demon' ? 0.5 : 1)
+          * (1 + this.mods[side].spellDmg);
+      };
+      const score = (uid: number): number => {
+        const x = this.stack(uid);
+        const has = (st: StatusId) => this.hasStatus(x, st);
+        switch (slot.id) {
+          case 'smite': case 'rockSpike': case 'lightningBolt': return killValue(x, n.n * elMul(x));
+          case 'lifeDrain': return killValue(x, n.n * elMul(x)) * 1.4;
+          case 'chainLightning': {
+            // the chain jumps to up to two more enemies with 50 % and 25 % damage
+            const more = this.alive.filter((o) => o.side !== side && o !== x && this.targetable(o)).length;
+            return killValue(x, n.n) + (more >= 1 ? 0.5 : 0) * n.n / x.def.hp * x.def.cost * 0.8 + (more >= 2 ? 0.25 : 0) * n.n / x.def.hp * x.def.cost * 0.8;
+          }
+          case 'deathCloud': case 'fireball': return this.areaOf(side, x).reduce((a, v) => a + killValue(v, n.n * elMul(v)), 0);
+          case 'earthquake': return targets.reduce((a, u) => { const v = this.stack(u); return a + killValue(v, n.n * elMul(v)); }, 0);
+          case 'poisonSpores': return this.areaOf(side, x).filter((v) => !this.immune(v, 'poison') && !this.hasStatus(v, 'poison'))
+            .reduce((a, v) => a + killValue(v, n.n * n.t) * 0.7, 0);
+          case 'inferno': return has('burn') ? 0 : killValue(x, n.n * n.t) * 0.7;
+          case 'holyHeal': case 'regrowth': {
+            const miss = x.count * x.def.hp - this.hpTotal(x);
+            const amount = slot.id === 'regrowth' ? n.n * n.t * 0.6 : n.n;
+            return Math.min(miss, amount) / x.def.hp * x.def.cost + (x.statuses.some((s) => NEGATIVE.has(s.id)) && slot.level >= 2 ? 6 : 0);
+          }
+          case 'resurrection': case 'raiseDead': return Math.min(x.startCount * x.def.hp - this.hpTotal(x), n.n) / x.def.hp * x.def.cost;
+          case 'blessing': return has('bless') ? 0 : power(x) * n.n / 100 * (x.def.ranged || contact(x) ? 0.9 : 0.4);
+          case 'bloodRage': return has('frenzy') ? 0 : power(x) * (n.n / 100 - 0.12) * (contact(x) ? 0.9 : 0.4);
+          case 'battleFocus': return has('focus') ? 0 : power(x) * 0.045 * n.n * (x.def.ranged || contact(x) ? 1 : 0.5);
+          case 'stoneSkin': return has('shield') ? 0 : power(x) * 0.035 * n.n * (contact(x) ? 1 : 0.3);
+          case 'divineShield': return has('ward') ? 0 : Math.min(n.n, this.hpTotal(x)) / x.def.hp * x.def.cost * (contact(x) ? 0.8 : 0.3);
+          case 'thornArmor': return has('thornskin') || x.def.ranged ? 0 : power(x) * n.n / 100 * (contact(x) ? 0.6 : 0.2);
+          case 'haste': return has('haste') ? 0 : power(x) * (x.def.ranged ? 0.05 : 0.12);
+          case 'slow': return has('slow') ? 0 : power(x) * (x.def.ranged || x.def.flying ? 0.06 : 0.14);
+          case 'curseOfWeakness': return has('atkDown') ? 0 : power(x) * 0.04 * n.n;
+          case 'quicksand': return has('defDown') ? 0 : power(x) * 0.035 * n.n;
+          case 'fear': return has('fear') ? 0 : power(x) * 0.3;
+          case 'confusion': return has('confused') || x.def.ranged ? 0 : power(x) * 0.12;
+          case 'entanglingRoots': return has('root') || x.def.ranged ? 0
+            : power(x) * (this.adjacentEnemies(x).length ? 0.05 : 0.25) + (n.d ? power(x) * 0.03 * n.d : 0);
+        }
+        return 0;
+      };
+      const cands = sp.target === 'massEnemy' ? [targets[0]] : targets;
+      for (const uid of cands) {
+        const sc = score(uid);
+        if (!best || sc > best.score) best = { id: slot.id, target: sp.target === 'massEnemy' ? undefined : uid, score: sc };
+      }
+    }
+    if (!best) return null;
+    // worth it? roughly one leadership point per mana point
+    return best.score >= SPELLS[best.id].cost ? best : null;
+  }
+
+  /** Expected damage and losses of a damage spell on one stack (for the targeting preview). */
+  previewSpell(side: Side, id: string, uid: number): { damage: number; kills: number } | null {
+    const sp = SPELLS[id];
+    if (!sp.element) return null;
+    const t = this.stack(uid);
+    const n = this.spellValues(side, id);
+    let m = 1 + this.mods[side].spellDmg;
+    if (sp.element === 'holy' && (t.def.undead || t.def.faction === 'demon')) m *= 1.5;
+    if (sp.element === 'death' && t.def.undead) m *= 0.5;
+    if (sp.element === 'fire' && t.def.faction === 'demon') m *= 0.5;
+    m *= 1 - this.mods[t.side].taken;
+    const damage = Math.max(1, Math.round(n.n * m)) - Math.min(this.status(t, 'ward'), Math.round(n.n * m));
+    return { damage, kills: damage > 0 ? this.killsFor(t, damage) : 0 };
+  }
+
+  /** Let the AI cast its best spell (if any). Returns the events, or [] if nothing was cast. */
+  aiCast(side: Side): BattleEvent[] {
+    const c = this.spellChoice(side);
+    return c ? this.cast(side, c.id, c.target) : [];
   }
 
   // ---------- actions ----------

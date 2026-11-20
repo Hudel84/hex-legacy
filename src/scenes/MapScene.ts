@@ -12,6 +12,8 @@ import { ArmyPanel } from '../ui/ArmyPanel';
 import { panel, textStyle, titleStyle } from '../ui/widgets';
 import { Button, toast } from '../ui/Button';
 import { perkById, perkIconKey } from '../run/perks';
+import { loadSpellIcons, spellIcon, spellName, levelStars, spellTooltipLines } from '../ui/spellUi';
+import { spellMax } from '../run/state';
 import { perkLines, rarityLabel, RARITY_COLOR, tooltip, loadPerkIcons } from '../ui/perkUi';
 
 const MAP_X = 420;
@@ -48,6 +50,7 @@ export class MapScene extends Phaser.Scene {
     if (!this.textures.exists(wk)) this.load.spritesheet(wk, `assets/map/animated/anim_map_hero_${wk.slice(5)}_walk_sheet_8x4.webp`, { frameWidth: 320, frameHeight: 320 });
     sfx(this, 'mus_map_act1', 'audio/music/mus_map_act1.ogg');
     loadPerkIcons(this, [...(r.talents ?? []), ...(r.artifacts ?? [])].map(perkById));
+    loadSpellIcons(this, (r.spells ?? []).map((x) => x.id));
   }
 
   create(): void {
@@ -180,6 +183,17 @@ export class MapScene extends Phaser.Scene {
     };
     let py0 = perkGrid(t('map.talents'), r.talents ?? [], 560);
     py0 = perkGrid(t('map.artifacts'), r.artifacts ?? [], py0 + 6);
+    // spells with tooltips (level stars below the icon)
+    const book = r.spells ?? [];
+    right.add(this.add.text(200, py0 + 6, t('map.spells'), titleStyle(24)).setOrigin(0.5, 0));
+    book.forEach((x, i) => {
+      const cx = 60 + (i % 5) * 70, cy = py0 + 70 + Math.floor(i / 5) * 80;
+      const ic = spellIcon(this, cx, cy, x.id, 60);
+      ic.setInteractive();
+      tooltip(this, ic, `${spellName(x.id)} ${levelStars(x.level, spellMax(x.id))}`, spellTooltipLines(x.id, r.power ?? 0, x.level));
+      right.add(ic);
+      right.add(this.add.text(cx, cy + 32, '★'.repeat(x.level), textStyle(14, '#ffe08a', true)).setOrigin(0.5, 0));
+    });
     right.setScrollFactor(0, 0, true);
     const menu = new Button(this, 1710, 990, t('map.menu'), { width: 300, fontSize: 26, onClick: () => { save(); this.scene.start('Title'); } });
     menu.setScrollFactor(0).setDepth(201);

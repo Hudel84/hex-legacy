@@ -32,7 +32,7 @@ function playerPower(r: RunState): number {
     * (1 + 0.04 * (r.atk + r.def));
 }
 
-export const DIFFICULTY = { base: 315, start: 0.5, perFloor: 0.05, elite: 1.1, boss: 0.45 };
+export const DIFFICULTY = { base: 340, start: 0.5, perFloor: 0.05, elite: 1.1, boss: 0.45 };
 
 export function buildEnemy(node: MapNode, groupOverride?: string): EnemyArmy {
   const r = run();
@@ -106,7 +106,7 @@ export function battleConfig(node: MapNode, enemy: EnemyArmy, rewardMul = 1): Ru
       seed,
       obstacles: Battle.randomObstacles(seed, isBoss ? 2 : 3),
       player: {
-        hero: { atk: r.atk, def: r.def },
+        hero: { atk: r.atk, def: r.def, power: r.power ?? 0, knowledge: r.knowledge ?? 0, spells: (r.spells ?? []).map((x) => ({ ...x })) },
         mods: playerMods(r),
         army: r.army.filter((s) => count(s) > 0).map((s) => ({ def: upgradedDef(s), count: count(s) })),
       },

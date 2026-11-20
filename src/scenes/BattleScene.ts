@@ -9,9 +9,37 @@ import { playMusic, playSfx } from '../core/audio';
 import { settings } from '../core/settings';
 import { Button } from '../ui/Button';
 import { shade } from '../ui/widgets';
+import { tooltip } from '../ui/perkUi';
 import type { RunBattleConfig } from '../run/encounters';
 import { showUnitInfo, loadAbilityIcons, ABILITY_ICON, STATUS_ICON } from '../ui/UnitInfo';
 import { loadRunUi } from '../core/assets';
+import { SPELLS, type Element } from '../battle/spells';
+import { loadSpellIcons, spellName, spellDesc, spellIcon, levelStars, SCHOOL_COLOR } from '../ui/spellUi';
+import { panel, titleStyle, textStyle } from '../ui/widgets';
+import { racePassive } from '../ui/UnitInfo';
+
+/** Visuals of hero spells: impact image, optional projectile from the hero, sound (sp_<snd>_cast / _impact). */
+const ELEMENT_FX: Record<Element, { hit: string; proj?: string; snd: string }> = {
+  holy: { hit: 'vfx_hit_holy', proj: 'vfx_proj_holy_beam', snd: 'light' },
+  death: { hit: 'vfx_hit_curse', proj: 'vfx_proj_shadow_bolt', snd: 'death' },
+  nature: { hit: 'vfx_hit_poison', proj: 'vfx_proj_poison_glob', snd: 'nature' },
+  earth: { hit: 'vfx_hit_earth', snd: 'earth' },
+  fire: { hit: 'vfx_hit_fire_explosion', proj: 'vfx_proj_fireball', snd: 'fire' },
+  lightning: { hit: 'vfx_hit_lightning', proj: 'vfx_proj_lightning_bolt', snd: 'lightning' },
+};
+const SCHOOL_SND: Record<string, string> = { light: 'light', mind: 'mind', death: 'death', nature: 'nature', earth: 'earth', chaos: 'fire' };
+const CAST_FX: Record<string, string> = {
+  light: 'vfx_cast_light', mind: 'vfx_cast_mind_rune', death: 'vfx_cast_death', nature: 'vfx_cast_nature', earth: 'vfx_cast_earth', chaos: 'vfx_cast_chaos',
+};
+/** Special impact images and sounds for spells without a damage element. */
+const SPELL_HIT: Record<string, string> = {
+  holyHeal: 'vfx_hit_heal', resurrection: 'vfx_hit_resurrection', raiseDead: 'vfx_hit_resurrection', divineShield: 'vfx_hit_shield_bubble',
+  slow: 'vfx_hit_frost', poisonSpores: 'vfx_hit_poison', inferno: 'vfx_hit_fire_explosion', bloodRage: 'vfx_hit_blood_magic',
+  curseOfWeakness: 'vfx_hit_curse', fear: 'vfx_hit_curse', haste: 'vfx_hit_teleport', regrowth: 'vfx_hit_heal',
+  confusion: 'vfx_hit_teleport', quicksand: 'vfx_hit_earth', entanglingRoots: 'vfx_hit_poison', stoneSkin: 'vfx_hit_earth',
+};
+const SPELL_SND: Record<string, string> = { bloodRage: 'blood', inferno: 'fire', lightningBolt: 'lightning', chainLightning: 'lightning' };
+const BUFFS = new Set(['bless', 'ward', 'haste', 'focus', 'regrowth', 'thornskin', 'frenzy', 'shield', 'fury', 'spearwall', 'disembodied']);
 
 const A = 'assets/';
 
@@ -83,8 +111,11 @@ export function testBattleConfig(): BattleConfig {
     setup: {
       seed,
       obstacles: Battle.randomObstacles(seed),
-      player: { hero: { atk: 2, def: 2 }, army: army([['human_t1_spearman', 12], ['human_t2_crossbowman', 5], ['human_t3_swordsman', 2]]) },
-      enemy: { hero: { atk: 1, def: 1 }, army: army([['undead_t1_skeleton', 16], ['undead_t2_zombie', 5], ['undead_t3_ghost', 2]]) },
+      player: { hero: { atk: 2, def: 2, power: 2, knowledge: 3,
+        spells: [{ id: 'smite', level: 1 }, { id: 'blessing', level: 1 }, { id: 'holyHeal', level: 2 }, { id: 'haste', level: 1 }, { id: 'fireball', level: 1 }] },
+        army: army([['human_t1_spearman', 12], ['human_t2_crossbowman', 5], ['human_t3_swordsman', 2]]) },
+      enemy: { hero: { atk: 1, def: 1, power: 2, knowledge: 2, spells: [{ id: 'lifeDrain', level: 1 }, { id: 'curseOfWeakness', level: 1 }] },
+        army: army([['undead_t1_skeleton', 16], ['undead_t2_zombie', 5], ['undead_t3_ghost', 2]]) },
     },
   };
 }
@@ -123,6 +154,11 @@ export class BattleScene extends Phaser.Scene {
   private btnAbility!: Button;
   private targeting = false;
   private infoOpen: Phaser.GameObjects.Container | null = null;
+  private btnSpell!: Button;
+  private manaText!: Phaser.GameObjects.Text;
+  private castNote!: Phaser.GameObjects.Text;
+  private spellTargeting: string | null = null;
+  private bookOpen: Phaser.GameObjects.Container | null = null;
 
   constructor() { super('Battle'); }
 
@@ -134,6 +170,8 @@ export class BattleScene extends Phaser.Scene {
     this.inputOpen = false;
     this.targeting = false;
     this.infoOpen = null;
+    this.spellTargeting = null;
+    this.bookOpen = null;
   }
 
   preload(): void {
@@ -175,6 +213,22 @@ export class BattleScene extends Phaser.Scene {
     const sfx = ['cb_move', 'cb_fly', 'cb_hit_sword', 'cb_hit_claw', 'cb_hit_blunt', 'cb_hit_bolt', 'cb_counter', 'cb_block',
       'cb_heal', 'cb_death_human', 'cb_death_undead', 'cb_turn_start', 'sp_death_cast', 'ev_victory_crowd', 'cb_crit', 'cb_buff', 'ui_open'];
     for (const k of sfx) if (!this.cache.audio.exists(k)) this.load.audio(k, `${A}audio/sfx/${k}.ogg`);
+    // hero magic
+    const book = [...(this.cfg.setup.player.hero.spells ?? []), ...(this.cfg.setup.enemy.hero.spells ?? [])].map((x) => x.id);
+    loadSpellIcons(this, book);
+    const magicImgs: [string, string][] = [];
+    const magicSfx: string[] = [];
+    if (book.length) {
+      for (const k of Object.values(CAST_FX)) magicImgs.push([k, `vfx/feedback/${k}`]);
+      for (const k of ['vfx_fx_buff_up', 'vfx_fx_debuff_down']) magicImgs.push([k, `vfx/feedback/${k}`]);
+      for (const k of ['vfx_hit_holy', 'vfx_hit_earth', 'vfx_hit_fire_explosion', 'vfx_hit_lightning', 'vfx_hit_poison', 'vfx_hit_resurrection',
+        'vfx_hit_shield_bubble', 'vfx_hit_frost', 'vfx_hit_blood_magic', 'vfx_hit_teleport']) magicImgs.push([k, `vfx/impacts/${k}`]);
+      for (const k of ['vfx_proj_holy_beam', 'vfx_proj_poison_glob', 'vfx_proj_fireball', 'vfx_proj_lightning_bolt', 'vfx_proj_rune_bolt']) magicImgs.push([k, `vfx/projectiles/${k}`]);
+      for (const sc of ['light', 'mind', 'death', 'nature', 'earth', 'fire', 'lightning', 'blood']) magicSfx.push(`sp_${sc}_cast`, `sp_${sc}_impact`);
+      magicSfx.push('cb_debuff');
+    }
+    for (const [k, p] of magicImgs) if (!this.textures.exists(k)) this.load.image(k, `${A}${p}.webp`);
+    for (const k of magicSfx) if (!this.cache.audio.exists(k)) this.load.audio(k, `${A}audio/sfx/${k}.ogg`);
     const music = this.cfg.music ?? 'mus_battle';
     const amb = this.cfg.ambient ?? 'amb_meadows';
     if (!this.cache.audio.exists(music)) this.load.audio(music, `${A}audio/music/${music}.ogg`);
@@ -224,6 +278,7 @@ export class BattleScene extends Phaser.Scene {
     }
     this.add.text(125, 650, t(`hero.${this.cfg.playerHero}`), this.smallLabel()).setOrigin(0.5, 0);
     if (this.cfg.enemyHero) this.add.text(w - 125, 650, t(`hero.${this.cfg.enemyHero}`), this.smallLabel()).setOrigin(0.5, 0);
+    this.buildMagicHud();
 
     // grid
     this.gridG = this.add.graphics();
@@ -272,7 +327,8 @@ export class BattleScene extends Phaser.Scene {
       if (p.rightButtonReleased()) { this.onRightClick(p.worldX, p.worldY); return; }
       if (over.length === 0) this.onClick(p.worldX, p.worldY);
     });
-    this.input.keyboard?.on('keydown-ESC', () => this.cancelTargeting());
+    this.input.keyboard?.on('keydown-ESC', () => { this.closeBook(); this.cancelTargeting(); });
+    this.input.keyboard?.on('keydown-S', () => this.toggleBook());
     this.input.keyboard?.on('keydown-A', () => this.abilityClicked());
     this.input.keyboard?.on('keydown-W', () => this.playerAction({ type: 'wait' }));
     this.input.keyboard?.on('keydown-D', () => this.playerAction({ type: 'defend' }));
@@ -454,7 +510,15 @@ export class BattleScene extends Phaser.Scene {
       this.showActive(s);
       if (s.side === 'enemy' || this.auto) {
         this.updateAbilityButton(undefined);
+        this.updateSpellButton();
         await this.wait(this.auto ? 250 : 450);
+        const spell = this.battle.aiCast(s.side);
+        if (spell.length) {
+          await this.play(spell);
+          if (this.battle.winner) break;
+          this.updateInitBar();
+          await this.wait(200);
+        }
         await this.play(this.battle.act(this.battle.decide()));
       } else {
         await this.awaitPlayer(s);
@@ -472,6 +536,7 @@ export class BattleScene extends Phaser.Scene {
     this.setButtonsEnabled(true);
     this.btnWait.setEnabled(!s.waited);
     this.updateAbilityButton(s);
+    this.updateSpellButton();
     this.infoText.setText(t('battle.yourTurn', { unit: unitName(s.def) }));
     this.drawHighlights();
     return new Promise((res) => { this.resolveInput = res; });
@@ -494,7 +559,8 @@ export class BattleScene extends Phaser.Scene {
 
   private abilityClicked(): void {
     const s = this.battle.active;
-    if (!s || !this.inputOpen || s.side !== 'player') return;
+    if (!s || !this.inputOpen || s.side !== 'player' || this.bookOpen) return;
+    this.spellTargeting = null;
     const ab = this.battle.ability(s);
     if (!ab || !this.battle.abilityTargets(s).length) return;
     if (ab.target === 'self') { void this.playerAction({ type: 'ability' }); return; }
@@ -533,6 +599,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private onRightClick(x: number, y: number): void {
+    if (this.spellTargeting) { this.cancelSpell(); return; }
     if (this.targeting) { this.cancelTargeting(); return; }
     const h = pixelToHex(x, y);
     const st = h ? this.battle.stackAt(h) : undefined;
@@ -543,8 +610,10 @@ export class BattleScene extends Phaser.Scene {
     if (!this.inputOpen || !this.battle.isLegal(a)) return;
     this.inputOpen = false;
     this.targeting = false;
+    this.spellTargeting = null;
     this.setButtonsEnabled(false);
     this.btnAbility.setEnabled(false);
+    this.updateSpellButton();
     this.hideAttackCursor();
     this.hiG.clear(); this.hoverG.clear();
     this.infoText.setText('');
@@ -571,6 +640,248 @@ export class BattleScene extends Phaser.Scene {
     const base = HEX_W * 1.05 / this.activeRing.width;
     this.activeRing.setScale(base * (s.def.wide ? 1.9 : 1), base * 0.8 * (s.def.wide ? 1.2 : 1));
     this.activeRing.setPosition(p.x, p.y + 4).setVisible(true);
+  }
+
+
+  // ---------- hero magic ----------
+
+  private buildMagicHud(): void {
+    const { width: w } = this.scale;
+    const hasBook = this.battle.spellbook('player').length > 0;
+    this.manaText = this.add.text(125, 692, '', { ...textStyle(24, '#9fd0ff', true), stroke: '#000', strokeThickness: 5 }).setOrigin(0.5, 0).setDepth(2000);
+    this.btnSpell = new Button(this, 125, 770, t('battle.spells'), { width: 236, fontSize: 22, onClick: () => this.toggleBook() });
+    this.btnSpell.setDepth(2000).setVisible(hasBook);
+    this.btnSpell.on('pointerover', () => { if (!this.bookOpen) this.infoText.setText(t('battle.spellsHint')); });
+    this.castNote = this.add.text(125, 812, '', textStyle(18, '#d9c7a0')).setOrigin(0.5, 0).setDepth(2000);
+    this.manaText.setVisible(hasBook);
+    if (hasBook && this.textures.exists('icon_mana')) {
+      const ic = this.add.image(0, 0, 'icon_mana').setDepth(2000).setInteractive();
+      ic.setScale(34 / ic.width);
+      tooltip(this, ic, t('stat.mana'), [t('battle.manaHint')]);
+      this.manaText.setData('icon', ic);
+    }
+    if (this.battle.spellbook('enemy').length) {
+      this.add.text(w - 125, 692, '', textStyle(22, '#9fd0ff', true)).setOrigin(0.5, 0).setDepth(2000).setName('enemyMana');
+    }
+    this.updateSpellButton();
+  }
+
+  private updateSpellButton(): void {
+    if (!this.btnSpell) return;
+    const b = this.battle;
+    const txt = `${b.mana.player} / ${b.maxMana.player}`;
+    this.manaText.setText(txt);
+    const ic = this.manaText.getData('icon') as Phaser.GameObjects.Image | undefined;
+    ic?.setPosition(this.manaText.x - this.manaText.width / 2 - 22, this.manaText.y + this.manaText.height / 2);
+    const em = this.children.getByName('enemyMana') as Phaser.GameObjects.Text | null;
+    em?.setText(`${t('stat.mana')} ${b.mana.enemy} / ${b.maxMana.enemy}`);
+    if (!b.spellbook('player').length) return;
+    const can = this.inputOpen && b.canCast('player') && b.spellbook('player').some((x) => b.spellTargets('player', x.id).length > 0);
+    this.btnSpell.setEnabled(can);
+    this.castNote.setText(b.castThisRound.player && !b.winner ? t('battle.castDone') : '');
+  }
+
+  private toggleBook(): void { if (this.bookOpen) this.closeBook(); else this.openBook(); }
+
+  private closeBook(): void {
+    if (!this.bookOpen) return;
+    this.bookOpen.destroy();
+    this.bookOpen = null;
+  }
+
+  /** The hero's spellbook: all known spells, castable ones can be clicked. */
+  private openBook(): void {
+    const b = this.battle;
+    const s = b.active;
+    if (!s || s.side !== 'player' || !this.inputOpen || !b.canCast('player') || this.infoOpen?.active) return;
+    this.cancelTargeting();
+    this.cancelSpell();
+    this.hideAttackCursor();
+    const { width: w, height: h } = this.scale;
+    const book = b.spellbook('player');
+    const rows = Math.ceil(book.length / 2);
+    const PW = 1180, PH = Math.min(1040, 270 + rows * 150);
+    const root = this.add.container(0, 0).setDepth(8000);
+    const dim = this.add.rectangle(0, 0, w, h, 0x000000, 0.5).setOrigin(0).setInteractive();
+    dim.on('pointerup', () => this.closeBook());
+    root.add(dim);
+    root.add(panel(this, w / 2, h / 2, PW, PH, 'ui_panel_dark_wood', 70));
+    const top = h / 2 - PH / 2;
+    root.add(this.add.text(w / 2, top + 58, t('battle.spellbook'), titleStyle(44)).setOrigin(0.5));
+    root.add(this.add.text(w / 2, top + 108, t('battle.spellbookSub', { mana: b.mana.player, max: b.maxMana.player, power: b.spellPower('player') }),
+      textStyle(22, '#9fd0ff', true)).setOrigin(0.5));
+    book.forEach((slot, i) => {
+      const sp = SPELLS[slot.id];
+      const x = w / 2 - PW / 2 + 70 + (i % 2) * 540, y = top + 150 + Math.floor(i / 2) * 150;
+      const targets = b.spellTargets('player', slot.id);
+      const ok = targets.length > 0;
+      const reason = b.mana.player < sp.cost ? t('battle.noMana') : !ok ? t('battle.noTarget') : '';
+      const c = this.add.container(x, y);
+      const g = this.add.graphics();
+      const draw = (hover: boolean) => {
+        g.clear();
+        g.fillStyle(hover ? 0x4a3018 : 0x24170c, ok ? 0.92 : 0.6).fillRoundedRect(0, 0, 510, 136, 12);
+        g.lineStyle(2, hover ? 0xf3d48a : 0x6a5030, 1).strokeRoundedRect(0, 0, 510, 136, 12);
+      };
+      draw(false);
+      c.add(g);
+      const ic = spellIcon(this, 62, 68, slot.id, 96);
+      c.add(ic);
+      c.add(this.add.text(122, 10, `${spellName(slot.id)}  ${levelStars(slot.level)}`, textStyle(23, SCHOOL_COLOR[sp.school], true)));
+      const mi = this.add.image(470, 24, 'icon_mana'); mi.setScale(26 / mi.width);
+      c.add(mi);
+      c.add(this.add.text(452, 24, String(sp.cost), textStyle(22, b.mana.player >= sp.cost ? '#9fd0ff' : '#e07a6a', true)).setOrigin(1, 0.5));
+      c.add(this.add.text(122, 42, reason || spellDesc(slot.id, b.spellPower('player'), slot.level),
+        { ...textStyle(18, reason ? '#e0a090' : '#efe3c8'), wordWrap: { width: 375 } }));
+      if (!ok) c.setAlpha(0.55);
+      else {
+        c.setSize(510, 136);
+        c.setInteractive(new Phaser.Geom.Rectangle(0, 0, 510, 136), Phaser.Geom.Rectangle.Contains);
+        c.on('pointerover', () => { draw(true); playSfx(this, 'ui_hover'); });
+        c.on('pointerout', () => draw(false));
+        c.on('pointerup', () => this.chooseSpell(slot.id));
+      }
+      root.add(c);
+    });
+    root.add(this.add.text(w / 2, top + PH - 78, t('battle.spellbookHint'), textStyle(19, '#c9b896')).setOrigin(0.5));
+    root.setAlpha(0);
+    this.tweens.add({ targets: root, alpha: 1, duration: 120 });
+    playSfx(this, 'ui_open', 0.6);
+    this.bookOpen = root;
+  }
+
+  private chooseSpell(id: string): void {
+    this.closeBook();
+    const sp = SPELLS[id];
+    if (sp.target === 'massEnemy') { void this.castSpell(id); return; }
+    this.spellTargeting = id;
+    this.targeting = false;
+    this.hiG.clear();
+    for (const uid of this.battle.spellTargets('player', id)) {
+      this.polyStack(this.hiG, this.battle.stack(uid), 0x4aa8ff, 0.35, 0xa8d8ff, 0.95);
+    }
+    this.infoText.setText(t('battle.chooseSpellTarget', { spell: spellName(id) }));
+  }
+
+  private cancelSpell(): void {
+    if (!this.spellTargeting) return;
+    this.spellTargeting = null;
+    this.drawHighlights();
+    const s = this.battle.active;
+    if (s && this.inputOpen) this.infoText.setText(t('battle.yourTurn', { unit: unitName(s.def) }));
+  }
+
+  private spellHover(x: number, y: number): void {
+    const id = this.spellTargeting!;
+    const h = pixelToHex(x, y);
+    const st = h ? this.battle.stackAt(h) : undefined;
+    if (!st || !this.battle.spellTargets('player', id).includes(st.uid)) {
+      this.input.setDefaultCursor('default');
+      this.infoText.setText(t('battle.chooseSpellTarget', { spell: spellName(id) }));
+      return;
+    }
+    this.input.setDefaultCursor('pointer');
+    const area = SPELLS[id].target === 'area' ? this.battle.areaOf('player', st) : [st];
+    for (const v of area) this.polyStack(this.hoverG, v, 0, 0, 0xffffff, 1, 4);
+    const pv = this.battle.previewSpell('player', id, st.uid);
+    const extra = pv ? t('battle.spellPreview', { dmg: pv.damage, kills: pv.kills }) : spellDesc(id, this.battle.spellPower('player'), this.battle.spellLevel('player', id));
+    this.infoText.setText(`${spellName(id)} → ${unitName(st.def)}\n${extra}`);
+  }
+
+  private async castSpell(id: string, target?: number): Promise<void> {
+    const b = this.battle;
+    if (!this.inputOpen || !b.isLegalCast('player', id, target)) return;
+    this.inputOpen = false;
+    this.spellTargeting = null;
+    this.targeting = false;
+    this.setButtonsEnabled(false);
+    this.btnAbility.setEnabled(false);
+    this.hideAttackCursor();
+    this.hiG.clear(); this.hoverG.clear();
+    this.infoText.setText('');
+    this.updateSpellButton();
+    await this.play(b.cast('player', id, target));
+    this.updateInitBar();
+    if (b.winner) { const r = this.resolveInput; this.resolveInput = null; r?.(); return; }
+    // the same stack keeps its turn
+    const s = b.active!;
+    this.reach = b.reachable(s);
+    this.inputOpen = true;
+    this.setButtonsEnabled(true);
+    this.btnWait.setEnabled(!s.waited);
+    this.updateAbilityButton(s);
+    this.updateSpellButton();
+    this.infoText.setText(t('battle.yourTurn', { unit: unitName(s.def) }));
+    this.drawHighlights();
+  }
+
+  /** Where a side's hero stands on screen (spells start there). */
+  private heroPos(side: Side): { x: number; y: number } {
+    const { width: w } = this.scale;
+    if (side === 'player') return { x: 125, y: 470 };
+    return this.cfg.enemyHero ? { x: w - 125, y: 470 } : { x: w / 2, y: 150 };
+  }
+
+  private async animCast(e: Extract<BattleEvent, { type: 'cast' }>): Promise<void> {
+    const sp = SPELLS[e.spell];
+    const hero = e.side === 'player' ? t(`hero.${this.cfg.playerHero}`) : this.cfg.enemyHero ? t(`hero.${this.cfg.enemyHero}`) : t('battle.enemyHero');
+    this.log(t('battle.log.cast', { hero, spell: spellName(e.spell) }));
+    this.updateSpellButton();
+    const p = this.heroPos(e.side);
+    const snd = SPELL_SND[e.spell] ?? (sp.element ? ELEMENT_FX[sp.element].snd : SCHOOL_SND[sp.school]);
+    playSfx(this, `sp_${snd}_cast`, 0.8);
+    const ck = CAST_FX[sp.school];
+    if (this.textures.exists(ck)) {
+      const fx = this.add.image(p.x, p.y, ck).setDepth(3200).setAlpha(0);
+      fx.setScale(260 / fx.width);
+      this.tweens.chain({ targets: fx, tweens: [{ alpha: 1, scale: fx.scale * 1.15, duration: 220 }, { alpha: 0, duration: 400 }], onComplete: () => fx.destroy() });
+    }
+    const name = this.add.text(p.x, p.y - 230, spellName(e.spell), {
+      fontFamily: FONT_TITLE, fontSize: '34px', fontStyle: '900', color: SCHOOL_COLOR[sp.school], stroke: '#000', strokeThickness: 7,
+    }).setOrigin(0.5).setDepth(3600).setAlpha(0);
+    this.tweens.chain({ targets: name, tweens: [{ alpha: 1, y: name.y - 15, duration: 200 }, { alpha: 0, duration: 400, delay: 600 }], onComplete: () => name.destroy() });
+    await this.wait(300);
+    // projectile towards the target (damage and enemy spells)
+    const tv = e.target !== undefined ? this.views.get(e.target) : undefined;
+    const proj = sp.element ? ELEMENT_FX[sp.element].proj : (sp.target !== 'ally' ? 'vfx_proj_rune_bolt' : undefined);
+    if (tv && proj && this.textures.exists(proj)) {
+      const tx = tv.box.x, ty = tv.box.y - 70;
+      const pr = this.add.image(p.x, p.y - 60, proj).setDepth(3300);
+      pr.setScale(130 / pr.width).setRotation(Math.atan2(ty - (p.y - 60), tx - p.x));
+      await this.tween({ targets: pr, x: tx, y: ty, duration: 160 + Math.hypot(tx - p.x, ty - p.y) * 0.3 });
+      pr.destroy();
+    }
+    // impact picture for spells without damage (damage spells show it on every hit)
+    if (tv && !sp.element) {
+      const k = SPELL_HIT[e.spell] ?? (sp.target === 'ally' ? 'vfx_hit_holy' : 'vfx_hit_curse');
+      if (this.textures.exists(k)) {
+        const fx = this.add.image(tv.box.x, tv.box.y - 70, k).setDepth(3000);
+        fx.setScale(160 / fx.width);
+        this.tweens.add({ targets: fx, scale: fx.scale * 1.25, alpha: 0, duration: 600, onComplete: () => fx.destroy() });
+      }
+      playSfx(this, `sp_${snd}_impact`, 0.7);
+      await this.wait(200);
+    }
+  }
+
+  private async animSpellHit(e: Extract<BattleEvent, { type: 'spellHit' }>): Promise<void> {
+    const v = this.views.get(e.uid);
+    if (!v) return;
+    const sp = SPELLS[e.spell];
+    const fxd = ELEMENT_FX[sp.element ?? 'holy'];
+    playSfx(this, `sp_${SPELL_SND[e.spell] ?? fxd.snd}_impact`, 0.8);
+    if (this.textures.exists(fxd.hit)) {
+      const fx = this.add.image(v.box.x, v.box.y - 70, fxd.hit).setDepth(3000);
+      fx.setScale(170 / fx.width);
+      this.tweens.add({ targets: fx, scale: fx.scale * 1.3, alpha: 0, duration: 500, onComplete: () => fx.destroy() });
+    }
+    v.sprite.setTint(0xff8a6a);
+    this.time.delayedCall(180, () => v.sprite.clearTint());
+    if (e.damage > 0) this.floatText(e.uid, `-${e.damage}`, '#ffb070');
+    if (e.kills > 0) this.floatText(e.uid, `☠ ${e.kills}`, '#ffffff', -40, 120);
+    this.setCount(e.uid, e.left);
+    this.log(t('battle.log.spellHit', { spell: spellName(e.spell), b: unitName(v.stack.def), dmg: e.damage, kills: e.kills }));
+    await this.wait(260);
   }
 
   // ---------- input ----------
@@ -606,6 +917,8 @@ export class BattleScene extends Phaser.Scene {
 
   private onHover(x: number, y: number): void {
     this.hoverG.clear();
+    if (this.bookOpen) return;
+    if (this.spellTargeting) { this.spellHover(x, y); return; }
     const h = pixelToHex(x, y);
     const occ = h ? this.battle.stackAt(h) : undefined;
     const a = this.actionAt(x, y);
@@ -672,6 +985,8 @@ export class BattleScene extends Phaser.Scene {
     const tags: string[] = [];
     if (d.ranged) tags.push(t('passive.ranged', { n: s.shots }));
     if (d.flying) tags.push(t('passive.flying'));
+    const race = racePassive(d);
+    if (race) tags.push(t(`race.${race}.name`));
     for (const p of d.passives ?? []) tags.push(t(`passiveName.${p}`));
     if (d.active) tags.push(`${t(`ability.${d.active}.name`)}${s.cooldown > 0 ? ` (${s.cooldown})` : ''}`);
     return t('battle.info', {
@@ -682,6 +997,13 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private onClick(x: number, y: number): void {
+    if (this.bookOpen) return;
+    if (this.spellTargeting) {
+      const h = pixelToHex(x, y);
+      const st = h ? this.battle.stackAt(h) : undefined;
+      if (st && this.battle.spellTargets('player', this.spellTargeting).includes(st.uid)) void this.castSpell(this.spellTargeting, st.uid);
+      return;
+    }
     const a = this.actionAt(x, y);
     if (a) { void this.playerAction(a.action); return; }
     if (this.targeting) return;
@@ -741,8 +1063,20 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private async play(events: BattleEvent[]): Promise<void> {
+    let spell: string | null = null;   // statuses after a cast come from that spell
     for (const e of events) {
       switch (e.type) {
+        case 'cast': spell = e.spell; await this.animCast(e); break;
+        case 'spellHit': await this.animSpellHit(e); break;
+        case 'resist':
+          this.floatText(e.uid, t('battle.resist'), '#d0d0d0', -60);
+          this.log(t('battle.log.resist', { a: unitName(this.battle.stack(e.uid).def) }));
+          await this.wait(300);
+          break;
+        case 'ward':
+          this.floatText(e.uid, t('battle.absorbed', { n: e.absorbed }), '#9fe0ff', -100);
+          this.refreshStatus(e.uid);
+          break;
         case 'round':
           if (e.round > 1) await this.roundBanner(e.round);
           break;
@@ -769,15 +1103,33 @@ export class BattleScene extends Phaser.Scene {
           break;
         }
         case 'ability': await this.animAbility(e.uid, e.ability); break;
-        case 'status': this.refreshStatus(e.uid); break;
+        case 'status':
+          this.refreshStatus(e.uid);
+          if (spell && e.on) {
+            const good = BUFFS.has(e.status);
+            this.floatText(e.uid, t(`statusShort.${e.status}`), good ? '#9fe39f' : '#d8a0ff', -60);
+            const v = this.views.get(e.uid);
+            if (v) {
+              const k = good ? 'vfx_fx_buff_up' : 'vfx_fx_debuff_down';
+              if (this.textures.exists(k)) {
+                const fx = this.add.image(v.box.x, v.box.y - 90, k).setDepth(3000);
+                fx.setScale(120 / fx.width);
+                this.tweens.add({ targets: fx, y: fx.y + (good ? -40 : 30), alpha: 0, duration: 700, onComplete: () => fx.destroy() });
+              }
+              if (!good) playSfx(this, 'cb_debuff', 0.6);
+            }
+            await this.wait(250);
+          }
+          break;
         case 'dot': {
           const v = this.views.get(e.uid);
           if (v) {
-            this.floatText(e.uid, `-${e.damage}`, '#7dff6a');
-            v.sprite.setTint(0x80ff80);
+            const burn = e.source === 'burn';
+            this.floatText(e.uid, `-${e.damage}`, burn ? '#ffa04a' : '#7dff6a');
+            v.sprite.setTint(burn ? 0xffa060 : 0x80ff80);
             this.time.delayedCall(200, () => v.sprite.clearTint());
             this.setCount(e.uid, e.left);
-            this.log(t(e.source === 'thorns' ? 'battle.log.thorns' : 'battle.log.poison', { a: unitName(v.stack.def), dmg: e.damage, kills: e.kills }));
+            this.log(t(e.source === 'thorns' ? 'battle.log.thorns' : burn ? 'battle.log.burn' : 'battle.log.poison', { a: unitName(v.stack.def), dmg: e.damage, kills: e.kills }));
             await this.wait(350);
           }
           break;
@@ -973,7 +1325,8 @@ export class BattleScene extends Phaser.Scene {
     const { width: w, height: h } = this.scale;
     const won = winner === 'player';
     playSfx(this, won ? 'ev_victory_crowd' : 'cb_death_human');
-    for (const o of [this.initBar, this.infoText, this.logText, this.btnWait, this.btnDefend, this.btnAuto, this.btnAbility]) {
+    this.closeBook();
+    for (const o of [this.initBar, this.infoText, this.logText, this.btnWait, this.btnDefend, this.btnAuto, this.btnAbility, this.btnSpell, this.manaText, this.castNote]) {
       this.tweens.add({ targets: o, alpha: 0, duration: 300 });
     }
     this.hideAttackCursor();

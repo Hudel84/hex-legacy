@@ -7,6 +7,9 @@ import { loadHeroPortrait, loadPortrait } from '../core/assets';
 import { panel, textStyle, titleStyle, stat } from './widgets';
 import { showUnitInfo, loadAbilityIcons } from './UnitInfo';
 import { upgradedDef } from '../run/state';
+import { loadSpellIcons } from './spellUi';
+import { tooltip } from './perkUi';
+import { maxMana } from '../battle/spells';
 
 /** Left-side panel: hero, resources and army with leadership distribution. Fixed to the screen. */
 export class ArmyPanel extends Phaser.GameObjects.Container {
@@ -27,6 +30,7 @@ export class ArmyPanel extends Phaser.GameObjects.Container {
     loadHeroPortrait(scene, r.heroId);
     for (const s of r.army) loadPortrait(scene, s.unitId);
     loadAbilityIcons(scene);
+    loadSpellIcons(scene, (r.spells ?? []).map((x) => x.id));
   }
 
   refresh(): void {
@@ -55,10 +59,19 @@ export class ArmyPanel extends Phaser.GameObjects.Container {
     c.add(stat(sc, 215, 400, 'icon_lead', String(r.leadership)));
     c.add(stat(sc, 60, 450, 'icon_atk', String(r.atk)));
     c.add(stat(sc, 215, 450, 'icon_def', String(r.def)));
+    if (sc.textures.exists('icon_power')) {
+      const pw = stat(sc, 60, 500, 'icon_power', String(r.power ?? 0));
+      const kn = stat(sc, 215, 500, 'icon_knowledge', String(r.knowledge ?? 0));
+      for (const [o, k, line] of [[pw, 'stat.power', t('run.powerHint')], [kn, 'stat.knowledge', t('run.knowledgeHint', { n: maxMana(r.knowledge ?? 0) })]] as const) {
+        const z = sc.add.zone(o.x + 60, o.y, 140, 44).setInteractive();
+        tooltip(sc, z, t(k), [line]);
+        c.add([o, z]);
+      }
+    }
 
-    c.add(sc.add.text(200, 500, t('run.army'), titleStyle(24)).setOrigin(0.5, 0));
+    c.add(sc.add.text(200, 545, t('run.army'), titleStyle(24)).setOrigin(0.5, 0));
     r.army.forEach((s, i) => {
-      const y = 580 + i * 125;
+      const y = 625 + i * 125;
       const d = unitDef(s.unitId);
       const g = sc.add.graphics();
       g.fillStyle(0x000000, 0.35).fillRoundedRect(28, y - 52, 344, 108, 12);
@@ -75,7 +88,7 @@ export class ArmyPanel extends Phaser.GameObjects.Container {
       c.add(sc.add.text(134, y - 12, `×${count(s)}   ${'★'.repeat(s.level)}${'☆'.repeat(2 - s.level)}`, textStyle(24, '#ffffff', true)));
       c.add(sc.add.text(134, y + 20, t('run.costEach', { n: d.cost }), textStyle(17, '#eadcbc')));
     });
-    const hy = 580 + r.army.length * 125 - 30;
+    const hy = 625 + r.army.length * 125 - 30;
     const hint = sc.add.text(200, hy, t('run.armyHint'), { ...textStyle(19, '#f0e2c0'), align: 'center', wordWrap: { width: 330 } }).setOrigin(0.5, 0);
     const hb = sc.add.graphics();
     hb.fillStyle(0x000000, 0.45).fillRoundedRect(200 - 175, hy - 8, 350, hint.height + 16, 10);

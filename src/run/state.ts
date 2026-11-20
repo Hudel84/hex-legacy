@@ -7,6 +7,8 @@ import { perkById, sideMods, runFactor } from './perks';
 import type { SideMods } from '../battle/mods';
 import { Rng } from './rng';
 import { bonus, unitUnlocked, FACTION_RES, type Res } from '../meta/meta';
+import { SPELLS, FACTION_SCHOOLS, MAX_SPELL_LEVEL, MAX_FOREIGN_LEVEL, SCHOOLS, type SpellSlot, type School } from '../battle/spells';
+import type { Faction } from '../battle/types';
 
 export const MAX_SLOTS = 3;
 export const MAX_UNIT_LEVEL = 2;
@@ -37,12 +39,24 @@ export interface RunState {
   loot: Partial<Record<Res, number>>;
   talents?: string[];
   artifacts?: string[];
+  power?: number;          // spell power (Zauberkraft)
+  knowledge?: number;      // 10 mana per point (Wissen)
+  spells?: SpellSlot[];
 }
 
 const KEY = 'hexlegacy.run.v1';
 export const ACT1_BIOMES = ['meadows', 'autumn_forest', 'rocky_coast'];
 
 export function newRun(heroId: string, seed = Math.floor(Math.random() * 2 ** 31)): RunState {
+  const r = baseRun(heroId, seed);
+  if (bonus.extraSpell()) {
+    const opts = learnable(false, r);
+    if (opts.length) learnSpell(new Rng(seed ^ 0x5eed).pick(opts), r);
+  }
+  return r;
+}
+
+function baseRun(heroId: string, seed: number): RunState {
   const hero = heroById(heroId);
   const rng = new Rng(seed);
   const biome = rng.pick(ACT1_BIOMES);
@@ -53,7 +67,17 @@ export function newRun(heroId: string, seed = Math.floor(Math.random() * 2 ** 31
     heroId, atk: hero.atk + bonus.atk(), def: hero.def + bonus.def(), leadership, level: 1, xp: 0, gold: 60 + bonus.startGold(),
     army: hero.startArmy.map((unitId, i) => ({ unitId, alloc: share, level: i < bonus.smithy() ? 1 : 0 })),
     map: generateMap(seed), currentNode: null, visited: [], shopBuys: 0, battlesWon: 0, pending: null, loot: {}, talents: [], artifacts: [],
+    power: hero.power + bonus.power(), knowledge: hero.knowledge + bonus.knowledge(),
+    spells: hero.spells.map((id) => ({ id, level: 1 })),
   };
+}
+
+/** Old saves (before magic) get the hero's start values. */
+function migrate(r: RunState): void {
+  const hero = heroById(r.heroId);
+  r.power ??= hero.power;
+  r.knowledge ??= hero.knowledge;
+  r.spells ??= hero.spells.map((id) => ({ id, level: 1 }));
 }
 
 let current: RunState | null = null;
@@ -81,6 +105,7 @@ export function loadSave(): boolean {
     if (!raw) return false;
     const r = JSON.parse(raw) as RunState;
     if (r.version !== 1) return false;
+    migrate(r);
     current = r;
     return true;
   } catch { return false; }
@@ -128,6 +153,11 @@ export function addLeadership(n: number, r = run()): void {
 
 export const xpForLevel = (lvl: number): number => 15 * lvl * (lvl + 1) / 2 + 5 * (lvl - 1);
 
+/** Small magic growth (GDD 5.2): every second level +1 spell power (levels 3, 7, …) or +1 knowledge (5, 9, …). */
+export function magicGrowth(level: number): 'power' | 'knowledge' | null {
+  return level % 4 === 3 ? 'power' : level % 4 === 1 && level > 1 ? 'knowledge' : null;
+}
+
 /** Adds xp, returns how many level-ups happened. */
 export function gainXp(n: number, r = run()): number {
   r.xp += n;
@@ -137,6 +167,9 @@ export function gainXp(n: number, r = run()): number {
     r.level++;
     ups++;
     addLeadership(5, r);
+    const g = magicGrowth(r.level);
+    if (g === 'power') r.power = (r.power ?? 0) + 1;
+    if (g === 'knowledge') r.knowledge = (r.knowledge ?? 0) + 1;
   }
   return ups;
 }
@@ -199,6 +232,47 @@ export function grantPerk(id: string, r = run()): void {
   if (o.def) r.def = Math.max(0, r.def + o.def);
   if (o.lead) r.leadership = Math.max(20, r.leadership + o.lead);
   if (o.gold) r.gold += o.gold;
+  if (o.power) r.power = Math.max(0, (r.power ?? 0) + o.power);
+  if (o.knowledge) r.knowledge = Math.max(0, (r.knowledge ?? 0) + o.knowledge);
+}
+
+// ---------- magic ----------
+
+export const nativeSchools = (r = run()): School[] => FACTION_SCHOOLS[heroById(r.heroId).faction as Faction] ?? [];
+/** The one foreign school a hero may learn (the first foreign spell decides it). */
+export function foreignSchool(r = run()): School | null {
+  const own = nativeSchools(r);
+  for (const s of r.spells ?? []) if (!own.includes(SPELLS[s.id].school)) return SPELLS[s.id].school;
+  return null;
+}
+export function spellMax(id: string, r = run()): number {
+  return nativeSchools(r).includes(SPELLS[id].school) ? MAX_SPELL_LEVEL : MAX_FOREIGN_LEVEL;
+}
+export const knows = (id: string, r = run()): boolean => !!r.spells?.some((s) => s.id === id);
+/** Spells the hero could learn: native schools, or the foreign school (only one). */
+export function learnable(foreign: boolean, r = run()): string[] {
+  const own = nativeSchools(r);
+  const fs = foreignSchool(r);
+  const schools: School[] = foreign ? (fs ? [fs] : SCHOOLS.filter((x) => !own.includes(x))) : own;
+  return Object.values(SPELLS).filter((s) => schools.includes(s.school) && !knows(s.id, r)).map((s) => s.id);
+}
+export const upgradable = (r = run()): SpellSlot[] => (r.spells ?? []).filter((s) => s.level < spellMax(s.id, r));
+export function learnSpell(id: string, r = run()): void {
+  r.spells ??= [];
+  const ex = r.spells.find((s) => s.id === id);
+  if (ex) ex.level = Math.min(spellMax(id, r), ex.level + 1); else r.spells.push({ id, level: 1 });
+}
+export function upgradeSpell(id: string, r = run()): void {
+  const ex = r.spells?.find((s) => s.id === id);
+  if (ex) ex.level = Math.min(spellMax(id, r), ex.level + 1);
+}
+/** A spell reward: a new native spell, or (if none is left, or by chance) an upgrade of a known one. */
+export function spellReward(g: Rng, r = run()): { kind: 'learn' | 'upgrade'; id: string } | null {
+  const learn = learnable(false, r);
+  const up = upgradable(r);
+  if (learn.length && (!up.length || g.next() < 0.6)) return { kind: 'learn', id: g.pick(learn) };
+  if (up.length) return { kind: 'upgrade', id: g.pick(up).id };
+  return null;
 }
 
 export const playerMods = (r = run()): SideMods => sideMods(owner(r));

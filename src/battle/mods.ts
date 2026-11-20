@@ -24,12 +24,14 @@ export interface SideMods {
   thorns: number;       // melee attackers take this share of the damage they dealt
   crit: number;         // chance for double damage
   undeadDmg: number;    // damage against undead
+  spellDmg: number;     // hero spell damage and healing
+  mana: number;         // extra mana per battle (flat)
 }
 
 export const NO_MODS: SideMods = {
   dmg: 0, melee: 0, ranged: 0, taken: 0, hp: 0, ini: 0, speed: 0, shots: 0, counterDmg: 0, counters: 0,
   splitShot: 0, firstStrike: 0, regen: 0, lifesteal: 0, startShield: 0, poison: 0, cooldown: 0, round1Ini: 0,
-  vsBig: 0, executioner: 0, thorns: 0, crit: 0, undeadDmg: 0,
+  vsBig: 0, executioner: 0, thorns: 0, crit: 0, undeadDmg: 0, spellDmg: 0, mana: 0,
 };
 
 export type ModPatch = Partial<SideMods>;
