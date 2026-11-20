@@ -534,12 +534,12 @@
  "elite_bandit_captain": {
   "faction": "neutral",
   "tier": 6,
-  "hp": 75,
-  "atk": 11,
-  "def": 9,
+  "hp": 130,
+  "atk": 13,
+  "def": 11,
   "dmg": [
-   10,
-   15
+   15,
+   22
   ],
   "ini": 12,
   "speed": 5,
@@ -551,12 +551,12 @@
  "elite_giant_spider": {
   "faction": "neutral",
   "tier": 6,
-  "hp": 80,
-  "atk": 10,
-  "def": 8,
+  "hp": 140,
+  "atk": 12,
+  "def": 10,
   "dmg": [
-   9,
-   14
+   14,
+   20
   ],
   "ini": 13,
   "speed": 6,
@@ -571,12 +571,12 @@
  "elite_minotaur": {
   "faction": "neutral",
   "tier": 6,
-  "hp": 95,
-  "atk": 12,
-  "def": 10,
+  "hp": 170,
+  "atk": 14,
+  "def": 12,
   "dmg": [
-   12,
-   17
+   18,
+   26
   ],
   "ini": 10,
   "speed": 5,
@@ -591,12 +591,12 @@
  "boss_act1_bandit_king": {
   "faction": "neutral",
   "tier": 6,
-  "hp": 170,
-  "atk": 12,
-  "def": 10,
+  "hp": 380,
+  "atk": 15,
+  "def": 14,
   "dmg": [
-   14,
-   20
+   26,
+   36
   ],
   "ini": 11,
   "speed": 5,
@@ -604,6 +604,7 @@
   "sizeScale": 1.7,
   "sheet": "bosses/animated/anim_boss_act1_bandit_king_idle_sheet_8x4.webp",
   "portrait": "ui/portraits/bosses/portrait_boss_act1_bandit_king.webp",
-  "mounted": true
+  "mounted": true,
+  "wide": true
  }
 }

@@ -86,7 +86,7 @@
   "run.army": "Army",
   "run.costEach": "Leadership {n} each",
   "run.freeLead": "Unassigned leadership: {n}",
-  "run.armyHint": "+ / − moves leadership between your stacks.",
+  "run.armyHint": "Every stack is filled up to your full leadership.",
   "run.act": "Act {n}",
   "biome.meadows": "Green Meadows",
   "biome.autumn_forest": "Autumn Forest",

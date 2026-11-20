@@ -96,7 +96,7 @@ export function testBattleConfig(): BattleConfig {
   const s = sc.battle.stack(uid);
   if (!s || s.count <= 0) return null;
   const c = hexCenter(s.pos);
-  return [c.x, c.y];
+  return [c.x, c.y];  // head hex (clickable for wide units too)
 };
 
 export class BattleScene extends Phaser.Scene {
@@ -296,10 +296,31 @@ export class BattleScene extends Phaser.Scene {
 
   // ---------- views ----------
 
+  /** Mirror a unit sprite and keep its feet on the same spot (the origin must be mirrored too). */
+  private face(sp: Phaser.GameObjects.Sprite, left: boolean): void {
+    const fx = (sp.getData('fx') as number | undefined) ?? 0.5;
+    sp.setFlipX(left);
+    sp.setOrigin(left ? 1 - fx : fx, sp.originY);
+  }
+
+  /** Screen position of a stack: the middle of all hexes it covers. */
+  private stackCenter(st: Stack, pos: Hex = st.pos): { x: number; y: number } {
+    const cs = this.battle.cells(st, pos).map(hexCenter);
+    return { x: cs.reduce((a, c) => a + c.x, 0) / cs.length, y: cs.reduce((a, c) => a + c.y, 0) / cs.length };
+  }
+
+  /** Outline every hex of a stack. */
+  private polyStack(g: Phaser.GameObjects.Graphics, st: Stack, fill: number, fa: number, line: number, la: number, lw = 3): void {
+    for (const c of this.battle.cells(st)) {
+      if (fa > 0) g.fillStyle(fill, fa).fillPoints(hexPoly(c, 4), true);
+      g.lineStyle(lw, line, la).strokePoints(hexPoly(c, 4), true, true);
+    }
+  }
+
   private createView(s: Stack): void {
-    const p = hexCenter(s.pos);
+    const p = this.stackCenter(s);
     const box = this.add.container(p.x, p.y);
-    const shadow = this.add.ellipse(0, 0, HEX_W * 0.62, HEX_W * 0.2, 0x000000, 0.35);
+    const shadow = this.add.ellipse(0, 0, HEX_W * (s.def.wide ? 1.5 : 0.62), HEX_W * (s.def.wide ? 0.32 : 0.2), 0x000000, 0.35);
     const sk = sheetKey(s.def);
     const still = !!s.def.still;
     const animKey = `${sk}_idle`;
@@ -307,7 +328,8 @@ export class BattleScene extends Phaser.Scene {
       this.anims.create({ key: animKey, frames: this.anims.generateFrameNumbers(sk, { start: 0, end: 31 }), frameRate: 8, repeat: -1 });
     }
     const fb = this.frameBox(sk, still);
-    const sprite = this.add.sprite(0, 6, sk, still ? undefined : 0).setOrigin((fb.left + fb.right) / 2, fb.bottom);
+    const sprite = this.add.sprite(0, 6, sk, still ? undefined : 0).setOrigin(s.def.wide ? (fb.left + fb.right) / 2 : fb.feetX, fb.bottom);
+    sprite.setData('fx', s.def.wide ? (fb.left + fb.right) / 2 : fb.feetX);
     // same visible size for every unit of a tier, no matter how much empty space its frames have
     const fw = still ? sprite.width : 320, fh = still ? sprite.height : 320;
     const visible = Math.max((fb.bottom - fb.top) * fh, (fb.right - fb.left) * fw * 0.75);
@@ -319,7 +341,7 @@ export class BattleScene extends Phaser.Scene {
     } else {
       sprite.play({ key: animKey, startFrame: Math.floor(Math.random() * 32) });
     }
-    if (s.side === 'enemy') sprite.setFlipX(true);
+    if (s.side === 'enemy') this.face(sprite, true);
 
     const plateX = s.side === 'player' ? 42 : -42;
     const plateBg = this.add.graphics();
@@ -338,10 +360,10 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** Visible bounding box of frame 0 as fractions of the frame (cached per sheet). */
-  private frameBox(key: string, whole = false): { top: number; bottom: number; left: number; right: number } {
-    const cache = (this.registry.get('frameBox') as Record<string, { top: number; bottom: number; left: number; right: number }>) ?? {};
+  private frameBox(key: string, whole = false): { top: number; bottom: number; left: number; right: number; feetX: number } {
+    const cache = (this.registry.get('frameBox2') as Record<string, { top: number; bottom: number; left: number; right: number; feetX: number }>) ?? {};
     if (cache[key]) return cache[key];
-    let box = { top: 0.05, bottom: 0.95, left: 0.05, right: 0.95 };
+    let box = { top: 0.05, bottom: 0.95, left: 0.05, right: 0.95, feetX: 0.5 };
     try {
       const src = this.textures.get(key).getSourceImage() as HTMLImageElement;
       const N = 80;
@@ -355,10 +377,17 @@ export class BattleScene extends Phaser.Scene {
       for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
         if (d[(y * N + x) * 4 + 3] > 60) { top = Math.min(top, y); bottom = Math.max(bottom, y); left = Math.min(left, x); right = Math.max(right, x); }
       }
-      if (bottom > top) box = { top: top / N, bottom: Math.min(0.99, (bottom + 1) / N), left: left / N, right: (right + 1) / N };
+      if (bottom > top) {
+        // where the figure stands: middle of the opaque pixels in the lowest 15 % of the figure
+        const y0 = Math.floor(bottom - (bottom - top) * 0.15);
+        let sx = 0, n = 0;
+        for (let y = y0; y <= bottom; y++) for (let x = 0; x < N; x++) if (d[(y * N + x) * 4 + 3] > 60) { sx += x; n++; }
+        const feetX = n ? (sx / n + 0.5) / N : (left + right + 1) / 2 / N;
+        box = { top: top / N, bottom: Math.min(0.99, (bottom + 1) / N), left: left / N, right: (right + 1) / N, feetX };
+      }
     } catch { /* keep default */ }
     cache[key] = box;
-    this.registry.set('frameBox', cache);
+    this.registry.set('frameBox2', cache);
     return box;
   }
 
@@ -410,8 +439,7 @@ export class BattleScene extends Phaser.Scene {
     for (const e of this.battle.enemiesOf(s)) {
       const can = shoot || this.battle.meleeFrom(s, e, this.reach).length > 0;
       if (!can) continue;
-      g.fillStyle(0xff5040, 0.30).fillPoints(hexPoly(e.pos, 4), true);
-      g.lineStyle(3, 0xff8a70, 0.85).strokePoints(hexPoly(e.pos, 4), true, true);
+      this.polyStack(g, e, 0xff5040, 0.30, 0xff8a70, 0.85);
     }
   }
 
@@ -481,9 +509,7 @@ export class BattleScene extends Phaser.Scene {
     const g = this.hiG;
     g.clear();
     for (const uid of this.battle.abilityTargets(s)) {
-      const tg = this.battle.stack(uid);
-      g.fillStyle(0xb070ff, 0.35).fillPoints(hexPoly(tg.pos, 4), true);
-      g.lineStyle(3, 0xd8b0ff, 0.95).strokePoints(hexPoly(tg.pos, 4), true, true);
+      this.polyStack(g, this.battle.stack(uid), 0xb070ff, 0.35, 0xd8b0ff, 0.95);
     }
   }
 
@@ -541,7 +567,9 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private showActive(s: Stack): void {
-    const p = hexCenter(s.pos);
+    const p = this.stackCenter(s);
+    const base = HEX_W * 1.05 / this.activeRing.width;
+    this.activeRing.setScale(base * (s.def.wide ? 1.9 : 1), base * 0.8 * (s.def.wide ? 1.2 : 1));
     this.activeRing.setPosition(p.x, p.y + 4).setVisible(true);
   }
 
@@ -583,7 +611,7 @@ export class BattleScene extends Phaser.Scene {
     const a = this.actionAt(x, y);
     const s = this.battle.active;
     if (a && s && a.action.type === 'ability' && a.target) {
-      this.hoverG.lineStyle(4, 0xffffff, 1).strokePoints(hexPoly(a.target.pos, 2), true, true);
+      this.polyStack(this.hoverG, a.target, 0, 0, 0xffffff, 1, 4);
       this.input.setDefaultCursor('pointer');
       const ab = this.battle.ability(s)!;
       this.infoText.setText(`${t(`ability.${ab.id}.name`)} → ${unitName(a.target.def)}`);
@@ -594,7 +622,7 @@ export class BattleScene extends Phaser.Scene {
       const g = this.hoverG;
       if (a.action.type === 'move') {
         for (const step of this.reach.get(key(a.action.to)) ?? []) g.fillStyle(0xffffff, 0.22).fillPoints(hexPoly(step, 10), true);
-        g.lineStyle(3, 0xffffff, 0.9).strokePoints(hexPoly(a.action.to, 4), true, true);
+        for (const c of this.battle.cells(s, a.action.to)) g.lineStyle(3, 0xffffff, 0.9).strokePoints(hexPoly(c, 4), true, true);
         this.input.setDefaultCursor('pointer');
         this.hideAttackCursor(false);
       } else if (a.target) {
@@ -603,7 +631,7 @@ export class BattleScene extends Phaser.Scene {
           for (const step of this.reach.get(key(a.from)) ?? []) g.fillStyle(0xffffff, 0.22).fillPoints(hexPoly(step, 10), true);
           g.lineStyle(3, 0xffffff, 0.9).strokePoints(hexPoly(a.from, 4), true, true);
         }
-        g.lineStyle(4, 0xffd27a, 1).strokePoints(hexPoly(a.target.pos, 2), true, true);
+        this.polyStack(g, a.target, 0, 0, 0xffd27a, 1, 4);
         const pv = this.battle.preview(s, a.target, ranged, a.from ?? s.pos);
         this.infoText.setText(t(ranged ? 'battle.preview.shoot' : 'battle.preview.melee', {
           b: unitName(a.target.def), min: pv.minDmg, max: pv.maxDmg, kmin: pv.minKills, kmax: pv.maxKills, shots: s.shots - 1,
@@ -774,7 +802,7 @@ export class BattleScene extends Phaser.Scene {
         }
         case 'teleport': {
           const v = this.views.get(e.uid)!;
-          const to = hexCenter(e.to);
+          const to = this.stackCenter(v.stack, e.to);
           playSfx(this, 'cb_fly', 0.7);
           this.tweens.add({ targets: v.sprite, y: v.sprite.y - 50, duration: 160, yoyo: true });
           await this.tween({ targets: v.box, x: to.x, y: to.y, duration: 320, ease: 'Sine.inOut' });
@@ -822,7 +850,7 @@ export class BattleScene extends Phaser.Scene {
     this.activeRing.setVisible(false);
     if (v.stack.def.flying) {
       playSfx(this, 'cb_fly', 0.8);
-      const to = hexCenter(path[path.length - 1]);
+      const to = this.stackCenter(v.stack, path[path.length - 1]);
       const dur = 220 + 70 * Math.hypot(to.x - v.box.x, to.y - v.box.y) / HEX_W;
       const sy = v.sprite.y;
       this.tweens.add({ targets: v.sprite, y: sy - 60, duration: dur / 2, yoyo: true, ease: 'Sine.out' });
@@ -831,12 +859,12 @@ export class BattleScene extends Phaser.Scene {
     } else {
       playSfx(this, 'cb_move', 0.7);
       for (const step of path) {
-        const to = hexCenter(step);
-        if (to.x !== v.box.x) v.sprite.setFlipX(to.x < v.box.x);
+        const to = this.stackCenter(v.stack, step);
+        if (to.x !== v.box.x) this.face(v.sprite, to.x < v.box.x);
         await this.tween({ targets: v.box, x: to.x, y: to.y, duration: 140, onUpdate: () => v.box.setDepth(v.box.y + 10) } as Phaser.Types.Tweens.TweenBuilderConfig);
       }
     }
-    v.sprite.setFlipX(v.stack.side === 'enemy');
+    this.face(v.sprite, v.stack.side === 'enemy');
     v.box.setDepth(v.box.y + 10);
   }
 
@@ -853,7 +881,7 @@ export class BattleScene extends Phaser.Scene {
     const name = unitName(att.def);
     const tname = unitName(tv.stack.def);
     const facing = tv.box.x < av.box.x;
-    av.sprite.setFlipX(facing);
+    this.face(av.sprite, facing);
 
     if (e.counter) this.floatText(e.uid, t('battle.counter'), '#ffd27a', -150);
 
@@ -889,7 +917,7 @@ export class BattleScene extends Phaser.Scene {
     const key = e.counter ? 'battle.log.counter' : e.ranged ? 'battle.log.shoot' : 'battle.log.melee';
     this.log(t(key, { a: name, b: tname, dmg: e.damage, kills: e.kills }));
     await this.wait(380);
-    av.sprite.setFlipX(att.side === 'enemy');
+    this.face(av.sprite, att.side === 'enemy');
   }
 
   private async animHeal(uid: number, amount: number, count: number): Promise<void> {

@@ -32,7 +32,7 @@ function playerPower(r: RunState): number {
     * (1 + 0.04 * (r.atk + r.def));
 }
 
-export const DIFFICULTY = { base: 125, start: 0.5, perFloor: 0.05, elite: 1.1, boss: 0.45 };
+export const DIFFICULTY = { base: 300, start: 0.5, perFloor: 0.05, elite: 1.1, boss: 0.45 };
 
 export function buildEnemy(node: MapNode, groupOverride?: string): EnemyArmy {
   const r = run();

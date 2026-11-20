@@ -86,7 +86,7 @@
   "run.army": "Armee",
   "run.costEach": "Führung {n} pro Einheit",
   "run.freeLead": "Freie Führungsstärke: {n}",
-  "run.armyHint": "+ / − verschiebt Führungsstärke zwischen deinen Stapeln.",
+  "run.armyHint": "Jeder Stapel wird bis zu deiner vollen Führungsstärke aufgefüllt.",
   "run.act": "Akt {n}",
   "biome.meadows": "Grüne Wiesen",
   "biome.autumn_forest": "Herbstwald",

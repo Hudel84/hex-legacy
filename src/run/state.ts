@@ -93,13 +93,12 @@ export function commitRng(r: Rng): void { run().rngState = r.state; }
 
 export const unitDef = (id: string): UnitDef => UNITS[id];
 
-export function count(slot: ArmySlot): number {
-  return Math.floor(slot.alloc / unitDef(slot.unitId).cost);
+/** Every stack is filled up to the full leadership (GDD 3.5, changed 20.11.): count = leadership / cost. */
+export function count(slot: ArmySlot, r = run()): number {
+  return Math.max(1, Math.floor(r.leadership / unitDef(slot.unitId).cost));
 }
 
-export function freeLeadership(r = run()): number {
-  return r.leadership - r.army.reduce((a, s) => a + s.alloc, 0);
-}
+export function freeLeadership(_r?: RunState): number { return 0; }
 
 /** Unit stats with the slot's upgrade level applied (+12 % HP and damage per level). */
 export function upgradedDef(slot: ArmySlot): UnitDef {
@@ -114,45 +113,11 @@ export function upgradedDef(slot: ArmySlot): UnitDef {
   };
 }
 
-/** Split all leadership evenly over the slots (used when the army changes). */
-export function rebalance(r = run()): void {
-  if (!r.army.length) return;
-  const share = Math.floor(r.leadership / r.army.length);
-  for (const s of r.army) s.alloc = share;
-}
+/** Kept for old save games: leadership is no longer split between stacks. */
+export function rebalance(_r?: RunState): void { /* nothing to do */ }
 
-/** Give newly gained leadership to the slots (evenly). */
 export function addLeadership(n: number, r = run()): void {
   r.leadership += n;
-  if (!r.army.length) return;
-  const per = Math.floor(n / r.army.length);
-  for (const s of r.army) s.alloc += per;
-}
-
-/** Move leadership between a slot and the free pool, in steps of one unit. */
-export function shiftAlloc(slotIdx: number, dir: 1 | -1, r = run()): boolean {
-  const s = r.army[slotIdx];
-  const cost = unitDef(s.unitId).cost;
-  if (dir > 0) {
-    if (freeLeadership(r) < cost) {
-      // take from the slot with the most leadership above one unit
-      const donor = r.army
-        .map((o, i) => ({ o, i }))
-        .filter(({ o, i }) => i !== slotIdx && count(o) > 1)
-        .sort((a, b) => b.o.alloc - a.o.alloc)[0];
-      if (!donor) return false;
-      const dcost = unitDef(donor.o.unitId).cost;
-      let freed = 0;
-      while (freeLeadership(r) + freed < cost && count({ ...donor.o, alloc: donor.o.alloc - freed - dcost }) >= 1) freed += dcost;
-      if (freeLeadership(r) + freed < cost) return false;
-      donor.o.alloc -= freed;
-    }
-    s.alloc += cost;
-    return true;
-  }
-  if (count(s) <= 1) return false;
-  s.alloc -= cost;
-  return true;
 }
 
 // ---------- hero progression ----------

@@ -1,11 +1,13 @@
 // Simulates whole act-1 runs with the AI playing both sides. Usage: npx tsx sim/run_sim.ts [runs]
 import { Battle } from '../src/battle/engine';
 import { newRun, setRun, run, availableNodes, gainXp, applyBoon, BOONS, draftPool, rebalance, MAX_SLOTS, addLeadership, count } from '../src/run/state';
-import { buildEnemy, battleConfig } from '../src/run/encounters';
+import { buildEnemy, battleConfig, DIFFICULTY } from '../src/run/encounters';
 import { HEROES } from '../src/run/heroes';
 import { Rng } from '../src/run/rng';
 
 const RUNS = Number(process.argv[2] ?? 200);
+if (process.argv[3]) Object.assign(DIFFICULTY, JSON.parse(process.argv[3]));
+console.log('DIFFICULTY', JSON.stringify(DIFFICULTY));
 const deaths: Record<string, number> = {};
 let bossKills = 0;
 const lossByType: Record<string, number[]> = {};

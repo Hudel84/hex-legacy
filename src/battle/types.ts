@@ -19,6 +19,7 @@ export interface UnitDef {
   sizeScale?: number;       // sprite size override (elites, bosses)
   active?: string;          // active ability id (see abilities in engine)
   mounted?: boolean;        // riders and beasts of burden (spearmen resist them)
+  wide?: boolean;           // occupies two hexes (bosses)
   level?: number;           // upgrade level of the player's unit type (0-2)
   flying?: boolean;
   undead?: boolean;

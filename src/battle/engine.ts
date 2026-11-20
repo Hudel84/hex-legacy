@@ -71,9 +71,9 @@ export class Battle {
       const army = setup[side].army;
       const rows = START_ROWS[army.length] ?? START_ROWS[3];
       army.forEach((a, i) => {
-        this.addStack(a.def, side, a.count, {
-          col: side === 'player' ? (setup.startCols?.[0] ?? 0) : (setup.startCols?.[1] ?? COLS - 1), row: rows[i] ?? i,
-        });
+        // wide (two-hex) units stand one column further in so their back half fits on the board
+        const col = side === 'player' ? (setup.startCols?.[0] ?? 0) + (a.def.wide ? 1 : 0) : (setup.startCols?.[1] ?? COLS - 1) - (a.def.wide ? 1 : 0);
+        this.addStack(a.def, side, a.count, { col, row: rows[i] ?? i });
       });
     }
     for (const h of setup.obstacles ?? []) this.obstacles.add(key(h));
@@ -94,8 +94,24 @@ export class Battle {
   get alive(): Stack[] { return this.stacks.filter((s) => s.count > 0); }
   stack(uid: number): Stack { return this.stacks.find((s) => s.uid === uid)!; }
   get active(): Stack | undefined { return this.stacks.find((s) => s.uid === this.activeUid); }
-  stackAt(h: Hex): Stack | undefined { return this.alive.find((s) => eq(s.pos, h)); }
-  isFree(h: Hex): boolean { return inBounds(h) && !this.obstacles.has(key(h)) && !this.stackAt(h); }
+  /** Hexes a stack covers when its head stands on `pos` (wide units also cover the hex behind them). */
+  cells(s: Stack, pos: Hex = s.pos): Hex[] {
+    return s.def.wide ? [pos, { col: pos.col + (s.side === 'enemy' ? 1 : -1), row: pos.row }] : [pos];
+  }
+  /** Distance between two stacks (or a stack placed at `at`), using their nearest covered hexes. */
+  sdist(a: Stack, b: Stack, aAt: Hex = a.pos): number {
+    let d = Infinity;
+    for (const x of this.cells(a, aAt)) for (const y of this.cells(b)) d = Math.min(d, distance(x, y));
+    return d;
+  }
+  stackAt(h: Hex): Stack | undefined { return this.alive.find((s) => this.cells(s).some((c) => eq(c, h))); }
+  isFree(h: Hex, ignore?: Stack): boolean {
+    if (!inBounds(h) || this.obstacles.has(key(h))) return false;
+    const o = this.stackAt(h);
+    return !o || o === ignore;
+  }
+  /** Can stack `s` stand with its head on `pos`? */
+  fits(s: Stack, pos: Hex): boolean { return this.cells(s, pos).every((c) => this.isFree(c, s)); }
   enemiesOf(s: Stack): Stack[] { return this.alive.filter((o) => o.side !== s.side); }
   alliesOf(s: Stack): Stack[] { return this.alive.filter((o) => o.side === s.side && o.uid !== s.uid); }
   has(s: Stack, passive: string): boolean { return !!s.def.passives?.includes(passive); }
@@ -119,7 +135,7 @@ export class Battle {
     if (s.def.flying) {
       for (const h of allHexes()) {
         const d = distance(s.pos, h);
-        if (d > 0 && d <= s.def.speed && this.isFree(h)) res.set(key(h), [h]);
+        if (d > 0 && d <= s.def.speed && this.fits(s, h)) res.set(key(h), [h]);
       }
       return res;
     }
@@ -130,7 +146,7 @@ export class Battle {
       if (path.length >= s.def.speed) continue;
       for (const n of neighbors(h)) {
         const k = key(n);
-        if (seen.has(k) || !this.isFree(n)) continue;
+        if (seen.has(k) || !this.fits(s, n)) continue;
         seen.add(k);
         const p = [...path, n];
         res.set(k, p);
@@ -141,7 +157,10 @@ export class Battle {
   }
 
   adjacentEnemies(s: Stack, at: Hex = s.pos): Stack[] {
-    return this.enemiesOf(s).filter((e) => distance(e.pos, at) === 1);
+    return this.enemiesOf(s).filter((e) => this.sdist(s, e, at) === 1);
+  }
+  adjacentAllies(s: Stack, at: Hex = s.pos): Stack[] {
+    return this.alliesOf(s).filter((o) => this.sdist(s, o, at) === 1);
   }
 
   canShoot(s: Stack): boolean {
@@ -151,14 +170,15 @@ export class Battle {
   /** Hexes from which `s` can melee `target` (its own hex or a reachable neighbour of the target). */
   meleeFrom(s: Stack, target: Stack, reach = this.reachable(s)): Hex[] {
     if (!this.targetable(target)) return [];
-    return neighbors(target.pos).filter((n) => eq(n, s.pos) || reach.has(key(n)));
+    const heads: Hex[] = [s.pos, ...[...reach.values()].map((p) => p[p.length - 1])];
+    return heads.filter((h) => this.sdist(s, target, h) === 1);
   }
 
   // ---------- damage ----------
 
   effAtk(att: Stack, at: Hex = att.pos): number {
     let a = att.def.atk + this.heroes[att.side].atk - this.status(att, 'atkDown');
-    if (this.has(att, 'formation')) a += this.alliesOf(att).filter((o) => distance(o.pos, at) === 1).length;
+    if (this.has(att, 'formation')) a += this.adjacentAllies(att, at).length;
     return a;
   }
 
@@ -308,13 +328,13 @@ export class Battle {
       ev.push({ type: 'heal', uid: s.uid, amount, count: s.count });
     }
     if (this.has(s, 'healAura')) {
-      for (const a of this.alliesOf(s).filter((o) => distance(o.pos, s.pos) === 1)) {
+      for (const a of this.adjacentAllies(s)) {
         const amount = this.heal(a, Math.ceil(a.def.hp * 0.25) * s.count, false);
         if (amount > 0) ev.push({ type: 'heal', uid: a.uid, amount, count: a.count });
       }
     }
     // fear: next to a bone dragon there is a chance to lose the turn
-    const dragons = this.enemiesOf(s).filter((e) => this.has(e, 'fearAura') && distance(e.pos, s.pos) === 1);
+    const dragons = this.enemiesOf(s).filter((e) => this.has(e, 'fearAura') && this.sdist(s, e) === 1);
     if (dragons.length && !s.def.undead && this.random() < 0.25) {
       ev.push({ type: 'skip', uid: s.uid, reason: 'fear' });
       return false;
@@ -366,8 +386,8 @@ export class Battle {
       case 'boneSwarm': return neighbors(s.pos).some((h) => this.isFree(h)) ? [s.uid] : [];
       case 'aimedShot': return this.canShoot(s) ? enemies.map((e) => e.uid) : [];
       case 'revival': return [s, ...this.alliesOf(s)].filter((a) => a.summonRounds === undefined && (a.count - 1) * a.def.hp + a.topHp < a.startCount * a.def.hp).map((a) => a.uid);
-      case 'dive': return enemies.filter((e) => neighbors(e.pos).some((h) => (this.isFree(h) || eq(h, s.pos)) && distance(s.pos, h) <= s.def.speed)).map((e) => e.uid);
-      case 'bloodFrenzy': return enemies.filter((e) => neighbors(e.pos).some((h) => this.isFree(h) || eq(h, s.pos))).map((e) => e.uid);
+      case 'dive': return enemies.filter((e) => this.landingHex(s, e, s.def.speed) !== null).map((e) => e.uid);
+      case 'bloodFrenzy': return enemies.filter((e) => this.landingHex(s, e) !== null).map((e) => e.uid);
       case 'deathWave': return enemies.map((e) => e.uid);
       case 'decayBreath': return this.adjacentEnemies(s).filter((e) => this.targetable(e)).map((e) => e.uid);
     }
@@ -376,7 +396,11 @@ export class Battle {
 
   /** Free hex next to `target` closest to `from` (used by dive and blood frenzy). */
   private landingHex(s: Stack, target: Stack, maxDist = 99): Hex | null {
-    const opts = neighbors(target.pos).filter((h) => (this.isFree(h) || eq(h, s.pos)) && distance(s.pos, h) <= maxDist);
+    const around = new Map<string, Hex>();
+    for (const c of this.cells(target)) for (const n of neighbors(c)) around.set(key(n), n);
+    // a wide attacker may also stand with its head one hex further away
+    if (s.def.wide) for (const h of [...around.values()]) for (const n of neighbors(h)) around.set(key(n), n);
+    const opts = [...around.values()].filter((h) => this.fits(s, h) && this.sdist(s, target, h) === 1 && distance(s.pos, h) <= maxDist);
     opts.sort((a, b) => distance(s.pos, a) - distance(s.pos, b));
     return opts[0] ?? null;
   }
@@ -390,7 +414,7 @@ export class Battle {
       case 'spearWall': this.addStatus(s, 'spearwall', 1, 1, ev); break;
       case 'disembody': this.addStatus(s, 'disembodied', 1, 1, ev); break;
       case 'shieldFormation':
-        for (const a of [s, ...this.alliesOf(s).filter((o) => distance(o.pos, s.pos) === 1)]) this.addStatus(a, 'shield', 2, 4, ev);
+        for (const a of [s, ...this.adjacentAllies(s)]) this.addStatus(a, 'shield', 2, 4, ev);
         break;
       case 'rotStench':
         for (const e of this.adjacentEnemies(s)) this.addStatus(e, 'atkDown', 2, 3, ev);
@@ -409,7 +433,7 @@ export class Battle {
         const land = this.landingHex(s, t, s.def.speed)!;
         if (!eq(land, s.pos)) { ev.push({ type: 'teleport', uid: s.uid, to: land }); s.pos = land; }
         ev.push(...this.meleeExchange(s, t));
-        if (s.count > 0 && !eq(from, s.pos) && this.isFree(from)) { ev.push({ type: 'teleport', uid: s.uid, to: from }); s.pos = from; }
+        if (s.count > 0 && !eq(from, s.pos) && this.fits(s, from)) { ev.push({ type: 'teleport', uid: s.uid, to: from }); s.pos = from; }
         break;
       }
       case 'bloodFrenzy': {
@@ -420,14 +444,14 @@ export class Battle {
       }
       case 'holyStrike': {
         for (const e of this.adjacentEnemies(s).filter((x) => this.targetable(x))) ev.push(...this.strike(s, e, false, { mult: 0.75, kind: 'area' }));
-        for (const a of this.alliesOf(s).filter((o) => distance(o.pos, s.pos) === 1)) {
+        for (const a of this.adjacentAllies(s)) {
           const amount = this.heal(a, Math.ceil(a.def.hp * 0.3) * s.count, true);
           if (amount > 0) ev.push({ type: 'heal', uid: a.uid, amount, count: a.count });
         }
         break;
       }
       case 'deathWave': {
-        const victims = [t, ...this.enemiesOf(s).filter((e) => e !== t && distance(e.pos, t.pos) === 1)].filter((e) => this.targetable(e) && !e.def.undead);
+        const victims = [t, ...this.enemiesOf(s).filter((e) => e !== t && this.sdist(e, t) === 1)].filter((e) => this.targetable(e) && !e.def.undead);
         for (const v of victims) ev.push(...this.strike(s, v, true, { mult: v === t ? 0.8 : 0.6, kind: 'area', noLifesteal: true }));
         break;
       }
@@ -463,7 +487,7 @@ export class Battle {
       case 'shoot': { const t = this.stack(a.target); return !!t && this.targetable(t) && t.side !== s.side && this.canShoot(s); }
       case 'melee': {
         const t = this.stack(a.target);
-        if (!t || !this.targetable(t) || t.side === s.side || distance(a.from, t.pos) !== 1) return false;
+        if (!t || !this.targetable(t) || t.side === s.side || this.sdist(s, t, a.from) !== 1) return false;
         return eq(a.from, s.pos) || this.reachable(s).has(key(a.from));
       }
       case 'ability': {
@@ -534,12 +558,12 @@ export class Battle {
     const ab = this.ability(s)!;
     const exp = (p: AttackPreview) => (p.minKills + p.maxKills) / 2;
     const enemies = this.enemiesOf(s);
-    const threatened = enemies.some((e) => !e.def.ranged && distance(e.pos, s.pos) <= e.def.speed + 1);
+    const threatened = enemies.some((e) => !e.def.ranged && this.sdist(s, e) <= e.def.speed + 1);
     switch (ab.id) {
       case 'spearWall': return threatened && !this.adjacentEnemies(s).length ? { score: 8 } : null;
       case 'disembody': return this.adjacentEnemies(s).length && this.hpTotal(s) < s.startCount * s.def.hp * 0.6 ? { score: 12 } : null;
       case 'shieldFormation': {
-        const allies = this.alliesOf(s).filter((o) => distance(o.pos, s.pos) === 1).length;
+        const allies = this.adjacentAllies(s).length;
         return threatened && allies >= 1 && !this.adjacentEnemies(s).length ? { score: 6 + allies * 4 } : null;
       }
       case 'rotStench': return this.adjacentEnemies(s).length >= 2 ? { score: 15 } : null;
@@ -564,7 +588,7 @@ export class Battle {
           const e = this.stack(uid);
           let sc = exp(this.preview(s, e, ab.id === 'aimedShot' || ab.id === 'deathWave', s.pos,
             ab.id === 'aimedShot' ? { mult: 1.5, ignoreDefend: true } : ab.id === 'deathWave' ? { mult: 0.8 } : {})) * this.value(e);
-          if (ab.id === 'deathWave') sc += this.enemiesOf(s).filter((o) => o !== e && distance(o.pos, e.pos) === 1).length * 25;
+          if (ab.id === 'deathWave') sc += this.enemiesOf(s).filter((o) => o !== e && this.sdist(o, e) === 1).length * 25;
           if (sc > bs) { bs = sc; best = uid; }
         }
         // these are just better attacks: always use them when they are ready
@@ -617,12 +641,12 @@ export class Battle {
     if (!enemies.length) return { type: 'defend' };
 
     let target = enemies[0];
-    for (const e of enemies) if (distance(s.pos, e.pos) < distance(s.pos, target.pos)) target = e;
+    for (const e of enemies) if (this.sdist(s, e) < this.sdist(s, target)) target = e;
     let bestHex: Hex | null = null;
-    let bestD = distance(s.pos, target.pos);
+    let bestD = this.sdist(s, target);
     for (const [, path] of reach) {
       const h = path[path.length - 1];
-      const d = distance(h, target.pos);
+      const d = this.sdist(s, target, h);
       if (d < bestD) { bestD = d; bestHex = h; }
     }
     if (bestHex) return { type: 'move', to: bestHex };

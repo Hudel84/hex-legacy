@@ -1,11 +1,10 @@
 import Phaser from 'phaser';
 import { t } from '../core/i18n';
 import { COLOR } from '../core/theme';
-import { run, count, freeLeadership, shiftAlloc, save, xpForLevel, unitDef } from '../run/state';
+import { run, count, xpForLevel, unitDef } from '../run/state';
 import { heroById } from '../run/heroes';
 import { loadHeroPortrait, loadPortrait } from '../core/assets';
-import { panel, textStyle, titleStyle, stat, iconButton } from './widgets';
-import { playSfx } from '../core/audio';
+import { panel, textStyle, titleStyle, stat } from './widgets';
 import { showUnitInfo, loadAbilityIcons } from './UnitInfo';
 import { upgradedDef } from '../run/state';
 
@@ -75,26 +74,14 @@ export class ArmyPanel extends Phaser.GameObjects.Container {
       c.add(sc.add.text(134, y - 40, t(`unit.${s.unitId}`), textStyle(21, COLOR.gold, true)));
       c.add(sc.add.text(134, y - 12, `×${count(s)}   ${'★'.repeat(s.level)}${'☆'.repeat(2 - s.level)}`, textStyle(24, '#ffffff', true)));
       c.add(sc.add.text(134, y + 20, t('run.costEach', { n: d.cost }), textStyle(17, '#eadcbc')));
-      if (this.editable && r.army.length > 1) {
-        c.add(iconButton(sc, 300, y + 22, 'ui_button_minus', 40, () => { if (shiftAlloc(i, -1)) this.changed(); else playSfx(sc, 'ui_error'); }));
-        c.add(iconButton(sc, 346, y + 22, 'ui_button_plus', 40, () => { if (shiftAlloc(i, 1)) this.changed(); else playSfx(sc, 'ui_error'); }));
-      }
     });
-    const free = freeLeadership();
-    if (free > 0) c.add(sc.add.text(200, 580 + r.army.length * 125 - 40, t('run.freeLead', { n: free }), textStyle(21, '#b8f5b8', true)).setOrigin(0.5, 0));
-    if (this.editable && r.army.length > 1) {
-      const hy = 580 + r.army.length * 125 + (freeLeadership() > 0 ? 10 : -30);
-      const hint = sc.add.text(200, hy, t('run.armyHint'), { ...textStyle(19, '#f0e2c0'), align: 'center', wordWrap: { width: 330 } }).setOrigin(0.5, 0);
-      const hb = sc.add.graphics();
-      hb.fillStyle(0x000000, 0.45).fillRoundedRect(200 - 175, hy - 8, 350, hint.height + 16, 10);
-      c.add([hb, hint]);
-    }
+    const hy = 580 + r.army.length * 125 - 30;
+    const hint = sc.add.text(200, hy, t('run.armyHint'), { ...textStyle(19, '#f0e2c0'), align: 'center', wordWrap: { width: 330 } }).setOrigin(0.5, 0);
+    const hb = sc.add.graphics();
+    hb.fillStyle(0x000000, 0.45).fillRoundedRect(200 - 175, hy - 8, 350, hint.height + 16, 10);
+    c.add([hb, hint]);
     this.setScrollFactor(0, 0, true);
     c.setScrollFactor(0, 0, true);
   }
 
-  private changed(): void {
-    save();
-    this.refresh();
-  }
 }
