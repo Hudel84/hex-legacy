@@ -198,6 +198,20 @@ export class MapScene extends Phaser.Scene {
     const menu = new Button(this, 1710, 990, t('map.menu'), { width: 300, fontSize: 26, onClick: () => { save(); this.scene.start('Title'); } });
     menu.setScrollFactor(0).setDepth(201);
 
+    // The side panels get their own camera that never scrolls. Otherwise clicks on objects inside the
+    // fixed panels are tested against the scrolled map and hit the wrong thing (portrait -> army unit).
+    const uiObjs = new Set<Phaser.GameObjects.GameObject>([this.armyPanel, right, menu]);
+    const uiCam = this.cameras.add(0, 0, this.scale.width, this.scale.height).setName('ui');
+    uiCam.ignore(this.children.list.filter((o) => !uiObjs.has(o)));
+    this.cameras.main.ignore([...uiObjs]);
+    // objects added later: fixed ones (tooltips, toasts) belong to the UI camera, the rest to the map
+    this.events.on(Phaser.Scenes.Events.ADDED_TO_SCENE, (o: Phaser.GameObjects.GameObject) => {
+      this.time.delayedCall(0, () => {
+        if (!o.active || o.parentContainer) return;
+        if ((o as unknown as { scrollFactorY?: number }).scrollFactorY === 0) this.cameras.main.ignore(o); else uiCam.ignore(o);
+      });
+    });
+
     playMusic(this, 'mus_map_act1');
     if (!availableNodes().length) toast(this, '…');
   }

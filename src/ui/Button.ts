@@ -78,7 +78,7 @@ export function toast(scene: Phaser.Scene, text: string): void {
   const tx = scene.add.text(scene.scale.width / 2, scene.scale.height - 140, text, {
     fontFamily: FONT_TITLE, fontSize: '36px', fontStyle: '700', color: COLOR.light,
     stroke: '#000', strokeThickness: 6,
-  }).setOrigin(0.5).setDepth(1000).setAlpha(0);
+  }).setOrigin(0.5).setDepth(1000).setAlpha(0).setScrollFactor(0);
   scene.tweens.chain({
     targets: tx,
     tweens: [
