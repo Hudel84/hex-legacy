@@ -138,7 +138,8 @@
   "undead": true,
   "sheet": "units/animated/anim_undead_t1_skeleton_idle_sheet_8x4.webp",
   "portrait": "ui/portraits/units/portrait_undead_t1_skeleton.webp",
-  "active": "boneSwarm"
+  "active": "boneSwarm",
+  "still": "units/undead_t1_skeleton.webp"
  },
  "undead_t2_zombie": {
   "faction": "undead",
@@ -472,7 +473,8 @@
   "portrait": "ui/portraits/neutrals/portrait_neutral_animated_armor.webp",
   "passives": [
    "construct"
-  ]
+  ],
+  "still": "neutrals/neutral_animated_armor.webp"
  },
  "neutral_hedge_mage": {
   "faction": "neutral",

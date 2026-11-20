@@ -13,9 +13,43 @@ export function inkStyle(size: number, bold = false): Phaser.Types.GameObjects.T
   return { fontFamily: FONT_BODY, fontSize: `${size}px`, fontStyle: bold ? '700' : '400', color: COLOR.parchmentText };
 }
 
-/** Stretchable panel from one of the painted panel images (9-slice). */
-export function panel(scene: Phaser.Scene, x: number, y: number, w: number, h: number, key = 'ui_panel_dark_wood', border = 70): Phaser.GameObjects.NineSlice {
-  return scene.add.nineslice(x, y, key, undefined, w, h, border, border, border, border);
+/**
+ * Stretchable 9-slice image built from plain images, so it works with WebGL and Canvas
+ * (Phaser's NineSlice object is WebGL-only). Returns a container centred on (x, y).
+ * Borders are in source-image pixels; `scale` scales the borders (and the whole look).
+ */
+export function nine(scene: Phaser.Scene, x: number, y: number, key: string, w: number, h: number,
+  l: number, r: number, t: number, b: number, scale = 1): Phaser.GameObjects.Container {
+  const tex = scene.textures.get(key);
+  const src = tex.getSourceImage() as HTMLImageElement;
+  const SW = src.width, SH = src.height;
+  const cols = [[0, l], [l, SW - l - r], [SW - r, r]];
+  const rows = [[0, t], [t, SH - t - b], [SH - b, b]];
+  const L = l * scale, R = r * scale, T = t * scale, B = b * scale;
+  const dw = [L, Math.max(0, w - L - R), R];
+  const dh = [T, Math.max(0, h - T - B), B];
+  const c = scene.add.container(x, y);
+  let yy = -h / 2;
+  for (let ri = 0; ri < 3; ri++) {
+    let xx = -w / 2;
+    for (let ci = 0; ci < 3; ci++) {
+      const fname = `__9_${l}_${r}_${t}_${b}_${ri}${ci}`;
+      if (!tex.has(fname)) tex.add(fname, 0, cols[ci][0], rows[ri][0], cols[ci][1], rows[ri][1]);
+      if (dw[ci] > 0 && dh[ri] > 0) {
+        // +0.5 px overlap hides seams between the pieces
+        c.add(scene.add.image(xx, yy, key, fname).setOrigin(0).setDisplaySize(dw[ci] + 0.5, dh[ri] + 0.5));
+      }
+      xx += dw[ci];
+    }
+    yy += dh[ri];
+  }
+  c.setSize(w, h);
+  return c;
+}
+
+/** Stretchable panel from one of the painted panel images. Centred on (x, y). */
+export function panel(scene: Phaser.Scene, x: number, y: number, w: number, h: number, key = 'ui_panel_dark_wood', border = 70): Phaser.GameObjects.Container {
+  return nine(scene, x, y, key, w, h, border, border, border, border);
 }
 
 export interface CardOpts {
@@ -46,7 +80,7 @@ export function card(scene: Phaser.Scene, x: number, y: number, o: CardOpts): Ph
   }
   // 9-slice keeps the arch and corners intact when the card is taller than the frame image
   const fs = w / 359;
-  const frame = scene.add.nineslice(0, 0, 'ui_frame_unit_card', undefined, w / fs, h / fs, 45, 45, 200, 70).setScale(fs);
+  const frame = nine(scene, 0, 0, 'ui_frame_unit_card', w, h, 45, 45, 200, 70, fs);
   c.add(frame);
   const ty = -h / 2 + w * 0.95;
   const title = scene.add.text(0, ty, o.title, { ...titleStyle(Math.round(w / 13)), align: 'center', wordWrap: { width: w * 0.8 } }).setOrigin(0.5, 0);
@@ -96,4 +130,20 @@ export function iconButton(scene: Phaser.Scene, x: number, y: number, key: strin
   b.on('pointerout', () => b.setScale(base));
   b.on('pointerup', () => { playSfx(scene, 'ui_click'); onClick(); });
   return b;
+}
+
+/** Vertical black gradient (alpha top -> bottom) that renders the same in WebGL and Canvas. */
+export function shade(scene: Phaser.Scene, x: number, y: number, w: number, h: number, aTop: number, aBottom: number): Phaser.GameObjects.Image {
+  const k = `__shade_${aTop}_${aBottom}`;
+  if (!scene.textures.exists(k)) {
+    const ct = scene.textures.createCanvas(k, 4, 256)!;
+    const ctx = ct.getContext();
+    const g = ctx.createLinearGradient(0, 0, 0, 256);
+    g.addColorStop(0, `rgba(0,0,0,${aTop})`);
+    g.addColorStop(1, `rgba(0,0,0,${aBottom})`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 4, 256);
+    ct.refresh();
+  }
+  return scene.add.image(x, y, k).setOrigin(0).setDisplaySize(w, h);
 }

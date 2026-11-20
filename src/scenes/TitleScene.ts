@@ -3,6 +3,7 @@ import { t } from '../core/i18n';
 import { FONT_BODY, COLOR, VERSION } from '../core/theme';
 import { playMusic } from '../core/audio';
 import { Button } from '../ui/Button';
+import { shade } from '../ui/widgets';
 import { hasSave, loadSave } from '../run/state';
 
 export class TitleScene extends Phaser.Scene {
@@ -35,9 +36,7 @@ export class TitleScene extends Phaser.Scene {
     });
 
     // dark band at the bottom for the menu, so the six heroes stay visible
-    const shade = this.add.graphics();
-    shade.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0, 0, 0.85, 0.85);
-    shade.fillRect(0, h - 300, w, 300);
+    shade(this, 0, h - 300, w, 300, 0, 0.85);
 
     // logo with a slow float
     const logo = this.add.image(w / 2, 160, 'logo');
@@ -74,7 +73,7 @@ export class TitleScene extends Phaser.Scene {
 
   private refreshTexts(): void {
     for (const { btn, key } of this.buttons) btn.setLabel(t(key));
-    this.versionText.setText(t('title.version', { version: VERSION }));
+    this.versionText.setText(t('title.version', { version: VERSION }) + (this.game.renderer.type === Phaser.CANVAS ? '  ·  Canvas' : '  ·  WebGL'));
   }
 
   private openModal(kind: 'settings' | 'credits'): void {

@@ -14,11 +14,12 @@ import { RewardScene } from './scenes/RewardScene';
 import { RunEndScene } from './scenes/RunEndScene';
 
 // ?test: real-time deltas so slow headless test browsers run the game at normal speed
-const testMode = new URLSearchParams(location.search).has('test');
+const params = new URLSearchParams(location.search);
+const testMode = params.has('test');
 
 const game = new Phaser.Game({
   fps: testMode ? { smoothStep: false, min: 4 } : undefined,
-  type: Phaser.AUTO,
+  type: params.has('canvas') ? Phaser.CANVAS : Phaser.AUTO,
   parent: 'game',
   width: GAME_W,
   height: GAME_H,

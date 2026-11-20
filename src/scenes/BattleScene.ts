@@ -8,6 +8,7 @@ import { FONT_TITLE, FONT_BODY, COLOR } from '../core/theme';
 import { playMusic, playSfx } from '../core/audio';
 import { settings } from '../core/settings';
 import { Button } from '../ui/Button';
+import { shade } from '../ui/widgets';
 import type { RunBattleConfig } from '../run/encounters';
 import { showUnitInfo, loadAbilityIcons, ABILITY_ICON, STATUS_ICON } from '../ui/UnitInfo';
 import { loadRunUi } from '../core/assets';
@@ -150,7 +151,8 @@ export class BattleScene extends Phaser.Scene {
     const defs = new Set<UnitDef>();
     for (const side of ['player', 'enemy'] as Side[]) for (const a of this.cfg.setup[side].army) defs.add(a.def);
     for (const d of defs) {
-      if (!this.textures.exists(sheetKey(d))) this.load.spritesheet(sheetKey(d), A + d.sheet, { frameWidth: 320, frameHeight: 320 });
+      if (d.still) { if (!this.textures.exists(sheetKey(d))) this.load.image(sheetKey(d), A + d.still); }
+      else if (!this.textures.exists(sheetKey(d))) this.load.spritesheet(sheetKey(d), A + d.sheet, { frameWidth: 320, frameHeight: 320 });
       if (!this.textures.exists(portraitKey(d))) this.load.image(portraitKey(d), A + d.portrait);
     }
     for (const hero of [this.cfg.playerHero, this.cfg.enemyHero].filter(Boolean) as string[]) {
@@ -210,11 +212,8 @@ export class BattleScene extends Phaser.Scene {
   private build(): void {
     const { width: w, height: h } = this.scale;
     // slight vignette so the board reads better
-    const vg = this.add.graphics();
-    vg.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0.55, 0.55, 0, 0);
-    vg.fillRect(0, 0, w, 220);
-    vg.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0, 0, 0.7, 0.7);
-    vg.fillRect(0, h - 200, w, 200);
+    shade(this, 0, 0, w, 220, 0.55, 0);
+    shade(this, 0, h - 200, w, 200, 0, 0.7);
 
     // heroes at the sides
     const ph = this.add.image(125, 640, `herobattle_${this.cfg.playerHero}`).setOrigin(0.5, 1);
@@ -302,17 +301,24 @@ export class BattleScene extends Phaser.Scene {
     const box = this.add.container(p.x, p.y);
     const shadow = this.add.ellipse(0, 0, HEX_W * 0.62, HEX_W * 0.2, 0x000000, 0.35);
     const sk = sheetKey(s.def);
+    const still = !!s.def.still;
     const animKey = `${sk}_idle`;
-    if (!this.anims.exists(animKey)) {
+    if (!still && !this.anims.exists(animKey)) {
       this.anims.create({ key: animKey, frames: this.anims.generateFrameNumbers(sk, { start: 0, end: 31 }), frameRate: 8, repeat: -1 });
     }
-    const fb = this.frameBox(sk);
-    const sprite = this.add.sprite(0, 6, sk).setOrigin((fb.left + fb.right) / 2, fb.bottom);
+    const fb = this.frameBox(sk, still);
+    const sprite = this.add.sprite(0, 6, sk, still ? undefined : 0).setOrigin((fb.left + fb.right) / 2, fb.bottom);
     // same visible size for every unit of a tier, no matter how much empty space its frames have
-    const visible = Math.max(fb.bottom - fb.top, (fb.right - fb.left) * 0.75) * 320;
+    const fw = still ? sprite.width : 320, fh = still ? sprite.height : 320;
+    const visible = Math.max((fb.bottom - fb.top) * fh, (fb.right - fb.left) * fw * 0.75);
     const target = BASE_H * (s.def.sizeScale ?? TIER_SCALE[s.def.tier]);
     sprite.setScale(target / visible);
-    sprite.play({ key: animKey, startFrame: Math.floor(Math.random() * 32) });
+    if (still) {
+      // no idle video: gentle breathing in code
+      this.tweens.add({ targets: sprite, scaleY: sprite.scaleY * 1.025, duration: 1400 + Math.random() * 400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    } else {
+      sprite.play({ key: animKey, startFrame: Math.floor(Math.random() * 32) });
+    }
     if (s.side === 'enemy') sprite.setFlipX(true);
 
     const plateX = s.side === 'player' ? 42 : -42;
@@ -332,7 +338,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** Visible bounding box of frame 0 as fractions of the frame (cached per sheet). */
-  private frameBox(key: string): { top: number; bottom: number; left: number; right: number } {
+  private frameBox(key: string, whole = false): { top: number; bottom: number; left: number; right: number } {
     const cache = (this.registry.get('frameBox') as Record<string, { top: number; bottom: number; left: number; right: number }>) ?? {};
     if (cache[key]) return cache[key];
     let box = { top: 0.05, bottom: 0.95, left: 0.05, right: 0.95 };
@@ -342,7 +348,8 @@ export class BattleScene extends Phaser.Scene {
       const c = document.createElement('canvas');
       c.width = N; c.height = N;
       const ctx = c.getContext('2d', { willReadFrequently: true })!;
-      ctx.drawImage(src, 0, 0, 320, 320, 0, 0, N, N);
+      if (whole) ctx.drawImage(src, 0, 0, src.width, src.height, 0, 0, N, N);
+      else ctx.drawImage(src, 0, 0, 320, 320, 0, 0, N, N);
       const d = ctx.getImageData(0, 0, N, N).data;
       let top = N, bottom = -1, left = N, right = -1;
       for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {

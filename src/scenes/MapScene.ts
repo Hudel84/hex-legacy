@@ -146,7 +146,7 @@ export class MapScene extends Phaser.Scene {
     this.armyPanel = new ArmyPanel(this, 10, 20);
     this.armyPanel.setDepth(200);
     const right = this.add.container(1510, 20).setScrollFactor(0).setDepth(200);
-    right.add(panel(this, 0, 0, 400, 1040).setOrigin(0));
+    right.add(panel(this, 200, 520, 400, 1040));
     right.add(this.add.text(200, 50, t('run.act', { n: r.act }), titleStyle(34)).setOrigin(0.5));
     right.add(this.add.text(200, 95, t(`biome.${r.biome}`), textStyle(24, '#e8dcc0')).setOrigin(0.5));
     LEGEND.forEach((type, i) => {

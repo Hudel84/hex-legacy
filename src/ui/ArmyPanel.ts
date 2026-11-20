@@ -16,7 +16,7 @@ export class ArmyPanel extends Phaser.GameObjects.Container {
     super(scene, x, y);
     scene.add.existing(this);
     this.setScrollFactor(0);
-    this.add(panel(scene, 0, 0, 400, 1040).setOrigin(0));
+    this.add(panel(scene, 200, 520, 400, 1040));
     this.content = scene.add.container(0, 0);
     this.add(this.content);
     this.refresh();

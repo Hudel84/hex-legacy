@@ -25,6 +25,7 @@ export interface UnitDef {
   /** passive keys handled by the engine */
   passives?: string[];
   sheet: string;            // idle sprite sheet path (relative to assets/)
+  still?: string;           // use this still image instead (idle video cut the figure off)
   portrait: string;
 }
 
