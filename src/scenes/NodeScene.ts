@@ -4,7 +4,7 @@ import { COLOR, FONT_BODY } from '../core/theme';
 import { playSfx, playMusic } from '../core/audio';
 import { img, loadRunUi } from '../core/assets';
 import {
-  run, save, addLeadership, applyBoon, BOONS, rng, commitRng, MAX_UNIT_LEVEL, MAX_SLOTS, nodeById, draftPool, rebalance, unitDef, type ArmySlot,
+  run, save, addLeadership, applyBoon, BOONS, rng, commitRng, MAX_UNIT_LEVEL, MAX_SLOTS, nodeById, draftPool, rebalance, unitDef, type ArmySlot, heroTotals,
 } from '../run/state';
 import { eventById, type EventOutcome } from '../run/events';
 import { buildEnemy, battleConfig } from '../run/encounters';
@@ -12,6 +12,9 @@ import { ArmyPanel } from '../ui/ArmyPanel';
 import { bonus } from '../meta/meta';
 import { addLoot, lootFor, owner, grantPerk, learnable, learnSpell, upgradable, spellMax, spellReward } from '../run/state';
 import { SPELLS } from '../battle/spells';
+import { rollItem, rollConsumable, sellPrice, ITEM_PRICE, ITEMS, CONSUMABLES, type ItemInst } from '../run/items';
+import { stashItem, slotsFor, bagFull, beltFull, addConsumable, sellItem, addToBag, heroFaction } from '../run/state';
+import { itemName, itemInfo, consumableName, consumableDesc, rarityName } from '../ui/itemUi';
 import { loadSpellIcons, spellName, spellDesc, levelStars } from '../ui/spellUi';
 import { offer, perkById } from '../run/perks';
 import { perkLines } from '../ui/perkUi';
@@ -35,6 +38,8 @@ export class NodeScene extends Phaser.Scene {
   private shopArtifact: string | null = null;
   private shopSpell: string | null = null;
   private shopForeign: string | null = null;
+  private shopItems: ItemInst[] | null = null;
+  private shopCons: string[] | null = null;
 
   constructor() { super('Node'); }
 
@@ -45,6 +50,8 @@ export class NodeScene extends Phaser.Scene {
     this.shopArtifact = null;
     this.shopSpell = null;
     this.shopForeign = null;
+    this.shopItems = null;
+    this.shopCons = null;
   }
 
   preload(): void {
@@ -195,6 +202,7 @@ export class NodeScene extends Phaser.Scene {
     const opts: Opt[] = [
       { label: t('shop.training'), hint: t('shop.trainingHint'), action: () => this.training() },
       { label: t('shop.magic'), hint: t('shop.magicHint'), action: () => this.magicShop() },
+      { label: t('shop.gear'), hint: t('shop.gearHint'), action: () => this.gearShop() },
       {
         label: t('shop.upgrade'), hint: t('shop.upgradeHint'), price: this.price(55),
         enabled: r.gold >= this.price(55) && r.army.some((s) => s.level < MAX_UNIT_LEVEL),
@@ -235,6 +243,61 @@ export class NodeScene extends Phaser.Scene {
   }
 
 
+
+  private floor(): number { const r = run(); return r.currentNode !== null ? nodeById(r.currentNode).floor : 0; }
+
+  /** Equipment: two items and two consumables for sale, and selling from the backpack. */
+  private gearShop(): void {
+    const r = run();
+    if (this.shopItems === null) {
+      const g = rng();
+      this.shopItems = [rollItem(g, this.floor()), rollItem(g, this.floor(), 'rare')];
+      this.shopCons = [rollConsumable(g), rollConsumable(g)];
+      commitRng(g);
+    }
+    const disc = 1 - bonus.shopDiscount();
+    const opts: Opt[] = [];
+    for (const it of this.shopItems) {
+      const d = ITEMS[it.id];
+      const cost = Math.round(ITEM_PRICE[d.rarity] * disc);
+      const room = slotsFor(it).some((k) => !r.equip?.[k]) || !bagFull();
+      const info = itemInfo(it, heroFaction());
+      opts.push({
+        label: `${itemName(it.id)} (${rarityName(d.rarity)})`,
+        hint: info.lines.slice(0, -1).map((l) => l.text).slice(0, 4).join(' · '),
+        price: cost, enabled: r.gold >= cost && room,
+        action: () => {
+          r.gold -= cost; stashItem(it); this.shopItems = this.shopItems!.filter((x) => x !== it);
+          playSfx(this, 'ui_buy'); save(); this.gearShop();
+        },
+      });
+    }
+    for (const id of this.shopCons ?? []) {
+      const cost = Math.round(CONSUMABLES[id].price * disc);
+      opts.push({
+        label: consumableName(id), hint: consumableDesc(id, heroTotals(r).power), price: cost, enabled: r.gold >= cost && !beltFull(),
+        action: () => {
+          r.gold -= cost; addConsumable(id); const i = this.shopCons!.indexOf(id); this.shopCons!.splice(i, 1);
+          playSfx(this, 'ui_buy'); save(); this.gearShop();
+        },
+      });
+    }
+    opts.push({ label: t('shop.sell'), hint: t('shop.sellHint'), enabled: (r.bag ?? []).length > 0, action: () => this.sellMenu() });
+    opts.push({ label: t('common.back'), action: () => this.shop() });
+    this.show(t('shop.gear'), t(bagFull() ? 'shop.gearTextFull' : 'shop.gearText'), opts);
+  }
+
+  private sellMenu(): void {
+    const r = run();
+    const opts: Opt[] = (r.bag ?? []).map((it) => ({
+      label: t('shop.sellItem', { name: itemName(it.id), n: sellPrice(it) }),
+      hint: itemInfo(it, heroFaction()).lines.slice(0, -1).map((l) => l.text).slice(0, 3).join(' · '),
+      action: () => { sellItem(it.uid); playSfx(this, 'ui_coins'); save(); this.sellMenu(); },
+    }));
+    opts.push({ label: t('common.back'), action: () => this.gearShop() });
+    this.show(t('shop.sell'), t('shop.sellText'), opts);
+  }
+
   /** Training: hero stats for gold (price rises with every purchase). */
   private training(): void {
     const r = run();
@@ -247,7 +310,7 @@ export class NodeScene extends Phaser.Scene {
     this.show(t('shop.training'), t('shop.trainingText'), [
       row('atk', 45, () => { r.atk += 1; }),
       row('def', 45, () => { r.def += 1; }),
-      row('power', 45, () => { r.power = (r.power ?? 0) + 1; }),
+      row('power', 45, () => { r.power = (heroTotals(r).power) + 1; }),
       row('knowledge', 45, () => { r.knowledge = (r.knowledge ?? 0) + 1; }),
       row('lead', 50, () => addLeadership(15)),
       { label: t('common.back'), action: () => this.shop() },
@@ -271,7 +334,7 @@ export class NodeScene extends Phaser.Scene {
       const cost = Math.round(base * disc);
       return {
         label: t(foreign ? 'shop.learnForeign' : 'shop.learn', { spell: spellName(id), school: t(`school.${SPELLS[id].school}`) }),
-        hint: spellDesc(id, r.power ?? 0, 1), price: cost, enabled: r.gold >= cost,
+        hint: spellDesc(id, heroTotals(r).power, 1), price: cost, enabled: r.gold >= cost,
         action: () => {
           r.gold -= cost; learnSpell(id);
           if (foreign) this.shopForeign = ''; else this.shopSpell = '';
@@ -299,7 +362,7 @@ export class NodeScene extends Phaser.Scene {
       const can = x.level < max;
       return {
         label: `${spellName(x.id)}  ${levelStars(x.level, max)}`,
-        hint: can ? t('shop.spellNext', { desc: spellDesc(x.id, r.power ?? 0, x.level + 1) }) : t('shop.spellMax'),
+        hint: can ? t('shop.spellNext', { desc: spellDesc(x.id, heroTotals(r).power, x.level + 1) }) : t('shop.spellMax'),
         price: can ? cost : undefined, enabled: can && r.gold >= cost,
         action: () => {
           r.gold -= cost; r.shopBuys++; learnSpell(x.id); playSfx(this, 'ui_equip'); save(); this.chooseSpellUpgrade();
@@ -347,14 +410,21 @@ export class NodeScene extends Phaser.Scene {
     if (art) grantPerk(art.id);
     const g3 = rng();
     const scroll = g3.next() < 0.35 ? spellReward(g3) : null;
+    const item = g3.next() < 0.5 ? rollItem(g3, this.floor()) : null;
+    const cons = g3.next() < 0.3 ? rollConsumable(g3) : null;
     commitRng(g3);
+    const stash = item ? stashItem(item) : null;
+    const consOk = cons ? addConsumable(cons) : false;
+    if (cons && !consOk) r.gold += Math.round(CONSUMABLES[cons].price * 0.4);
     if (scroll) learnSpell(scroll.id);
     playSfx(this, 'ui_reward');
     save();
     const lvl = scroll ? r.spells?.find((x) => x.id === scroll.id)?.level ?? 1 : 1;
     const text = t('treasure.text', { gold }) + (boon ? `\n\n${t('treasure.boon', { boon: t(`boon.${boon}`) })}` : '')
       + (art ? `\n\n${t('treasure.artifact', { name: t(`perk.${art.id}`) })}\n${perkLines(art).join(' · ')}` : '')
-      + (scroll ? `\n\n${t(scroll.kind === 'learn' ? 'treasure.spell' : 'treasure.spellUp', { spell: spellName(scroll.id), n: lvl })}` : '');
+      + (scroll ? `\n\n${t(scroll.kind === 'learn' ? 'treasure.spell' : 'treasure.spellUp', { spell: spellName(scroll.id), n: lvl })}` : '')
+      + (item && stash ? `\n\n${t(`treasure.item_${stash.where}`, { name: itemName(item.id), n: stash.gold })}` : '')
+      + (cons ? `\n${t(consOk ? 'treasure.cons' : 'treasure.consSold', { name: consumableName(cons) })}` : '');
     this.show(t('node.treasure'), text, [this.leaveOpt(t('common.continue'))]);
   }
 

@@ -9,6 +9,11 @@ import { Rng } from './rng';
 import { bonus, unitUnlocked, FACTION_RES, type Res } from '../meta/meta';
 import { SPELLS, FACTION_SCHOOLS, MAX_SPELL_LEVEL, MAX_FOREIGN_LEVEL, SCHOOLS, type SpellSlot, type School } from '../battle/spells';
 import type { Faction } from '../battle/types';
+import { combine } from '../battle/mods';
+import {
+  ITEMS, EQUIP_SLOTS, BAG_SIZE, BELT_SIZE, slotOf, itemStats, itemMods, setBonuses, addStats, sellPrice,
+  type EquipSlot, type ItemInst, type Stats,
+} from './items';
 
 export const MAX_SLOTS = 3;
 export const MAX_UNIT_LEVEL = 2;
@@ -42,6 +47,9 @@ export interface RunState {
   power?: number;          // spell power (Zauberkraft)
   knowledge?: number;      // 10 mana per point (Wissen)
   spells?: SpellSlot[];
+  equip?: Partial<Record<EquipSlot, ItemInst | null>>;
+  bag?: ItemInst[];                 // backpack, max BAG_SIZE
+  belt?: (string | null)[];         // consumables, BELT_SIZE places
 }
 
 const KEY = 'hexlegacy.run.v1';
@@ -69,6 +77,7 @@ function baseRun(heroId: string, seed: number): RunState {
     map: generateMap(seed), currentNode: null, visited: [], shopBuys: 0, battlesWon: 0, pending: null, loot: {}, talents: [], artifacts: [],
     power: hero.power + bonus.power(), knowledge: hero.knowledge + bonus.knowledge(),
     spells: hero.spells.map((id) => ({ id, level: 1 })),
+    equip: {}, bag: [], belt: [null, null, null],
   };
 }
 
@@ -78,6 +87,9 @@ function migrate(r: RunState): void {
   r.power ??= hero.power;
   r.knowledge ??= hero.knowledge;
   r.spells ??= hero.spells.map((id) => ({ id, level: 1 }));
+  r.equip ??= {};
+  r.bag ??= [];
+  r.belt ??= [null, null, null];
 }
 
 let current: RunState | null = null;
@@ -124,7 +136,7 @@ export const unitDef = (id: string): UnitDef => UNITS[id];
 
 /** Every stack is filled up to the full leadership (GDD 3.5, changed 20.11.): count = leadership / cost. */
 export function count(slot: ArmySlot, r = run()): number {
-  return Math.max(1, Math.floor(r.leadership / unitDef(slot.unitId).cost));
+  return Math.max(1, Math.floor(heroTotals(r).lead / unitDef(slot.unitId).cost));
 }
 
 export function freeLeadership(_r?: RunState): number { return 0; }
@@ -275,5 +287,86 @@ export function spellReward(g: Rng, r = run()): { kind: 'learn' | 'upgrade'; id:
   return null;
 }
 
-export const playerMods = (r = run()): SideMods => sideMods(owner(r));
+export const playerMods = (r = run()): SideMods => {
+  const perks = sideMods(owner(r));
+  const eq = equipped(r);
+  return combine(perks, ...eq.map(itemMods), ...setBonuses(eq).map((b) => b.mods));
+};
+
+// ---------- equipment ----------
+
+export const equipped = (r = run()): ItemInst[] => EQUIP_SLOTS.map((k) => r.equip?.[k]).filter((x): x is ItemInst => !!x);
+export const heroFaction = (r = run()): string => heroById(r.heroId).faction;
+
+/** Stats from equipment and set bonuses only. */
+export function equipStats(r = run()): Stats {
+  const eq = equipped(r);
+  let st: Stats = {};
+  for (const i of eq) st = addStats(st, itemStats(i, heroFaction(r)));
+  for (const b of setBonuses(eq)) st = addStats(st, b.stats);
+  return st;
+}
+
+/** The hero's values including equipment (base values live in RunState). */
+export function heroTotals(r = run()): { atk: number; def: number; power: number; knowledge: number; lead: number } {
+  const e = equipStats(r);
+  return {
+    atk: r.atk + (e.atk ?? 0), def: r.def + (e.def ?? 0), power: (r.power ?? 0) + (e.power ?? 0),
+    knowledge: (r.knowledge ?? 0) + (e.knowledge ?? 0), lead: r.leadership + (e.lead ?? 0),
+  };
+}
+
+/** Equip slots an item can go to (rings: both ring places). */
+export const slotsFor = (inst: ItemInst): EquipSlot[] => EQUIP_SLOTS.filter((k) => slotOf(k) === ITEMS[inst.id].slot);
+
+/** Put an item from the backpack (or a new find) on; the old one goes to the backpack (or is sold if it is full). Returns gold gained. */
+export function equipItem(inst: ItemInst, slot?: EquipSlot, r = run()): number {
+  r.equip ??= {}; r.bag ??= [];
+  const opts = slotsFor(inst);
+  const target = slot && opts.includes(slot) ? slot : opts.find((k) => !r.equip![k]) ?? opts[0];
+  r.bag = r.bag.filter((b) => b.uid !== inst.uid);
+  const old = r.equip[target];
+  r.equip[target] = inst;
+  if (!old) return 0;
+  if (r.bag.length < BAG_SIZE) { r.bag.push(old); return 0; }
+  const g = sellPrice(old); r.gold += g; return g;
+}
+
+export function unequip(slot: EquipSlot, r = run()): boolean {
+  const it = r.equip?.[slot];
+  if (!it || (r.bag ??= []).length >= BAG_SIZE) return false;
+  r.bag.push(it);
+  r.equip![slot] = null;
+  return true;
+}
+
+export function bagFull(r = run()): boolean { return (r.bag ?? []).length >= BAG_SIZE; }
+export function addToBag(inst: ItemInst, r = run()): boolean {
+  if (bagFull(r)) return false;
+  (r.bag ??= []).push(inst);
+  return true;
+}
+export function sellItem(uid: number, r = run()): number {
+  const it = (r.bag ?? []).find((b) => b.uid === uid);
+  if (!it) return 0;
+  r.bag = r.bag!.filter((b) => b !== it);
+  const g = sellPrice(it); r.gold += g; return g;
+}
+/** Store a found item: put it on if its place is free, else into the backpack, else sell it. */
+export function stashItem(inst: ItemInst, r = run()): { where: 'equipped' | 'bag' | 'sold'; gold: number } {
+  if (slotsFor(inst).some((k) => !r.equip?.[k])) { equipItem(inst, undefined, r); return { where: 'equipped', gold: 0 }; }
+  if (addToBag(inst, r)) return { where: 'bag', gold: 0 };
+  const gold = sellPrice(inst); r.gold += gold;
+  return { where: 'sold', gold };
+}
+export const beltFull = (r = run()): boolean => !(r.belt ?? []).some((x) => !x);
+
+/** Put a consumable into a free belt place; false if the belt is full. */
+export function addConsumable(id: string, r = run()): boolean {
+  r.belt ??= [null, null, null];
+  const i = r.belt.findIndex((x) => !x);
+  if (i < 0 || i >= BELT_SIZE) return false;
+  r.belt[i] = id;
+  return true;
+}
 export const perkFactor = (k: 'gold' | 'xp' | 'draft', r = run()): number => runFactor(owner(r), k);

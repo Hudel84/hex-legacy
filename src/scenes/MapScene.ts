@@ -3,7 +3,7 @@ import { t } from '../core/i18n';
 import { COLOR } from '../core/theme';
 import { playMusic, playSfx } from '../core/audio';
 import { img, sfx, loadRunUi } from '../core/assets';
-import { run, save, availableNodes, nodeById, rng, commitRng, count } from '../run/state';
+import { run, save, availableNodes, nodeById, rng, commitRng, count , heroTotals } from '../run/state';
 import type { MapNode, NodeType } from '../run/mapgen';
 import { buildEnemy, battleConfig } from '../run/encounters';
 import { EVENT_IDS } from '../run/events';
@@ -190,7 +190,7 @@ export class MapScene extends Phaser.Scene {
       const cx = 60 + (i % 5) * 70, cy = py0 + 70 + Math.floor(i / 5) * 80;
       const ic = spellIcon(this, cx, cy, x.id, 60);
       ic.setInteractive();
-      tooltip(this, ic, `${spellName(x.id)} ${levelStars(x.level, spellMax(x.id))}`, spellTooltipLines(x.id, r.power ?? 0, x.level));
+      tooltip(this, ic, `${spellName(x.id)} ${levelStars(x.level, spellMax(x.id))}`, spellTooltipLines(x.id, heroTotals(r).power, x.level));
       right.add(ic);
       right.add(this.add.text(cx, cy + 32, '★'.repeat(x.level), textStyle(14, '#ffe08a', true)).setOrigin(0.5, 0));
     });

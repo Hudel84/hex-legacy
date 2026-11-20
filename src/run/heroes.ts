@@ -14,10 +14,10 @@ export interface HeroDef {
 }
 
 export const HEROES: HeroDef[] = [
-  { id: 'human_hero_knight_commander', faction: 'human', atk: 1, def: 1, leadership: 110,
+  { id: 'human_hero_knight_commander', faction: 'human', atk: 1, def: 1, leadership: 116,
     startArmy: ['human_t1_spearman', 'human_t2_crossbowman'], bonus: 'heroBonus.knight',
     power: 1, knowledge: 1, spells: ['blessing', 'haste'] },
-  { id: 'human_hero_guard_captain', faction: 'human', atk: 2, def: 2, leadership: 108,
+  { id: 'human_hero_guard_captain', faction: 'human', atk: 2, def: 2, leadership: 100,
     startArmy: ['human_t1_spearman', 'human_t3_swordsman'], bonus: 'heroBonus.captain',
     power: 1, knowledge: 2, spells: ['divineShield', 'slow'] },
   { id: 'human_hero_priestess_of_light', faction: 'human', atk: 1, def: 2, leadership: 104,
@@ -29,7 +29,7 @@ export const HEROES: HeroDef[] = [
   { id: 'undead_hero_necromancer', faction: 'undead', atk: 1, def: 1, leadership: 104,
     startArmy: ['undead_t1_skeleton', 'undead_t3_ghost'], bonus: 'heroBonus.necromancer',
     power: 2, knowledge: 2, spells: ['lifeDrain', 'curseOfWeakness', 'fear'] },
-  { id: 'undead_hero_grave_robber', faction: 'undead', atk: 2, def: 1, leadership: 110,
+  { id: 'undead_hero_grave_robber', faction: 'undead', atk: 2, def: 1, leadership: 128,
     startArmy: ['undead_t2_zombie', 'undead_t3_ghost'], bonus: 'heroBonus.graveRobber',
     power: 1, knowledge: 2, spells: ['confusion', 'slow'] },
 ];

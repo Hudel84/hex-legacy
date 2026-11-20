@@ -32,9 +32,13 @@ while (Date.now() - t0 < LIMIT) {
         const cur = r.currentNode === null ? null : r.map.find((n) => n.id === r.currentNode);
         const opts = cur ? cur.next.map((id) => r.map.find((n) => n.id === id)) : r.map.filter((n) => n.floor === 0);
         const n = opts[0];
+        // look at the hero screen once in a while
+        if (!sc._hero && r.visited.length % 4 === 3) { sc._hero = 1; game.scene.getScene('Map').input.keyboard.emit('keydown-I'); return 'hero-open'; }
+        sc._hero = 0;
         sc.travel(n);
         return `map->${n.type}@${n.floor} busy=${sc.busy} lead=${r.leadership} army=${JSON.stringify(r.army)}`;
       }
+      if (key === 'Hero') { sc.close(); return 'hero-close'; }
       if (key === 'Battle') {
         if (!sc.battle) { const L = sc.load; return 'battle-loading ' + L.totalComplete + '/' + L.totalToLoad + ' inflight:' + [...L.inflight.entries ?? L.inflight].map((f) => (f.key || f[0]?.key) + '(' + (f.type || f[0]?.type) + ')').join(','); }
         if (sc.battle.winner) {
@@ -48,6 +52,14 @@ while (Date.now() - t0 < LIMIT) {
       }
       if (key === 'Reward') {
         if (sc.levelUps > 0) { sc.levelUps = 0; return 'reward-levelup-skip'; }
+        // item and consumable finds: press the first button (put on / into the belt)
+        if ((sc.itemFind || sc.consFind) && sc._find !== (sc.itemFind || sc.consFind)) {
+          sc._find = sc.itemFind || sc.consFind;
+          if (sc.itemFind) sc.showItemFind(); else sc.showConsFind();
+          const b = sc.layer.list.find((o) => typeof o.setEnabled === 'function');
+          b?.emit('pointerup');
+          return 'reward-find ' + JSON.stringify(sc._find);
+        }
         if (sc._done === sc.layer) return 'reward-wait';
         sc._done = sc.layer;
         if (sc.cfg.reward.draft && sc.draft.length && hexRun().army.length < 3) sc.pick(sc.draft[0]); else sc.finish();
@@ -61,6 +73,7 @@ while (Date.now() - t0 < LIMIT) {
           sc.leave(); return `event ${sc.eventId}`;
         }
         if (sc.kind === 'shop' && hexRun().gold >= 60) { hexRun().gold -= 45; hexRun().atk += 1; }
+        if (sc.kind === 'shop') { sc.gearShop(); sc.magicShop(); sc.training(); }
         sc.leave(); return `node ${sc.kind}`;
       }
       if (key === 'RunEnd') return `END won=${sc.won}`;

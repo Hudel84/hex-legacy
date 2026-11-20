@@ -36,6 +36,7 @@ export interface HeroStats {
   power?: number;          // spell power (Zauberkraft)
   knowledge?: number;      // 10 mana per point (Wissen)
   spells?: { id: string; level: number }[];
+  consumables?: string[];  // belt: consumable ids ('' = empty place)
 }
 
 /** One stack on the battlefield. */
@@ -76,6 +77,7 @@ export type BattleEvent =
   | { type: 'cast'; side: Side; spell: string; target?: number; mana: number }
   | { type: 'spellHit'; uid: number; spell: string; damage: number; kills: number; left: number; absorbed?: number }
   | { type: 'resist'; uid: number; status: StatusId }
+  | { type: 'useItem'; side: Side; item: string; index: number; target?: number }
   | { type: 'summon'; uid: number }
   | { type: 'vanish'; uid: number }
   | { type: 'teleport'; uid: number; to: Hex }

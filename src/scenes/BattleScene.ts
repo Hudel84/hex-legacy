@@ -17,6 +17,9 @@ import { SPELLS, type Element } from '../battle/spells';
 import { loadSpellIcons, spellName, spellDesc, spellIcon, levelStars, SCHOOL_COLOR } from '../ui/spellUi';
 import { panel, titleStyle, textStyle } from '../ui/widgets';
 import { racePassive } from '../ui/UnitInfo';
+import { CONSUMABLES } from '../run/items';
+import { loadItemAssets, consumableIcon, consumableName, consumableDesc } from '../ui/itemUi';
+import { run as currentRun, save as saveRun } from '../run/state';
 
 /** Visuals of hero spells: impact image, optional projectile from the hero, sound (sp_<snd>_cast / _impact). */
 const ELEMENT_FX: Record<Element, { hit: string; proj?: string; snd: string }> = {
@@ -112,7 +115,8 @@ export function testBattleConfig(): BattleConfig {
       seed,
       obstacles: Battle.randomObstacles(seed),
       player: { hero: { atk: 2, def: 2, power: 2, knowledge: 3,
-        spells: [{ id: 'smite', level: 1 }, { id: 'blessing', level: 1 }, { id: 'holyHeal', level: 2 }, { id: 'haste', level: 1 }, { id: 'fireball', level: 1 }] },
+        spells: [{ id: 'smite', level: 1 }, { id: 'blessing', level: 1 }, { id: 'holyHeal', level: 2 }, { id: 'haste', level: 1 }, { id: 'fireball', level: 1 }],
+        consumables: ['potionHeal', 'scroll_lightningBolt', 'potionMana'] },
         army: army([['human_t1_spearman', 12], ['human_t2_crossbowman', 5], ['human_t3_swordsman', 2]]) },
       enemy: { hero: { atk: 1, def: 1, power: 2, knowledge: 2, spells: [{ id: 'lifeDrain', level: 1 }, { id: 'curseOfWeakness', level: 1 }] },
         army: army([['undead_t1_skeleton', 16], ['undead_t2_zombie', 5], ['undead_t3_ghost', 2]]) },
@@ -159,6 +163,8 @@ export class BattleScene extends Phaser.Scene {
   private castNote!: Phaser.GameObjects.Text;
   private spellTargeting: string | null = null;
   private bookOpen: Phaser.GameObjects.Container | null = null;
+  private itemTargeting: number | null = null;
+  private beltBar!: Phaser.GameObjects.Container;
 
   constructor() { super('Battle'); }
 
@@ -172,6 +178,7 @@ export class BattleScene extends Phaser.Scene {
     this.infoOpen = null;
     this.spellTargeting = null;
     this.bookOpen = null;
+    this.itemTargeting = null;
   }
 
   preload(): void {
@@ -216,6 +223,7 @@ export class BattleScene extends Phaser.Scene {
     // hero magic
     const book = [...(this.cfg.setup.player.hero.spells ?? []), ...(this.cfg.setup.enemy.hero.spells ?? [])].map((x) => x.id);
     loadSpellIcons(this, book);
+    if ((this.cfg.setup.player.hero.consumables ?? []).some((x) => !!x)) loadItemAssets(this, []);
     const magicImgs: [string, string][] = [];
     const magicSfx: string[] = [];
     if (book.length) {
@@ -327,7 +335,7 @@ export class BattleScene extends Phaser.Scene {
       if (p.rightButtonReleased()) { this.onRightClick(p.worldX, p.worldY); return; }
       if (over.length === 0) this.onClick(p.worldX, p.worldY);
     });
-    this.input.keyboard?.on('keydown-ESC', () => { this.closeBook(); this.cancelTargeting(); });
+    this.input.keyboard?.on('keydown-ESC', () => { this.closeBook(); this.cancelTargeting(); this.cancelItem(); });
     this.input.keyboard?.on('keydown-S', () => this.toggleBook());
     this.input.keyboard?.on('keydown-A', () => this.abilityClicked());
     this.input.keyboard?.on('keydown-W', () => this.playerAction({ type: 'wait' }));
@@ -600,6 +608,7 @@ export class BattleScene extends Phaser.Scene {
 
   private onRightClick(x: number, y: number): void {
     if (this.spellTargeting) { this.cancelSpell(); return; }
+    if (this.itemTargeting !== null) { this.cancelItem(); return; }
     if (this.targeting) { this.cancelTargeting(); return; }
     const h = pixelToHex(x, y);
     const st = h ? this.battle.stackAt(h) : undefined;
@@ -611,6 +620,7 @@ export class BattleScene extends Phaser.Scene {
     this.inputOpen = false;
     this.targeting = false;
     this.spellTargeting = null;
+    this.itemTargeting = null;
     this.setButtonsEnabled(false);
     this.btnAbility.setEnabled(false);
     this.updateSpellButton();
@@ -663,12 +673,97 @@ export class BattleScene extends Phaser.Scene {
     if (this.battle.spellbook('enemy').length) {
       this.add.text(w - 125, 692, '', textStyle(22, '#9fd0ff', true)).setOrigin(0.5, 0).setDepth(2000).setName('enemyMana');
     }
+    this.beltBar = this.add.container(0, 0).setDepth(2000);
     this.updateSpellButton();
   }
 
+  /** Belt with potions and scrolls (one per round, does not use up the turn or the spell). */
+  private drawBelt(): void {
+    if (!this.beltBar) return;
+    this.beltBar.removeAll(true);
+    const b = this.battle;
+    const belt = b.belt('player');
+    if (!belt.some((x) => !!x) && !b.usedItems.player.length) return;
+    const can = this.inputOpen && b.canUseItem('player');
+    belt.forEach((id, i) => {
+      const x = 50 + i * 75, y = 885;
+      if (!id) {
+        const g = this.add.graphics();
+        g.lineStyle(2, 0x6a5030, 0.7).strokeRoundedRect(x - 32, y - 32, 64, 64, 8);
+        this.beltBar.add(g);
+        return;
+      }
+      const ic = consumableIcon(this, x, y, id, 64);
+      const usable = can && b.itemTargets('player', i).length > 0;
+      ic.setAlpha(usable ? 1 : 0.5);
+      ic.setInteractive({ useHandCursor: usable });
+      ic.on('pointerover', () => this.infoText.setText(`${consumableName(id)}: ${consumableDesc(id, b.spellPower('player'))}`));
+      ic.on('pointerup', () => { if (usable) this.chooseItem(i); });
+      this.beltBar.add(ic);
+      if (this.itemTargeting === i) {
+        const g = this.add.graphics();
+        g.lineStyle(4, 0xffe08a, 1).strokeRoundedRect(x - 35, y - 35, 70, 70, 10);
+        this.beltBar.add(g);
+      }
+    });
+  }
+
+  private chooseItem(i: number): void {
+    const b = this.battle;
+    const targets = b.itemTargets('player', i);
+    if (!targets.length || !this.inputOpen) return;
+    this.closeBook();
+    this.cancelSpell();
+    this.cancelTargeting();
+    if (targets[0] === -1) { void this.useItem(i); return; }
+    this.itemTargeting = i;
+    this.hiG.clear();
+    const id = b.belt('player')[i];
+    const ally = CONSUMABLES[id].kind === 'potion';
+    for (const uid of targets) this.polyStack(this.hiG, b.stack(uid), ally ? 0x60d070 : 0x4aa8ff, 0.35, ally ? 0xb0ffb0 : 0xa8d8ff, 0.95);
+    this.infoText.setText(t('battle.chooseItemTarget', { item: consumableName(id) }));
+    this.drawBelt();
+  }
+
+  private cancelItem(): void {
+    if (this.itemTargeting === null) return;
+    this.itemTargeting = null;
+    this.drawHighlights();
+    this.drawBelt();
+    const s = this.battle.active;
+    if (s && this.inputOpen) this.infoText.setText(t('battle.yourTurn', { unit: unitName(s.def) }));
+  }
+
+  private async useItem(i: number, target?: number): Promise<void> {
+    const b = this.battle;
+    if (!this.inputOpen || !b.isLegalItem('player', i, target)) return;
+    this.inputOpen = false;
+    this.itemTargeting = null;
+    this.setButtonsEnabled(false);
+    this.btnAbility.setEnabled(false);
+    this.hideAttackCursor();
+    this.hiG.clear(); this.hoverG.clear();
+    this.infoText.setText('');
+    this.drawBelt();
+    await this.play(b.useItem('player', i, target));
+    this.updateInitBar();
+    if (b.winner) { const r = this.resolveInput; this.resolveInput = null; r?.(); return; }
+    const s = b.active!;
+    this.reach = b.reachable(s);
+    this.inputOpen = true;
+    this.setButtonsEnabled(true);
+    this.btnWait.setEnabled(!s.waited);
+    this.updateAbilityButton(s);
+    this.updateSpellButton();
+    this.infoText.setText(t('battle.yourTurn', { unit: unitName(s.def) }));
+    this.drawHighlights();
+  }
+
   private updateSpellButton(): void {
+    this.drawBelt();
     if (!this.btnSpell) return;
     const b = this.battle;
+    void b;
     const txt = `${b.mana.player} / ${b.maxMana.player}`;
     this.manaText.setText(txt);
     const ic = this.manaText.getData('icon') as Phaser.GameObjects.Image | undefined;
@@ -864,6 +959,30 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  private async animItem(e: Extract<BattleEvent, { type: 'useItem' }>): Promise<void> {
+    const hero = e.side === 'player' ? t(`hero.${this.cfg.playerHero}`) : t('battle.enemyHero');
+    this.log(t('battle.log.item', { hero, item: consumableName(e.item) }));
+    this.drawBelt();
+    const p = this.heroPos(e.side);
+    const ic = consumableIcon(this, p.x, p.y - 120, e.item, 90).setDepth(3600).setAlpha(0);
+    this.tweens.chain({ targets: ic, tweens: [{ alpha: 1, y: ic.y - 30, duration: 200 }, { alpha: 0, duration: 350, delay: 400 }], onComplete: () => ic.destroy() });
+    playSfx(this, CONSUMABLES[e.item].kind === 'potion' ? 'cb_heal' : 'ui_open', 0.6);
+    if (e.item === 'potionMana') { this.updateSpellButton(); this.floatTextAt(p.x, p.y - 200, '+12 Mana', '#9fd0ff'); }
+    const tv = e.target !== undefined ? this.views.get(e.target) : undefined;
+    if (tv && CONSUMABLES[e.item].kind === 'potion') {
+      const fx = this.add.image(tv.box.x, tv.box.y - 70, 'vfx_hit_heal').setDepth(3000);
+      fx.setScale(150 / fx.width);
+      this.tweens.add({ targets: fx, alpha: 0, y: fx.y - 30, duration: 600, onComplete: () => fx.destroy() });
+    }
+    await this.wait(350);
+  }
+
+  private floatTextAt(x: number, y: number, text: string, color: string): void {
+    const tx = this.add.text(x, y, text, { fontFamily: FONT_TITLE, fontSize: '32px', fontStyle: '900', color, stroke: '#000', strokeThickness: 6 })
+      .setOrigin(0.5).setDepth(3600);
+    this.tweens.add({ targets: tx, y: y - 50, alpha: 0, duration: 1100, onComplete: () => tx.destroy() });
+  }
+
   private async animSpellHit(e: Extract<BattleEvent, { type: 'spellHit' }>): Promise<void> {
     const v = this.views.get(e.uid);
     if (!v) return;
@@ -919,6 +1038,19 @@ export class BattleScene extends Phaser.Scene {
     this.hoverG.clear();
     if (this.bookOpen) return;
     if (this.spellTargeting) { this.spellHover(x, y); return; }
+    if (this.itemTargeting !== null) {
+      const h = pixelToHex(x, y);
+      const st = h ? this.battle.stackAt(h) : undefined;
+      const ok = !!st && this.battle.itemTargets('player', this.itemTargeting).includes(st.uid);
+      this.input.setDefaultCursor(ok ? 'pointer' : 'default');
+      if (ok) {
+        const id = this.battle.belt('player')[this.itemTargeting];
+        const area = CONSUMABLES[id].target === 'area' ? this.battle.areaOf('player', st!) : [st!];
+        for (const v of area) this.polyStack(this.hoverG, v, 0, 0, 0xffffff, 1, 4);
+        this.infoText.setText(`${consumableName(id)} → ${unitName(st!.def)}`);
+      }
+      return;
+    }
     const h = pixelToHex(x, y);
     const occ = h ? this.battle.stackAt(h) : undefined;
     const a = this.actionAt(x, y);
@@ -998,6 +1130,12 @@ export class BattleScene extends Phaser.Scene {
 
   private onClick(x: number, y: number): void {
     if (this.bookOpen) return;
+    if (this.itemTargeting !== null) {
+      const h = pixelToHex(x, y);
+      const st = h ? this.battle.stackAt(h) : undefined;
+      if (st && this.battle.itemTargets('player', this.itemTargeting).includes(st.uid)) void this.useItem(this.itemTargeting, st.uid);
+      return;
+    }
     if (this.spellTargeting) {
       const h = pixelToHex(x, y);
       const st = h ? this.battle.stackAt(h) : undefined;
@@ -1067,6 +1205,7 @@ export class BattleScene extends Phaser.Scene {
     for (const e of events) {
       switch (e.type) {
         case 'cast': spell = e.spell; await this.animCast(e); break;
+        case 'useItem': spell = e.item; await this.animItem(e); break;
         case 'spellHit': await this.animSpellHit(e); break;
         case 'resist':
           this.floatText(e.uid, t('battle.resist'), '#d0d0d0', -60);
@@ -1323,9 +1462,17 @@ export class BattleScene extends Phaser.Scene {
 
   private showResult(winner: Side): void {
     const { width: w, height: h } = this.scale;
+    if (this.cfg.mode === 'run' && this.battle.usedItems.player.length) {
+      try {
+        const r = currentRun();
+        for (const i of this.battle.usedItems.player) if (r.belt) r.belt[i] = null;
+        saveRun();
+      } catch { /* no run */ }
+    }
     const won = winner === 'player';
     playSfx(this, won ? 'ev_victory_crowd' : 'cb_death_human');
     this.closeBook();
+    this.beltBar?.setVisible(false);
     for (const o of [this.initBar, this.infoText, this.logText, this.btnWait, this.btnDefend, this.btnAuto, this.btnAbility, this.btnSpell, this.manaText, this.castNote]) {
       this.tweens.add({ targets: o, alpha: 0, duration: 300 });
     }

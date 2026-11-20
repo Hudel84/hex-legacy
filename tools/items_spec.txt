@@ -1,0 +1,160 @@
+weapon_rusty_short_sword|c|a1 d1|||Rusty Short Sword|Rostiges Kurzschwert
+weapon_woodcutter_axe|c|a2|||Woodcutter's Axe|Holzfälleraxt
+weapon_nail_club|c|a1|melee.08||Nail Club|Nagelkeule
+weapon_hunting_spear|c|a1|firstStrike.1||Hunting Spear|Jagdspeer
+weapon_curved_dagger|u|a2|crit.04||Curved Dagger|Krummdolch
+weapon_flanged_mace|u|a3|||Flanged Mace|Schlagkolben
+weapon_hunting_longbow|u|a1|ranged.15||Hunting Longbow|Jagd-Langbogen
+weapon_light_crossbow|u|a2|ranged.08||Light Crossbow|Leichte Armbrust
+weapon_rapier|u|a2|counterDmg.15||Rapier|Rapier
+weapon_steel_longsword|r|a3 d1|||Steel Longsword|Stahl-Langschwert
+weapon_war_hammer|r|a3|vsBig.15||War Hammer|Kriegshammer
+weapon_greatsword|r|a4|melee.05||Greatsword|Bidenhänder
+weapon_druid_staff|r|p2 k1|regen.02|elf|Druid Staff|Druidenstab
+weapon_bone_scepter|r|p2 k1||undead|Bone Scepter|Knochenzepter
+weapon_repeating_crossbow|e|a2|ranged.1 shots2||Repeating Crossbow|Repetierarmbrust
+weapon_elven_longbow|e|a2|ranged.2|elf|Elven Longbow|Elfischer Langbogen
+weapon_dwarven_rune_axe|e|a4 d1||dwarf|Dwarven Rune Axe|Zwergische Runenaxt
+weapon_orc_cleaver|e|a4|executioner.15|orc|Orc Cleaver|Ork-Hackbeil
+weapon_frost_rune_sword|e|a3 p1|firstStrike.15||Frost Rune Sword|Frostrunenschwert
+weapon_crystal_staff|e|p3 k1|||Crystal Staff|Kristallstab
+weapon_holy_hammer|e|a3 d1|undeadDmg.15|human|Holy Hammer|Heiliger Hammer
+weapon_demon_flame_sword|l|a5|dmg.1|demon|Demon Flame Sword|Dämonisches Flammenschwert
+weapon_storm_trident|l|a4 p2|spellDmg.15||Storm Trident|Sturmdreizack
+weapon_sun_sword|l|a5 d1|undeadDmg.25 dmg.05||Sun Sword|Sonnenschwert
+offhand_wooden_buckler|c|d2|||Wooden Buckler|Holzschild
+offhand_round_shield|c|d1|taken.03||Round Shield|Rundschild
+offhand_parrying_dagger|u|a1 d1|counterDmg.1||Parrying Dagger|Parierdolch
+offhand_kite_shield|u|d3|||Kite Shield|Drachenschild
+offhand_orc_hide_shield|u|a1 d2||orc|Orc Hide Shield|Ork-Fellschild
+offhand_bone_shield|u|d2|hp.04|undead|Bone Shield|Knochenschild
+offhand_totem_fetish|r|p1 k1|regen.02|orc|Totem Fetish|Totem-Fetisch
+offhand_war_horn|r|l15|round1Ini2||War Horn|Kriegshorn
+offhand_grimoire|r|k3|spellDmg.05||Grimoire|Grimoire
+offhand_magic_orb|r|p2 k1|||Magic Orb|Magische Kugel
+offhand_elven_leaf_shield|r|d3|taken.03|elf|Elven Leaf Shield|Elfischer Blattschild
+offhand_soul_lantern|e|p1 k2|lifesteal.06|undead|Soul Lantern|Seelenlaterne
+offhand_holy_reliquary|e|d1 k2|regen.03|human|Holy Reliquary|Heiliges Reliquiar
+offhand_dwarven_tower_shield|e|d5|taken.05|dwarf|Dwarven Tower Shield|Zwergischer Turmschild
+offhand_demon_eye_shield|e|a1 d3|thorns.12|demon|Demon Eye Shield|Dämonenaugen-Schild
+offhand_mirror_shield|l|d4|taken.08 spellDmg.1||Mirror Shield|Spiegelschild
+head_leather_cap|c|d1 l5|||Leather Cap|Lederkappe
+head_iron_nasal_helm|c|d2|||Iron Nasal Helm|Eisenhelm
+head_steel_sallet|u|d3|||Steel Sallet|Stahl-Schaller
+head_horned_helm|u|a1 d2|||Horned Helm|Hörnerhelm
+head_ranger_hat|u|a1|ranged.1|elf|Ranger Hat|Waldläuferhut
+head_assassin_cowl|u|a2|crit.04||Assassin Cowl|Meuchlerkapuze
+head_laurel_circlet|u|k1 l10|||Laurel Circlet|Lorbeerkranz
+head_mage_hood|u|p1 k2|||Mage Hood|Magierkapuze
+head_great_helm|r|d4|||Great Helm|Topfhelm
+head_priest_mitre|r|p1 k2|regen.02|human|Priest Mitre|Priestermitra
+head_elven_leaf_helm|r|a1 d2|ini1|elf|Elven Leaf Helm|Elfischer Blatthelm
+head_orc_spiked_helm|r|a2 d2||orc|Orc Spiked Helm|Ork-Stachelhelm
+head_bone_skull_helm|r|d3|hp.04|undead|Bone Skull Helm|Knochenschädelhelm
+head_wolf_skull_headdress|r|a2|firstStrike.15||Wolf Skull Headdress|Wolfsschädel-Kopfschmuck
+head_thorn_crown|e|p2|thorns.15 spellDmg.08||Crown of Thorns|Dornenkrone
+head_dwarven_rune_helm|e|d4|taken.05|dwarf|Dwarven Rune Helm|Zwergischer Runenhelm
+head_demon_horned_helm|e|a3 d2||demon|Demon Horned Helm|Dämonischer Hörnerhelm
+head_winged_golden_helm|e|d3 l15||human|Winged Golden Helm|Goldener Flügelhelm
+head_crystal_diadem|l|p2 k3|mana8||Crystal Diadem|Kristalldiadem
+head_royal_crown|l|a1 d1 l30|counters1||Royal Crown|Königskrone
+chest_padded_tunic|c|d2|||Padded Tunic|Gefütterter Wams
+chest_studded_leather|c|a1 d1|||Studded Leather|Nietenleder
+chest_monk_robe|c|p1 k1|||Monk Robe|Mönchskutte
+chest_chainmail|u|d3|||Chainmail|Kettenhemd
+chest_shadow_leather|u|a1 d1|ini1||Shadow Leather|Schattenleder
+chest_bronze_scale_mail|u|d2|hp.05||Bronze Scale Mail|Bronze-Schuppenpanzer
+chest_wizard_robe|u|p1 k2|||Wizard Robe|Zaubererrobe
+chest_orc_fur_armor|r|a1 d2|hp.05|orc|Orc Fur Armor|Ork-Fellrüstung
+chest_elven_leaf_vest|r|a1 d2|ini1|elf|Elven Leaf Vest|Elfische Blattweste
+chest_priest_vestment|r|d1 k2|regen.02|human|Priest Vestment|Priestergewand
+chest_steel_breastplate|r|d4|||Steel Breastplate|Stahl-Brustpanzer
+chest_skull_iron_plate|r|a1 d3||undead|Skull Iron Plate|Schädel-Eisenplatte
+chest_necromancer_robe|e|p2 k2|spellDmg.1|undead|Necromancer Robe|Nekromantenrobe
+chest_arcane_battle_robe|e|d2 p2|spellDmg.08||Arcane Battle Robe|Arkane Kampfrobe
+chest_dwarven_cuirass|e|d5|hp.05|dwarf|Dwarven Cuirass|Zwergischer Kürass
+chest_mithril_mail|e|d4|ini1 taken.03||Mithril Mail|Mithrilhemd
+chest_paladin_plate|e|a1 d4||human|Paladin Plate|Paladinplatte
+chest_demon_plate|e|a2 d4||demon|Demon Plate|Dämonenplatte
+chest_dragon_scale_vest|l|d5|taken.1||Dragon Scale Vest|Drachenschuppenweste
+chest_celestial_plate|l|a1 d5|regen.04 startShield2||Celestial Plate|Himmlische Platte
+cloak_grey_wool|c|d1 l5|||Grey Wool Cloak|Grauer Wollumhang
+cloak_travel|c|d1 l10|||Travel Cloak|Reiseumhang
+cloak_fur_collar|c|d2|||Fur Collar Cloak|Pelzkragen-Umhang
+cloak_wolf_pelt|u|a1 d1|firstStrike.08||Wolf Pelt|Wolfsfell
+cloak_ranger|u|a1|ranged.1|elf|Ranger Cloak|Waldläufermantel
+cloak_priest_mantle|u|d1 k2||human|Priest Mantle|Priestermantel
+cloak_feather|u|d1|ini1||Feather Cloak|Federumhang
+cloak_elven_leaf|r|d2|ini1 ranged.05|elf|Elven Leaf Cloak|Elfischer Blattumhang
+cloak_dwarven_mantle|r|d3 l10||dwarf|Dwarven Mantle|Zwergenmantel
+cloak_black_silver|r|a2 d1|crit.03||Black-and-Silver Cloak|Schwarzsilberner Umhang
+cloak_shadow|r|a1|ini1 firstStrike.1||Shadow Cloak|Schattenumhang
+cloak_ghost_shroud|e|d2 k1|taken.06|undead|Ghost Shroud|Geistertuch
+cloak_starry_wizard|e|p1 k3|mana5||Starry Wizard Cloak|Sternen-Zauberermantel
+cloak_ember_demon|e|a2 d1|dmg.06|demon|Ember Demon Cloak|Glutdämonen-Umhang
+cloak_royal_cape|e|d1 l20|||Royal Cape|Königlicher Umhang
+cloak_phoenix|l|d2 p2|regen.04 lifesteal.06||Phoenix Cloak|Phönixumhang
+boots_sandals|c|l10|round1Ini1||Sandals|Sandalen
+boots_leather_shoes|c|d1|round1Ini2||Leather Shoes|Lederschuhe
+boots_travel|c|d1 l5|||Travel Boots|Reisestiefel
+boots_thief_felt|u|a1|ini1||Thief's Felt Boots|Diebes-Filzschuhe
+boots_orc_fur|u|a1 d1|firstStrike.08|orc|Orc Fur Boots|Ork-Fellstiefel
+boots_undead_bone|u|d2|hp.03|undead|Bone Boots|Knochenstiefel
+boots_ranger|u|d1|ini1 ranged.05|elf|Ranger Boots|Waldläuferstiefel
+boots_dwarven_copper|r|d3|taken.03|dwarf|Dwarven Copper Boots|Zwergische Kupferstiefel
+boots_steel_sabatons|r|d4|||Steel Sabatons|Stahlschuhe
+boots_elven_leaf|r|d1|speed1|elf|Elven Leaf Boots|Elfische Blattstiefel
+boots_frost|r|d2 p1|ini1||Frost Boots|Froststiefel
+boots_flame|r|a2|ini1||Flame Boots|Flammenstiefel
+boots_paladin_greaves|e|d4|startShield2|human|Paladin Greaves|Paladin-Beinschienen
+boots_demon_hoof|e|a3|speed1|demon|Demon Hoof Boots|Dämonenhuf-Stiefel
+boots_winged|l|d2|speed1 ini2||Winged Boots|Geflügelte Stiefel
+boots_seven_league|l|d2 l20|speed1 round1Ini3||Seven-League Boots|Siebenmeilenstiefel
+ring_copper_band|c|a1 d1|||Copper Band|Kupferring
+ring_silver_band|c|d1 k1|||Silver Band|Silberring
+ring_iron_signet|c|a1 l5|||Iron Signet|Eiserner Siegelring
+ring_chain_link|c|d2|||Chain Link Ring|Kettenring
+ring_bone_skull|u|p1|lifesteal.05|undead|Bone Skull Ring|Totenkopfring
+ring_elven_vine|u|k1|regen.02|elf|Elven Vine Ring|Elfischer Rankenring
+ring_orc_fang|u|a2|melee.05|orc|Orc Fang Ring|Orkzahnring
+ring_dwarven_rune|u|d2|taken.03|dwarf|Dwarven Rune Ring|Zwergischer Runenring
+ring_amethyst|u|p2|||Amethyst Ring|Amethystring
+ring_sapphire|u|k2|||Sapphire Ring|Saphirring
+ring_ruby|u|a2|||Ruby Ring|Rubinring
+ring_thorn|u|d1|thorns.08||Thorn Ring|Dornenring
+ring_topaz_flame|r|p1|spellDmg.12||Topaz Flame Ring|Topas-Flammenring
+ring_emerald_leaf|r|d1|hp.06 regen.02||Emerald Leaf Ring|Smaragdblatt-Ring
+ring_cats_eye|r|a1|crit.06||Cat's Eye Ring|Katzenaugenring
+ring_poison_skull|r|a1|poison.12||Poison Skull Ring|Giftschädel-Ring
+ring_moon_pearl|r|k2|mana5||Moon Pearl Ring|Mondperlenring
+ring_frost_crystal|r|d2 p1|taken.03||Frost Crystal Ring|Frostkristallring
+ring_bloodstone|r|a1|lifesteal.08||Bloodstone Ring|Blutsteinring
+ring_lightning|e|p2|spellDmg.15||Lightning Ring|Blitzring
+ring_demon_ember|e|a3|dmg.06|demon|Demon Ember Ring|Dämonenglut-Ring
+ring_golden_serpent|e|a2 k2|||Golden Serpent Ring|Goldener Schlangenring
+ring_lion_gold|e|a2 l15||human|Golden Lion Ring|Goldener Löwenring
+ring_star_gem|l|a2 p2 k2|||Star Gem Ring|Sternjuwelenring
+amulet_wooden_charm|c|d1 l5|||Wooden Charm|Holzamulett
+amulet_amber|c|p1 k1|||Amber Amulet|Bernsteinamulett
+amulet_bear_claw|c|a2|||Bear Claw Necklace|Bärenkrallenkette
+amulet_orc_tooth|u|a2|firstStrike.08|orc|Orc Tooth Necklace|Orkzahnkette
+amulet_elven_leaf|u|k1|ranged.08|elf|Elven Leaf Amulet|Elfisches Blattamulett
+amulet_dwarven_rune|u|d2|hp.03|dwarf|Dwarven Rune Amulet|Zwergisches Runenamulett
+amulet_silver_sun|u|d1 k1|undeadDmg.1|human|Silver Sun Amulet|Silbersonnen-Amulett
+amulet_crescent_moon|u|p1 k2|||Crescent Moon Amulet|Mondsichel-Amulett
+amulet_ice_shard|u|d1 p2|||Ice Shard Amulet|Eissplitter-Amulett
+amulet_onyx_rune|r|d2 p1|spellDmg.05||Onyx Rune Amulet|Onyxrunen-Amulett
+amulet_jade_dragon|r|a1 d1|hp.05||Jade Dragon Amulet|Jadedrachen-Amulett
+amulet_hourglass|r|k1|cooldown1||Hourglass Amulet|Sanduhr-Amulett
+amulet_life_seed|r|k1|regen.04||Life Seed Amulet|Lebenssamen-Amulett
+amulet_watching_eye|r|a1|round1Ini3 crit.03||Watching Eye Amulet|Amulett des wachenden Auges
+amulet_storm_cloud|r|p2|spellDmg.08||Storm Cloud Amulet|Sturmwolken-Amulett
+amulet_golden_shield|r|d3|startShield2||Golden Shield Amulet|Goldschild-Amulett
+amulet_sapphire_tear|r|k2|mana5||Sapphire Tear|Saphirträne
+amulet_blood_crystal|e|a2|lifesteal.1||Blood Crystal|Blutkristall
+amulet_ruby_heart|e|a2 d2|hp.05||Ruby Heart|Rubinherz
+amulet_holy_sun|e|d1 p2|undeadDmg.2|human|Holy Sun Amulet|Heiliges Sonnenamulett
+amulet_soul_gem|e|p2 k1|executioner.15|undead|Soul Gem|Seelenstein
+amulet_demon_ember_heart|e|a3|dmg.06|demon|Demon Ember Heart|Dämonisches Glutherz
+amulet_star_light|l|p3 k3|spellDmg.1||Starlight Amulet|Sternenlicht-Amulett
+amulet_phoenix_feather|l|d2|lifesteal.12 regen.03||Phoenix Feather Amulet|Phönixfeder-Amulett

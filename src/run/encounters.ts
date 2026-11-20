@@ -2,7 +2,7 @@ import { UNITS } from '../data/units';
 import type { BattleSetup } from '../battle/engine';
 import { Battle } from '../battle/engine';
 import type { MapNode } from './mapgen';
-import { run, rng, commitRng, count, upgradedDef, playerMods, perkFactor, type RunState } from './state';
+import { run, rng, commitRng, count, upgradedDef, playerMods, perkFactor, heroTotals, type RunState } from './state';
 import { heroById } from './heroes';
 
 // Themed enemy groups for act 1. Units are picked from one group per fight.
@@ -29,10 +29,10 @@ export interface EnemyArmy { army: { id: string; count: number }[]; hero: { atk:
 /** Player army strength in leadership points (with upgrades counted a bit higher). */
 function playerPower(r: RunState): number {
   return r.army.reduce((a, s) => a + count(s) * UNITS[s.unitId].cost * (1 + 0.15 * s.level), 0)
-    * (1 + 0.04 * (r.atk + r.def));
+    * (1 + 0.04 * (heroTotals(r).atk + heroTotals(r).def));
 }
 
-export const DIFFICULTY = { base: 340, start: 0.5, perFloor: 0.05, elite: 1.1, boss: 0.45 };
+export const DIFFICULTY = { base: 340, start: 0.5, perFloor: 0.075, elite: 1.1, boss: 0.55 };
 
 export function buildEnemy(node: MapNode, groupOverride?: string): EnemyArmy {
   const r = run();
@@ -94,6 +94,7 @@ export function battleConfig(node: MapNode, enemy: EnemyArmy, rewardMul = 1): Ru
   const hero = heroById(r.heroId);
   const isBoss = node.type === 'boss';
   const isElite = node.type === 'elite';
+  const tot = heroTotals(r);
   const baseGold = isBoss ? 150 : isElite ? 75 : 25 + node.floor * 3;
   return {
     mode: 'run',
@@ -106,7 +107,10 @@ export function battleConfig(node: MapNode, enemy: EnemyArmy, rewardMul = 1): Ru
       seed,
       obstacles: Battle.randomObstacles(seed, isBoss ? 2 : 3),
       player: {
-        hero: { atk: r.atk, def: r.def, power: r.power ?? 0, knowledge: r.knowledge ?? 0, spells: (r.spells ?? []).map((x) => ({ ...x })) },
+        hero: {
+          atk: tot.atk, def: tot.def, power: tot.power, knowledge: tot.knowledge, spells: (r.spells ?? []).map((x) => ({ ...x })),
+          consumables: (r.belt ?? []).map((x) => x ?? ''),
+        },
         mods: playerMods(r),
         army: r.army.filter((s) => count(s) > 0).map((s) => ({ def: upgradedDef(s), count: count(s) })),
       },

@@ -5,6 +5,7 @@ import { type Hex, key, eq, neighbors, distance, inBounds, allHexes, behind, COL
 import type { UnitDef, Stack, Side, HeroStats, BattleEvent, StatusId, Status } from './types';
 import { NO_MODS, type SideMods } from './mods';
 import { SPELLS, spellNumbers, maxMana, type SpellSlot } from './spells';
+import { CONSUMABLES, SCROLL_LEVEL } from '../run/items';
 
 export interface ArmySetup { hero: HeroStats; army: { def: UnitDef; count: number }[]; mods?: SideMods; }
 export interface BattleSetup { player: ArmySetup; enemy: ArmySetup; seed?: number; obstacles?: Hex[]; startCols?: [number, number]; }
@@ -69,6 +70,10 @@ export class Battle {
   mana: Record<Side, number> = { player: 0, enemy: 0 };
   maxMana: Record<Side, number> = { player: 0, enemy: 0 };
   castThisRound: Record<Side, boolean> = { player: false, enemy: false };
+  itemThisRound: Record<Side, boolean> = { player: false, enemy: false };
+  belts: Record<Side, string[]> = { player: [], enemy: [] };
+  /** Belt places used up in this battle (removed from the run afterwards). */
+  usedItems: Record<Side, number[]> = { player: [], enemy: [] };
   private lastAbsorb = 0;
   private queue: number[] = [];
   private waitQueue: number[] = [];
@@ -93,6 +98,7 @@ export class Battle {
       const hs = this.heroes[side];
       this.maxMana[side] = hs.spells?.length ? maxMana(hs.knowledge ?? 0, this.mods[side].mana) : 0;
       this.mana[side] = this.maxMana[side];
+      this.belts[side] = [...(hs.consumables ?? [])];
     }
     for (const st of this.stacks) {
       const sh = this.mods[st.side].startShield;
@@ -428,6 +434,7 @@ export class Battle {
     this.queue = this.initiativeOrder();
     this.waitQueue = [];
     this.castThisRound = { player: false, enemy: false };
+    this.itemThisRound = { player: false, enemy: false };
     return [{ type: 'round', round: this.round }];
   }
 
@@ -637,9 +644,9 @@ export class Battle {
   }
 
   /** Stacks the spell may target now; for mass spells the stacks it would hit. [] = cannot be cast. */
-  spellTargets(side: Side, id: string): number[] {
+  spellTargets(side: Side, id: string, scroll = false): number[] {
     const sp = SPELLS[id];
-    if (!sp || !this.spellLevel(side, id) || this.mana[side] < sp.cost) return [];
+    if (!sp || (!scroll && (!this.spellLevel(side, id) || this.mana[side] < sp.cost))) return [];
     const enemies = this.alive.filter((o) => o.side !== side && this.targetable(o));
     const allies = this.alive.filter((o) => o.side === side);
     const missing = (a: Stack, revive: boolean) => (revive ? a.startCount : a.count) * a.def.hp - this.hpTotal(a) > 0;
@@ -699,17 +706,24 @@ export class Battle {
   /** Cast a hero spell. Does not end the active stack's turn. */
   cast(side: Side, id: string, target?: number): BattleEvent[] {
     if (!this.isLegalCast(side, id, target)) throw new Error(`illegal spell ${id} -> ${target}`);
-    const sp = SPELLS[id];
-    const n = this.spellValues(side, id);
-    this.mana[side] -= sp.cost;
+    this.mana[side] -= SPELLS[id].cost;
     this.castThisRound[side] = true;
     const ev: BattleEvent[] = [{ type: 'cast', side, spell: id, target, mana: this.mana[side] }];
+    ev.push(...this.spellEffect(side, id, target, this.spellLevel(side, id)));
+    this.checkEnd(ev);
+    return ev;
+  }
+
+  /** The effect of a spell at a given level (used by casting and by scrolls). */
+  private spellEffect(side: Side, id: string, target: number | undefined, lvl: number): BattleEvent[] {
+    const n = spellNumbers(id, this.spellPower(side), lvl);
+    const ev: BattleEvent[] = [];
     const t = target !== undefined ? this.stack(target) : undefined;
     // statuses that matter during the target's own turns get one extra tick (they count down at turn start)
     const buff = (s: Stack, st: StatusId, turns: number, value: number) => this.addStatus(s, st, turns + 1, value, ev, true);
     switch (id) {
       case 'holyHeal':
-        if (this.spellLevel(side, id) >= 2) this.cleanse(t!, ev);
+        if (lvl >= 2) this.cleanse(t!, ev);
         this.spellHeal(side, t!, n.n, false, ev);
         break;
       case 'resurrection': case 'raiseDead': this.spellHeal(side, t!, n.n, true, ev); break;
@@ -748,8 +762,8 @@ export class Battle {
       case 'blessing': buff(t!, 'bless', n.t, n.n); break;
       case 'bloodRage': buff(t!, 'frenzy', n.t, n.n); break;
       case 'divineShield': this.addStatus(t!, 'ward', n.t, Math.round(n.n * (1 + this.mods[side].spellDmg)), ev, true); break;
-      case 'haste': buff(t!, 'haste', n.t, this.spellLevel(side, id)); break;
-      case 'slow': buff(t!, 'slow', n.t, this.spellLevel(side, id)); break;
+      case 'haste': buff(t!, 'haste', n.t, lvl); break;
+      case 'slow': buff(t!, 'slow', n.t, lvl); break;
       case 'battleFocus': buff(t!, 'focus', n.t, n.n); break;
       case 'confusion': buff(t!, 'confused', n.t, 1); break;
       case 'curseOfWeakness': buff(t!, 'atkDown', n.t, n.n); break;
@@ -763,7 +777,6 @@ export class Battle {
       case 'thornArmor': buff(t!, 'thornskin', n.t, n.n); break;
       case 'stoneSkin': buff(t!, 'shield', n.t, n.n); break;
     }
-    this.checkEnd(ev);
     return ev;
   }
 
@@ -841,6 +854,95 @@ export class Battle {
     if (!best) return null;
     // worth it? roughly one leadership point per mana point
     return best.score >= SPELLS[best.id].cost ? best : null;
+  }
+
+  // ---------- consumables (potions and scrolls from the hero's belt) ----------
+
+  /** Belt of a side: consumable ids, '' = empty or used. One consumable per round, besides the spell. */
+  belt(side: Side): string[] { return this.belts[side]; }
+  canUseItem(side: Side): boolean {
+    const a = this.active;
+    return !this.winner && !!a && a.side === side && !this.itemThisRound[side] && this.belts[side].some((x) => !!x);
+  }
+
+  /** Targets of the consumable in belt place `i`; [-1] = usable without a target; [] = not usable now. */
+  itemTargets(side: Side, i: number): number[] {
+    const id = this.belts[side][i];
+    const c = id ? CONSUMABLES[id] : undefined;
+    if (!c) return [];
+    const allies = this.alive.filter((o) => o.side === side);
+    switch (c.id) {
+      case 'potionHeal': return allies.filter((a) => a.summonRounds === undefined && this.hpTotal(a) < a.startCount * a.def.hp).map((a) => a.uid);
+      case 'potionMana': return this.spellbook(side).length ? [-1] : [];
+      case 'potionStrength': case 'potionStone': case 'potionHaste': return allies.map((a) => a.uid);
+    }
+    if (c.spell) {
+      const t = this.spellTargets(side, c.spell, true);
+      return c.target === 'massEnemy' ? (t.length ? [-1] : []) : t;
+    }
+    return [];
+  }
+
+  isLegalItem(side: Side, i: number, target?: number): boolean {
+    if (!this.canUseItem(side)) return false;
+    const t = this.itemTargets(side, i);
+    return t.length > 0 && (t[0] === -1 || (target !== undefined && t.includes(target)));
+  }
+
+  useItem(side: Side, i: number, target?: number): BattleEvent[] {
+    if (!this.isLegalItem(side, i, target)) throw new Error(`illegal item ${i} -> ${target}`);
+    const id = this.belts[side][i];
+    const c = CONSUMABLES[id];
+    this.belts[side][i] = '';
+    this.usedItems[side].push(i);
+    this.itemThisRound[side] = true;
+    const tgt = target !== undefined && target >= 0 ? target : undefined;
+    const ev: BattleEvent[] = [{ type: 'useItem', side, item: id, index: i, target: tgt }];
+    const t = tgt !== undefined ? this.stack(tgt) : undefined;
+    switch (id) {
+      case 'potionHeal': {
+        const healed = this.heal(t!, Math.ceil(t!.startCount * t!.def.hp * 0.4), true);
+        if (healed > 0) ev.push({ type: 'heal', uid: t!.uid, amount: healed, count: t!.count });
+        break;
+      }
+      case 'potionMana':
+        this.mana[side] += 12;
+        this.maxMana[side] = Math.max(this.maxMana[side], this.mana[side]);
+        break;
+      case 'potionStrength': this.addStatus(t!, 'bless', 4, 30, ev, true); break;
+      case 'potionStone': this.addStatus(t!, 'shield', 4, 6, ev, true); break;
+      case 'potionHaste': this.addStatus(t!, 'haste', 4, 2, ev, true); break;
+      default:
+        if (c.spell) {
+          ev.push({ type: 'cast', side, spell: c.spell, target: tgt, mana: this.mana[side] });
+          ev.push(...this.spellEffect(side, c.spell, tgt, SCROLL_LEVEL));
+        }
+    }
+    this.checkEnd(ev);
+    return ev;
+  }
+
+  /** Simple AI for consumables (simulations): heal badly hurt stacks, buff early, throw scrolls at the biggest enemy. */
+  aiItem(side: Side): BattleEvent[] {
+    if (!this.canUseItem(side)) return [];
+    const power = (s: Stack) => s.count * s.def.cost;
+    for (let i = 0; i < this.belts[side].length; i++) {
+      const id = this.belts[side][i];
+      if (!id) continue;
+      const targets = this.itemTargets(side, i);
+      if (!targets.length) continue;
+      const pick = (list: number[]) => list.map((u) => this.stack(u)).sort((a, b) => power(b) - power(a))[0]?.uid;
+      if (id === 'potionHeal') {
+        const hurt = targets.map((u) => this.stack(u)).filter((a) => this.hpTotal(a) < a.startCount * a.def.hp * 0.6);
+        if (hurt.length) return this.useItem(side, i, pick(hurt.map((a) => a.uid)));
+      } else if (id === 'potionMana') {
+        if (this.mana[side] < 6) return this.useItem(side, i);
+      } else if (id.startsWith('potion')) {
+        if (this.round <= 2) return this.useItem(side, i, pick(targets));
+      } else if (targets[0] === -1) return this.useItem(side, i);
+      else return this.useItem(side, i, pick(targets));
+    }
+    return [];
   }
 
   /** Expected damage and losses of a damage spell on one stack (for the targeting preview). */
