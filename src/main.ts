@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { GAME_W, GAME_H } from './core/theme';
-import { run as currentRun } from './run/state';
+import { run as currentRun, advanceAct } from './run/state';
+import { finalConfig, buildEnemy, battleConfig } from './run/encounters';
 import { UNITS } from './data/units';
 import { BootScene } from './scenes/BootScene';
 import { PreloadScene } from './scenes/PreloadScene';
@@ -14,6 +15,7 @@ import { RewardScene } from './scenes/RewardScene';
 import { RunEndScene } from './scenes/RunEndScene';
 import { CityScene } from './scenes/CityScene';
 import { HeroScene } from './scenes/HeroScene';
+import { ActScene } from './scenes/ActScene';
 
 // ?test: real-time deltas so slow headless test browsers run the game at normal speed
 const params = new URLSearchParams(location.search);
@@ -27,10 +29,11 @@ const game = new Phaser.Game({
   height: GAME_H,
   backgroundColor: '#0d0a08',
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-  scene: [BootScene, PreloadScene, TitleScene, ModalScene, BattleScene, HeroSelectScene, MapScene, NodeScene, RewardScene, RunEndScene, CityScene, HeroScene],
+  scene: [BootScene, PreloadScene, TitleScene, ModalScene, BattleScene, HeroSelectScene, MapScene, NodeScene, RewardScene, RunEndScene, CityScene, HeroScene, ActScene],
 });
 
 // handy for automated tests and debugging in the browser console
 (window as unknown as { game: Phaser.Game }).game = game;
 (window as unknown as { hexRun: typeof currentRun }).hexRun = currentRun;
 (window as unknown as { hexUnits: typeof UNITS }).hexUnits = UNITS;
+(window as unknown as { hexDebug: object }).hexDebug = { advanceAct, finalConfig, buildEnemy, battleConfig };

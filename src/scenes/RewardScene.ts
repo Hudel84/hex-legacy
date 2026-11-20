@@ -8,6 +8,8 @@ import {
 } from '../run/state';
 import { loadSpellIcons, spellCard } from '../ui/spellUi';
 import { rollItem, rollConsumable, sellPrice, CONSUMABLES, ITEMS, itemIconKey, type ItemInst } from '../run/items';
+import { globalFloor } from '../run/encounters';
+import { advanceAct, LAST_ACT } from '../run/state';
 import { stashItem, addToBag, equipItem, bagFull, beltFull, addConsumable, slotsFor, heroFaction, equipped } from '../run/state';
 import { withItemTextures, loadItemAssets, itemIcon, itemInfo, itemInfoBlock, consumableIcon, consumableName, consumableDesc, itemName } from '../ui/itemUi';
 import { setCounts } from '../run/items';
@@ -43,9 +45,9 @@ export class RewardScene extends Phaser.Scene {
     const g = rng();
     const pool = g.shuffle(draftPool(owner().faction, node.floor));
     // equipment finds (GDD 5.3): 35 % item and 15 % consumable after normal fights, elites offer an item next to artifacts
-    if (node.type === 'elite') this.eliteItem = rollItem(g, node.floor, 'rare');
+    if (node.type === 'elite') this.eliteItem = rollItem(g, globalFloor(node.floor), 'rare');
     else if (node.type !== 'boss') {
-      if (g.next() < 0.35) this.itemFind = rollItem(g, node.floor);
+      if (g.next() < 0.35) this.itemFind = rollItem(g, globalFloor(node.floor));
       if (g.next() < 0.15) this.consFind = rollConsumable(g);
     }
     commitRng(g);
@@ -57,6 +59,7 @@ export class RewardScene extends Phaser.Scene {
   }
 
   create(): void {
+    if (this.cfg.final) { save(); this.scene.start('RunEnd', { won: true }); return; }
     const { width: w, height: h } = this.scale;
     const r = run();
     this.add.image(w / 2, h / 2, 'ui_victory_screen').setDisplaySize(w, h);
@@ -291,7 +294,12 @@ export class RewardScene extends Phaser.Scene {
   private finish(): void {
     const node = nodeById(this.cfg.nodeId);
     save();
-    if (node.type === 'boss') { this.scene.start('RunEnd', { won: true }); return; }
+    if (node.type === 'boss') {
+      // act boss beaten: next act, or after act 3 the final battle against the Void God
+      if (run().act < LAST_ACT) { advanceAct(); save(); this.scene.start('Act'); }
+      else this.scene.start('Act', { final: true });
+      return;
+    }
     this.cameras.main.fadeOut(200);
     this.time.delayedCall(210, () => this.scene.start('Map'));
   }

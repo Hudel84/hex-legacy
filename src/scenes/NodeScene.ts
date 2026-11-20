@@ -7,7 +7,7 @@ import {
   run, save, addLeadership, applyBoon, BOONS, rng, commitRng, MAX_UNIT_LEVEL, MAX_SLOTS, nodeById, draftPool, rebalance, unitDef, type ArmySlot, heroTotals,
 } from '../run/state';
 import { eventById, type EventOutcome } from '../run/events';
-import { buildEnemy, battleConfig } from '../run/encounters';
+import { buildEnemy, battleConfig, globalFloor } from '../run/encounters';
 import { ArmyPanel } from '../ui/ArmyPanel';
 import { bonus } from '../meta/meta';
 import { addLoot, lootFor, owner, grantPerk, learnable, learnSpell, upgradable, spellMax, spellReward } from '../run/state';
@@ -244,7 +244,7 @@ export class NodeScene extends Phaser.Scene {
 
 
 
-  private floor(): number { const r = run(); return r.currentNode !== null ? nodeById(r.currentNode).floor : 0; }
+  private floor(): number { const r = run(); return globalFloor(r.currentNode !== null ? nodeById(r.currentNode).floor : 0); }
 
   /** Equipment: two items and two consumables for sale, and selling from the backpack. */
   private gearShop(): void {

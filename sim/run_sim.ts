@@ -3,7 +3,9 @@ import { Battle } from '../src/battle/engine';
 import { newRun, setRun, run, availableNodes, gainXp, draftPool, rebalance, MAX_SLOTS, addLeadership, count, grantPerk, owner, spellReward, learnSpell, stashItem, addConsumable } from '../src/run/state';
 import { rollItem, rollConsumable } from '../src/run/items';
 import { offer } from '../src/run/perks';
-import { buildEnemy, battleConfig, DIFFICULTY } from '../src/run/encounters';
+import { buildEnemy, battleConfig, DIFFICULTY, finalConfig } from '../src/run/encounters';
+import { advanceAct } from '../src/run/state';
+import type { RunBattleConfig } from '../src/run/encounters';
 import { HEROES } from '../src/run/heroes';
 import { Rng } from '../src/run/rng';
 
@@ -17,6 +19,7 @@ const deaths: Record<string, number> = {};
 let bossKills = 0;
 const byHero: Record<string, [number, number]> = {};
 const lossByType: Record<string, number[]> = {};
+const actBoss: Record<number, number> = {};
 for (let i = 0; i < RUNS; i++) {
   const hero = HEROES[i % HEROES.length];
   setRun(newRun(hero.id, 1000 + i));
@@ -33,7 +36,7 @@ for (let i = 0; i < RUNS; i++) {
     if (node.type === 'shop') { while (r.gold >= 50) { r.gold -= 50; addLeadership(10); } continue; }
     if (node.type === 'treasure') { r.gold += 80; if (ITEMS_ON && pick.next() < 0.5) stashItem(rollItem(pick, node.floor)); continue; }
     if (node.type === 'shrine' || node.type === 'event') { r.gold += 20; continue; }
-    const cfg = battleConfig(node, buildEnemy(node));
+    const cfg: RunBattleConfig = node.type === 'final' as string ? finalConfig() : battleConfig(node, buildEnemy(node));
     const b = new Battle(cfg.setup);
     let g = 0;
     if (!MAGIC_ON) { cfg.setup.player.hero.spells = []; }
@@ -42,9 +45,20 @@ for (let i = 0; i < RUNS; i++) {
     for (const i of b2.usedItems.player) if (r.belt) r.belt[i] = null;
     const pl = b2.stacks.filter((s) => s.side === 'player');
     const loss = 1 - pl.reduce((a, s) => a + s.count * s.def.cost, 0) / pl.reduce((a, s) => a + s.startCount * s.def.cost, 0);
-    (lossByType[`${node.type}@${node.floor}`] ??= []).push(loss);
-    if (b2.winner !== 'player') { alive = false; deaths[`${node.type}@${node.floor}`] = (deaths[`${node.type}@${node.floor}`] ?? 0) + 1; break; }
-    if (node.type === 'boss') { bossKills++; byHero[hero.id][0]++; break; }
+    (lossByType[`${node.type}@${r.act}.${node.floor}`] ??= []).push(loss);
+    if (b2.winner !== 'player' && process.env.WHO) console.log('died', r.act, node.floor, r.biome, cfg.setup.enemy.army.map((a) => `${a.def.id}x${a.count}`).join(' '), '| player', cfg.setup.player.army.map((a) => `${a.def.id}x${a.count}`).join(' '));
+    if (b2.winner !== 'player') { alive = false; deaths[`${node.type}@${r.act}.${node.floor}`] = (deaths[`${node.type}@${r.act}.${node.floor}`] ?? 0) + 1; break; }
+    if (node.type === 'boss') {
+      actBoss[r.act] = (actBoss[r.act] ?? 0) + 1;
+      if (r.act < 3) { advanceAct(); continue; }
+      // final battle
+      const fc = finalConfig();
+      const fb = new Battle(fc.setup);
+      let k = 0;
+      while (!fb.winner && k++ < 900) { fb.nextTurn(); if (fb.winner) break; if (MAGIC_ON) fb.aiCast(fb.active!.side); if (fb.winner) break; if (ITEMS_ON) fb.aiItem(fb.active!.side); if (fb.winner) break; fb.act(fb.decide()); }
+      if (fb.winner === 'player') { bossKills++; byHero[hero.id][0]++; } else deaths['final'] = (deaths['final'] ?? 0) + 1;
+      break;
+    }
     r.gold += cfg.reward.gold;
     const ups = gainXp(cfg.reward.xp);
     for (let u = 0; u < ups && PERKS_ON; u++) {
@@ -64,10 +78,14 @@ for (let i = 0; i < RUNS; i++) {
     void count;
   }
 }
-console.log(`boss killed in ${(100 * bossKills / RUNS).toFixed(0)}% of runs (AI plays the player)`);
+console.log(`act bosses beaten: ${[1, 2, 3].map((a) => `act ${a} ${(100 * (actBoss[a] ?? 0) / RUNS).toFixed(0)}%`).join(', ')}`);
+console.log(`Void God beaten (run won) in ${(100 * bossKills / RUNS).toFixed(0)}% of runs (AI plays the player)`);
 console.log('by hero:', Object.entries(byHero).map(([k, [w, n]]) => `${k.replace(/_hero/, '')} ${(100 * w / n).toFixed(0)}%`).join(', '));
 console.log('deaths:', Object.entries(deaths).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}:${v}`).join(' '));
 const avg = (a: number[]) => (100 * a.reduce((x, y) => x + y, 0) / a.length).toFixed(0);
 const byFloor: Record<string, number[]> = {};
 for (const [k, v] of Object.entries(lossByType)) { const [t] = k.split('@'); (byFloor[t] ??= []).push(...v); }
 console.log('avg army loss per fight:', Object.entries(byFloor).map(([k, v]) => `${k} ${avg(v)}% (n=${v.length})`).join(', '));
+if (process.env.LOSS) {
+  for (const k of Object.keys(lossByType).sort()) if (lossByType[k].length >= 5) console.log(k, avg(lossByType[k]) + '%', 'n=' + lossByType[k].length);
+}

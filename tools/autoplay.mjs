@@ -15,6 +15,8 @@ await new Promise((r) => setTimeout(r, 3000));
 await page.evaluate(() => { localStorage.clear(); game.scene.getScene('Title').scene.start('HeroSelect'); });
 await new Promise((r) => setTimeout(r, 2000));
 await page.evaluate(() => game.scene.getScene('HeroSelect').start());
+// optional: a very strong hero to walk through all acts quickly (tests act changes and the final battle)
+if (process.argv[4] === 'strong') { await new Promise((r) => setTimeout(r, 1500)); await page.evaluate(() => { const r = hexRun(); r.leadership = 900; r.atk = 25; r.def = 25; }); }
 const log = [];
 const t0 = Date.now();
 let last = '';
@@ -39,6 +41,13 @@ while (Date.now() - t0 < LIMIT) {
         return `map->${n.type}@${n.floor} busy=${sc.busy} lead=${r.leadership} army=${JSON.stringify(r.army)}`;
       }
       if (key === 'Hero') { sc.close(); return 'hero-close'; }
+      if (key === 'Act') {
+        if (sc._go) return 'act-wait';
+        sc._go = 1; setTimeout(() => { sc._go = 0; }, 5000);
+        const b = sc.children.list.find((o) => typeof o.setEnabled === 'function');
+        b?.emit('pointerup');
+        return 'act ' + (sc.final ? 'final' : hexRun().act);
+      }
       if (key === 'Battle') {
         if (!sc.battle) { const L = sc.load; return 'battle-loading ' + L.totalComplete + '/' + L.totalToLoad + ' inflight:' + [...L.inflight.entries ?? L.inflight].map((f) => (f.key || f[0]?.key) + '(' + (f.type || f[0]?.type) + ')').join(','); }
         if (sc.battle.winner) {
@@ -81,7 +90,7 @@ while (Date.now() - t0 < LIMIT) {
     } catch (e) { return 'ERR ' + e.message; }
   })]);
   if (res === 'EVAL-TIMEOUT') { log.push('EVAL-TIMEOUT (page hung?) ' + JSON.stringify(await page.metrics().catch(() => ({})))); break; }
-  if (res !== last && !['battle', 'map-busy', 'battle-wait', 'reward-wait', 'node-wait'].includes(res) && !res.startsWith('other')) log.push(Math.round((Date.now() - t0) / 1000) + 's ' + res.replace(/ army=.*/, ''));
+  if (res !== last && !['battle', 'map-busy', 'battle-wait', 'reward-wait', 'node-wait', 'act-wait'].includes(res) && !res.startsWith('other')) log.push(Math.round((Date.now() - t0) / 1000) + 's ' + res.replace(/ army=.*/, ''));
   last = res;
   if (res.startsWith('END') || res.startsWith('ERR')) break;
 }

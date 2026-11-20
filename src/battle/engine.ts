@@ -6,6 +6,7 @@ import type { UnitDef, Stack, Side, HeroStats, BattleEvent, StatusId, Status } f
 import { NO_MODS, type SideMods } from './mods';
 import { SPELLS, spellNumbers, maxMana, type SpellSlot } from './spells';
 import { CONSUMABLES, SCROLL_LEVEL } from '../run/items';
+import { UNITS } from '../data/units';
 
 export interface ArmySetup { hero: HeroStats; army: { def: UnitDef; count: number }[]; mods?: SideMods; }
 export interface BattleSetup { player: ArmySetup; enemy: ArmySetup; seed?: number; obstacles?: Hex[]; startCols?: [number, number]; }
@@ -380,6 +381,8 @@ export class Battle {
       else if (am.poison > 0 && !ranged) this.addStatus(def, 'poison', 2, Math.max(1, Math.round(dmg * am.poison)), ev);
       if (this.has(att, 'curseHit')) this.addStatus(def, 'atkDown', 2, 2, ev);
       if (this.has(att, 'corrode')) this.addStatus(def, 'defDown', 2, 2, ev);
+      if (this.has(att, 'burnHit')) this.addStatus(def, 'burn', 2, Math.max(2, Math.round(dmg * 0.15)), ev);
+      if (this.has(att, 'frostHit')) this.addStatus(def, 'slow', 2, 1, ev);
     }
     if (def.count === 0) ev.push({ type: 'death', uid: def.uid });
     return ev;
@@ -486,12 +489,30 @@ export class Battle {
       ev.push({ type: 'skip', uid: s.uid, reason: 'fear' });
       return false;
     }
+    // the Void God calls its spawn every second round
+    if (this.has(s, 'voidCaller') && this.round % 2 === 0) this.voidCall(s, ev);
     // fear spell: half of the turns are lost
     if (this.hasStatus(s, 'fear') && this.random() < 0.5) {
       ev.push({ type: 'skip', uid: s.uid, reason: 'fear' });
       return false;
     }
     return true;
+  }
+
+  /** Final boss: summons void spawn (even calls) or eye tentacles (odd calls) next to itself. */
+  private voidCall(s: Stack, ev: BattleEvent[]): void {
+    const n = Math.floor(this.round / 2);
+    const id = n % 2 === 1 ? 'summon_void_spawn' : 'summon_void_eye_tentacle';
+    const def = UNITS[id];
+    if (!def) return;
+    const near = this.cells(s).flatMap((c) => neighbors(c)).filter((h) => this.isFree(h));
+    const free = near[0] ?? allHexes().filter((h) => this.isFree(h)).sort((a, b) => distance(a, s.pos) - distance(b, s.pos))[0];
+    if (!free) return;
+    const count = id === 'summon_void_spawn' ? 4 + 2 * n : 2 + n;
+    const st = this.addStack(def, s.side, count, free);
+    st.summonRounds = 99;
+    this.queue.push(st.uid);
+    ev.push({ type: 'summon', uid: st.uid });
   }
 
   /** Advance to the next stack that may act. Returns events (round start, effects, turn). */

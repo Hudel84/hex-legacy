@@ -12,6 +12,13 @@ import { ArmyPanel } from '../ui/ArmyPanel';
 import { panel, textStyle, titleStyle } from '../ui/widgets';
 import { Button, toast } from '../ui/Button';
 import { perkById, perkIconKey } from '../run/perks';
+
+/** Adventure map picture of each biome. */
+export const ADVMAP: Record<string, string> = {
+  meadows: 'advmap_act1_meadows', autumn_forest: 'advmap_act1_autumn_forest', rocky_coast: 'advmap_act1_rocky_coast',
+  swamp_ruins: 'advmap_act2_swamp_ruins', graveyard: 'advmap_act2_cursed_graveyard', snowy_pass: 'advmap_act2_snowy_pass',
+  volcanic: 'advmap_act3_volcanic', crystal_cavern: 'advmap_act3_crystal_cavern', demon_wasteland: 'advmap_act3_demon_wasteland',
+};
 import { loadSpellIcons, spellIcon, spellName, levelStars, spellTooltipLines } from '../ui/spellUi';
 import { spellMax } from '../run/state';
 import { perkLines, rarityLabel, RARITY_COLOR, tooltip, loadPerkIcons } from '../ui/perkUi';
@@ -40,7 +47,7 @@ export class MapScene extends Phaser.Scene {
     const r = run();
     loadRunUi(this);
     ArmyPanel.preload(this);
-    const biomeMap: Record<string, string> = { meadows: 'advmap_act1_meadows', autumn_forest: 'advmap_act1_autumn_forest', rocky_coast: 'advmap_act1_rocky_coast' };
+    const biomeMap = ADVMAP;
     const mk = biomeMap[r.biome] ?? 'advmap_act1_meadows';
     img(this, mk, `map/biomes/${mk}.webp`);
     for (const k of ['node_battle', 'node_elite', 'node_event', 'node_shop', 'node_rest', 'node_shrine', 'node_boss']) img(this, k, `map/${k}.webp`);
@@ -57,7 +64,7 @@ export class MapScene extends Phaser.Scene {
     const r = run();
     const { width: w, height: h } = this.scale;
     this.busy = false;
-    const biomeMap: Record<string, string> = { meadows: 'advmap_act1_meadows', autumn_forest: 'advmap_act1_autumn_forest', rocky_coast: 'advmap_act1_rocky_coast' };
+    const biomeMap = ADVMAP;
     const mk = biomeMap[r.biome] ?? 'advmap_act1_meadows';
 
     // world: the map image in the middle column

@@ -26,7 +26,9 @@ export class RunEndScene extends Phaser.Scene {
     this.add.image(w / 2, h / 2, this.won ? 'ui_victory_screen' : 'ui_defeat_screen').setDisplaySize(w, h);
     this.add.rectangle(0, 0, w, h, 0x000000, 0.35).setOrigin(0);
     this.add.text(w / 2, 150, t(this.won ? 'runEnd.won' : 'runEnd.lost'), titleStyle(80, this.won ? '#f3d48a' : '#e8c8c0')).setOrigin(0.5);
-    const floor = r.currentNode !== null ? r.map.find((n) => n.id === r.currentNode)!.floor + 1 : 0;
+    // floors over all acts (13 per act, the final battle counts as one more)
+    const local = r.currentNode !== null ? (r.map.find((n) => n.id === r.currentNode)?.floor ?? 0) + 1 : 0;
+    const floor = (r.act - 1) * 13 + local + (this.won ? 1 : 0);
     const lines = [
       t(this.won ? 'runEnd.wonText' : 'runEnd.lostText', { floor }),
       '',

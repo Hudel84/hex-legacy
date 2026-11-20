@@ -54,6 +54,21 @@ export interface RunState {
 
 const KEY = 'hexlegacy.run.v1';
 export const ACT1_BIOMES = ['meadows', 'autumn_forest', 'rocky_coast'];
+export const ACT_BIOMES: Record<number, string[]> = {
+  1: ACT1_BIOMES, 2: ['swamp_ruins', 'graveyard', 'snowy_pass'], 3: ['volcanic', 'crystal_cavern', 'demon_wasteland'],
+};
+export const LAST_ACT = 3;
+
+/** After an act boss: next act with a new biome and a new map (GDD 6.1). */
+export function advanceAct(r = run()): void {
+  r.act++;
+  const g = new Rng(r.seed ^ (r.act * 0x9e37));
+  r.biome = g.pick(ACT_BIOMES[r.act] ?? ACT1_BIOMES);
+  r.map = generateMap(r.seed + r.act * 7777);
+  r.currentNode = null;
+  r.visited = [];
+  r.pending = null;
+}
 
 export function newRun(heroId: string, seed = Math.floor(Math.random() * 2 ** 31)): RunState {
   const r = baseRun(heroId, seed);
@@ -209,7 +224,10 @@ export function availableNodes(r = run()): MapNode[] {
 }
 
 export function draftPool(faction: string, floor: number): string[] {
-  const maxTier = floor < 3 ? 3 : floor < 7 ? 4 : 5;
+  // floor counts within the act; later acts allow higher tiers
+  const act = current?.act ?? 1;
+  const gf = (act - 1) * 13 + floor;
+  const maxTier = gf < 3 ? 3 : gf < 7 ? 4 : gf < 17 ? 5 : 6;
   return Object.values(UNITS).filter((u) => u.faction === faction && u.tier <= maxTier && unitUnlocked(u.id)).map((u) => u.id);
 }
 
@@ -221,11 +239,13 @@ export function addLoot(gain: Partial<Record<Res, number>>, r = run()): void {
 
 export function lootFor(type: string, floor: number, r = run()): Partial<Record<Res, number>> {
   const fr = FACTION_RES[heroById(r.heroId).faction] ?? 'seal';
+  const k = 1 + 0.5 * (r.act - 1);   // later acts give more
+  const m = (o: Partial<Record<Res, number>>) => Object.fromEntries(Object.entries(o).map(([x, v]) => [x, Math.round((v ?? 0) * k)])) as Partial<Record<Res, number>>;
   switch (type) {
-    case 'boss': return { wood: 5, stone: 5, ore: 5, crystals: 4, [fr]: 5 };
-    case 'elite': return { wood: 2, stone: 2, ore: 3, crystals: 1, [fr]: 2 };
-    case 'treasure': return { wood: 3, stone: 3, ore: 1 };
-    default: return { wood: 4 + Math.floor(floor / 3), stone: 3 + Math.floor(floor / 4), [fr]: 1 };
+    case 'boss': return m({ wood: 5, stone: 5, ore: 5, crystals: 4, [fr]: 5 });
+    case 'elite': return m({ wood: 2, stone: 2, ore: 3, crystals: 1, [fr]: 2 });
+    case 'treasure': return m({ wood: 3, stone: 3, ore: 1, crystals: r.act - 1 });
+    default: return m({ wood: 4 + Math.floor(floor / 3), stone: 3 + Math.floor(floor / 4), [fr]: 1 });
   }
 }
 
