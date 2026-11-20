@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_W, GAME_H } from './core/theme';
+import { GAME_W, GAME_H, VERSION } from './core/theme';
 import { installTextScale } from './core/textScale';
 import { run as currentRun, advanceAct } from './run/state';
 import { finalConfig, buildEnemy, battleConfig } from './run/encounters';
@@ -39,3 +39,22 @@ const game = new Phaser.Game({
 (window as unknown as { hexRun: typeof currentRun }).hexRun = currentRun;
 (window as unknown as { hexUnits: typeof UNITS }).hexUnits = UNITS;
 (window as unknown as { hexDebug: object }).hexDebug = { advanceAct, finalConfig, buildEnemy, battleConfig };
+
+// Errors become visible for testers (a small box with the message, click to close),
+// so a bug report can include a screenshot instead of "the window was missing".
+function showError(msg: string): void {
+  let box = document.getElementById('hex-error');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'hex-error';
+    box.style.cssText = 'position:fixed;left:12px;bottom:12px;max-width:520px;z-index:9999;background:#5a1410ee;color:#fff;'
+      + 'font:13px/1.4 sans-serif;padding:10px 14px;border:1px solid #ff8a70;border-radius:6px;cursor:pointer;white-space:pre-wrap';
+    box.title = 'click to close';
+    box.onclick = () => box?.remove();
+    document.body.appendChild(box);
+  }
+  const scenes = game.scene.getScenes(true).map((s) => s.scene.key).join(', ');
+  box.textContent = `Fehler / Error (v${VERSION}) – ${scenes}\n${msg}`.slice(0, 900);
+}
+window.addEventListener('error', (e) => showError(`${e.message}\n${(e.error as Error | undefined)?.stack?.split('\n').slice(1, 4).join('\n') ?? ''}`));
+window.addEventListener('unhandledrejection', (e) => showError(String((e.reason as Error)?.stack ?? e.reason)));

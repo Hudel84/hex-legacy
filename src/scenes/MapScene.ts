@@ -64,6 +64,10 @@ export class MapScene extends Phaser.Scene {
     const r = run();
     const { width: w, height: h } = this.scale;
     this.busy = false;
+    // an event, rest or shrine was not finished (reload, crash): open it again
+    const p = r.pendingNode;
+    if (p && p.node === r.currentNode) { this.time.delayedCall(0, () => this.scene.start('Node', { kind: p.kind, eventId: p.eventId })); }
+    else if (p) { delete r.pendingNode; save(); }
     const biomeMap = ADVMAP;
     const mk = biomeMap[r.biome] ?? 'advmap_act1_meadows';
 
@@ -273,11 +277,13 @@ export class MapScene extends Phaser.Scene {
         const id = g.pick(pool.length ? pool : EVENT_IDS);
         commitRng(g);
         (run().seenEvents ??= []).push(id);
+        run().pendingNode = { node: n.id, kind: 'event', eventId: id };
         save();
         this.scene.start('Node', { kind: 'event', eventId: id });
         break;
       }
       default:
+        if (n.type === 'rest' || n.type === 'shrine') { run().pendingNode = { node: n.id, kind: n.type }; save(); }
         this.scene.start('Node', { kind: n.type });
     }
   }

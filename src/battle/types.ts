@@ -20,6 +20,7 @@ export interface UnitDef {
   active?: string;          // active ability id (see abilities in engine)
   mounted?: boolean;        // riders and beasts of burden (spearmen resist them)
   wide?: boolean;           // occupies two hexes (bosses)
+  faceLeft?: boolean;       // the artwork looks to the left (flipped so it faces like all others)
   level?: number;           // upgrade level of the player's unit type (0-5)
   ups?: string[];           // chosen upgrades (shown in the unit info)
   role?: string;            // upgrade pool: tank, fighter, ranged, mage, support

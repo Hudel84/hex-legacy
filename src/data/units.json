@@ -695,7 +695,8 @@
     "speed": 5,
     "cost": 12,
     "sheet": "neutrals/animated/anim_neutral_lizardman_warrior_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/neutrals/portrait_neutral_lizardman_warrior.webp"
+    "portrait": "ui/portraits/neutrals/portrait_neutral_lizardman_warrior.webp",
+    "faceLeft": true
   },
   "neutral_harpy": {
     "faction": "neutral",

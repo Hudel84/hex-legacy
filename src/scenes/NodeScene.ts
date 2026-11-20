@@ -174,13 +174,18 @@ export class NodeScene extends Phaser.Scene {
     return { label, action: () => this.leave() };
   }
 
+  /** The node is done: a reload no longer opens it again. */
+  private settle(): void { delete run().pendingNode; }
+
   private leave(): void {
+    this.settle();
     save();
     this.cameras.main.fadeOut(200);
     this.time.delayedCall(210, () => this.scene.start('Map'));
   }
 
   private result(title: string, text: string): void {
+    this.settle();
     save();
     this.show(title, text, [this.leaveOpt(t('common.continue'))]);
   }
@@ -493,6 +498,7 @@ export class NodeScene extends Phaser.Scene {
   private outcome(o: EventOutcome): void {
     const vars: Record<string, string | number> = {};
     for (const [k, v] of Object.entries(o.vars ?? {})) vars[k] = typeof v === 'string' && v.includes('.') ? t(v) : v;
+    this.settle();
     save();
     const ev = eventById(this.eventId);
     if (o.battle) {

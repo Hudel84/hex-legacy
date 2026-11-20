@@ -379,8 +379,9 @@ export class BattleScene extends Phaser.Scene {
   /** Mirror a unit sprite and keep its feet on the same spot (the origin must be mirrored too). */
   private face(sp: Phaser.GameObjects.Sprite, left: boolean): void {
     const fx = (sp.getData('fx') as number | undefined) ?? 0.5;
-    sp.setFlipX(left);
-    sp.setOrigin(left ? 1 - fx : fx, sp.originY);
+    const flip = left !== !!sp.getData('faceLeft');
+    sp.setFlipX(flip);
+    sp.setOrigin(flip ? 1 - fx : fx, sp.originY);
   }
 
   /** Screen position of a stack: the middle of all hexes it covers. */
@@ -421,7 +422,8 @@ export class BattleScene extends Phaser.Scene {
     } else {
       sprite.play({ key: animKey, startFrame: Math.floor(Math.random() * 32) });
     }
-    if (s.side === 'enemy') this.face(sprite, true);
+    sprite.setData('faceLeft', !!s.def.faceLeft);
+    this.face(sprite, s.side === 'enemy');
 
     const plateX = s.side === 'player' ? 42 : -42;
     const plateBg = this.add.graphics();

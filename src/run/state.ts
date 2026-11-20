@@ -43,6 +43,8 @@ export interface RunState {
   battlesWon: number;
   pending?: { kind: 'reward'; nodeId: number } | null;
   seenEvents?: string[];
+  /** A choice node (event, rest, shrine) that was entered but not finished: reopened after a reload. */
+  pendingNode?: { node: number; kind: string; eventId?: string };
   loot: Partial<Record<Res, number>>;
   talents?: string[];
   artifacts?: string[];
