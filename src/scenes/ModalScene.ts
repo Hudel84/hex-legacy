@@ -61,16 +61,19 @@ export class ModalScene extends Phaser.Scene {
 
   private buildSettings(): void {
     const labelStyle = { fontFamily: FONT_TITLE, fontSize: '30px', fontStyle: '700', color: COLOR.parchmentText };
-    const rows = [-170, -60, 50];
-    const LX = -400;
-    const CX = 120;
+    const rows = [-200, -100, 0, 100];
+    const LX = -430;
+    // controls move right when the labels are big (large text setting), but stay inside the window
+    const probe = ['settings.language', 'settings.music', 'settings.sfx', 'settings.textSize']
+      .map((k) => { const p = this.add.text(0, 0, t(k), labelStyle); const pw = p.width; p.destroy(); return pw; });
+    const CX = Phaser.Math.Clamp(LX + Math.max(...probe) + 260, 120, 215);
 
     // language
     this.panel.add(this.add.text(LX, rows[0], t('settings.language'), labelStyle).setOrigin(0, 0.5));
     const langs: { id: Lang; name: string }[] = [{ id: 'en', name: 'English' }, { id: 'de', name: 'Deutsch' }];
     const radios: Phaser.GameObjects.Image[] = [];
     langs.forEach((l, i) => {
-      const x = CX - 110 + i * 240;
+      const x = CX - 190 + i * 230;
       const r = this.add.image(x, rows[0], settings.lang === l.id ? 'ui_radio_selected' : 'ui_radio_empty');
       r.setScale(48 / r.width);
       const tx = this.add.text(x + 34, rows[0], l.name, { ...labelStyle, fontFamily: FONT_BODY, fontStyle: '400' }).setOrigin(0, 0.5);
@@ -83,6 +86,33 @@ export class ModalScene extends Phaser.Scene {
         this.scene.restart({ kind: this.kind });
       });
       radios.push(r);
+      this.panel.add([r, tx, hit]);
+    });
+
+    // text size (for big screens far away)
+    this.panel.add(this.add.text(LX, rows[3], t('settings.textSize'), labelStyle).setOrigin(0, 0.5));
+    const sizes = ['settings.textNormal', 'settings.textLarge', 'settings.textHuge'];
+    const opts = sizes.map((key) => this.add.text(0, rows[3], t(key), { ...labelStyle, fontFamily: FONT_BODY, fontStyle: '400', fontSize: '26px' }).setOrigin(0, 0.5));
+    // each option: radio (48) + 10 px + label, 30 px between options; all of it scaled down if it would leave the window
+    const x0 = CX - 190, RIGHT = 440;
+    const total = opts.reduce((a, o) => a + 58 + o.width, 0) + 30 * (opts.length - 1);
+    const k = Math.min(1, (RIGHT - x0) / total);
+    let x = x0;
+    sizes.forEach((key, i) => {
+      const r = this.add.image(x + 24 * k, rows[3], (settings.textSize ?? 0) === i ? 'ui_radio_selected' : 'ui_radio_empty');
+      r.setScale(48 * k / r.width);
+      const tx = opts[i].setScale(k).setX(x + 58 * k);
+      const span = (58 + tx.width) * k;
+      const hit = this.add.zone(x + span / 2, rows[3], span + 20, 60).setInteractive({ useHandCursor: true });
+      x += span + 30 * k;
+      hit.on('pointerup', () => {
+        if ((settings.textSize ?? 0) === i) return;
+        playSfx(this, 'ui_click');
+        settings.textSize = i;
+        saveSettings();
+        this.game.events.emit('text-size-changed');
+        this.scene.restart({ kind: this.kind });
+      });
       this.panel.add([r, tx, hit]);
     });
 

@@ -4,7 +4,7 @@ import { COLOR } from '../core/theme';
 import { run, count, xpForLevel, unitDef, heroTotals } from '../run/state';
 import { heroById } from '../run/heroes';
 import { loadHeroPortrait, loadPortrait } from '../core/assets';
-import { panel, textStyle, titleStyle, stat } from './widgets';
+import { panel, textStyle, titleStyle, stat, fitWidth } from './widgets';
 import { showUnitInfo, loadAbilityIcons } from './UnitInfo';
 import { upgradedDef } from '../run/state';
 import { loadSpellIcons } from './spellUi';
@@ -67,7 +67,7 @@ export class ArmyPanel extends Phaser.GameObjects.Container {
       tooltip(sc, b, t('hero.open'), [t('hero.openHint')]);
       c.add(b); if (ic) c.add(ic);
     }
-    c.add(sc.add.text(200, 250, t(`hero.${hero.id}`), { ...titleStyle(26), align: 'center' }).setOrigin(0.5, 0));
+    c.add(fitWidth(sc.add.text(200, 250, t(`hero.${hero.id}`), { ...titleStyle(26), align: 'center' }).setOrigin(0.5, 0), 330));
     c.add(sc.add.text(200, 286, t('run.level', { n: r.level }), textStyle(22, '#e8dcc0')).setOrigin(0.5, 0));
     // xp bar
     const need = xpForLevel(r.level);
@@ -107,7 +107,7 @@ export class ArmyPanel extends Phaser.GameObjects.Container {
       c.add(hit);
       const pk2 = `portrait_${s.unitId}`;
       if (sc.textures.exists(pk2)) { const p = sc.add.image(80, y, pk2); p.setDisplaySize(88, 88); c.add(p); }
-      c.add(sc.add.text(134, y - 40, t(`unit.${s.unitId}`), textStyle(21, COLOR.gold, true)));
+      c.add(fitWidth(sc.add.text(134, y - 40, t(`unit.${s.unitId}`), textStyle(21, COLOR.gold, true)), 232));
       c.add(sc.add.text(134, y - 12, `×${count(s)}   ${'★'.repeat(s.level)}${'☆'.repeat(2 - s.level)}`, textStyle(24, '#ffffff', true)));
       c.add(sc.add.text(134, y + 20, t('run.costEach', { n: d.cost }), textStyle(17, '#eadcbc')));
     });

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_W, GAME_H } from './core/theme';
+import { installTextScale } from './core/textScale';
 import { run as currentRun, advanceAct } from './run/state';
 import { finalConfig, buildEnemy, battleConfig } from './run/encounters';
 import { UNITS } from './data/units';
@@ -21,6 +22,7 @@ import { ActScene } from './scenes/ActScene';
 const params = new URLSearchParams(location.search);
 const testMode = params.has('test');
 
+installTextScale();
 const game = new Phaser.Game({
   fps: testMode ? { smoothStep: false, min: 4 } : undefined,
   type: params.has('canvas') ? Phaser.CANVAS : Phaser.AUTO,

@@ -72,7 +72,13 @@ export class TitleScene extends Phaser.Scene {
 
     // modal scenes tell us when the language changed
     this.game.events.on('lang-changed', this.refreshTexts, this);
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.game.events.off('lang-changed', this.refreshTexts, this));
+    // a new text size needs freshly built texts
+    const rebuild = () => this.scene.restart();
+    this.game.events.on('text-size-changed', rebuild);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.game.events.off('lang-changed', this.refreshTexts, this);
+      this.game.events.off('text-size-changed', rebuild);
+    });
   }
 
   private refreshTexts(): void {

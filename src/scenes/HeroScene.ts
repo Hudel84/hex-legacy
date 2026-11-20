@@ -135,36 +135,51 @@ export class HeroScene extends Phaser.Scene {
     const X = 860, W = 1000;
     const tot = heroTotals(r);
     const base = { atk: r.atk, def: r.def, power: r.power ?? 0, knowledge: r.knowledge ?? 0, lead: r.leadership };
-    this.layer.add(panel(this, X + 250, 260, 500, 420));
-    this.layer.add(this.add.text(X + 250, 112, t('hero.values'), titleStyle(28)).setOrigin(0.5));
+    // text stays clear of the metal corners (about 85 px) and edges (about 35 px) of the panels
+    this.layer.add(panel(this, X + 250, 262, 500, 444));
+    this.layer.add(this.add.text(X + 250, 92, t('hero.values'), titleStyle(28)).setOrigin(0.5));
+    let y = 128;
     const rows: [string, string, number, number, string?][] = [
       ['icon_atk', 'stat.atk', base.atk, tot.atk], ['icon_def', 'stat.def', base.def, tot.def],
       ['icon_power', 'stat.power', base.power, tot.power], ['icon_knowledge', 'stat.knowledge', base.knowledge, tot.knowledge, t('hero.mana', { n: maxMana(tot.knowledge) })],
       ['icon_lead', 'stat.lead', base.lead, tot.lead],
     ];
-    rows.forEach(([icon, label, b, total, extra], i) => {
-      const y = 150 + i * 56;
-      if (this.textures.exists(icon)) { const ic = this.add.image(X + 70, y + 14, icon); ic.setScale(38 / Math.max(ic.width, ic.height)); this.layer.add(ic); }
-      this.layer.add(this.add.text(X + 100, y, t(label), textStyle(22, '#e8dcc0')));
+    rows.forEach(([icon, label, b, total, extra]) => {
+      if (this.textures.exists(icon)) { const ic = this.add.image(X + 112, y + 15, icon); ic.setScale(36 / Math.max(ic.width, ic.height)); this.layer.add(ic); }
+      const lb = this.add.text(X + 140, y, t(label), textStyle(22, '#e8dcc0'));
+      this.layer.add(lb);
       const bonus = total - b;
-      this.layer.add(this.add.text(X + 330, y, String(total), textStyle(24, '#ffffff', true)).setOrigin(1, 0));
-      if (bonus) this.layer.add(this.add.text(X + 340, y + 2, `(${bonus > 0 ? '+' : ''}${bonus})`, textStyle(20, bonus > 0 ? '#9fe39f' : '#e07a6a')));
-      if (extra) this.layer.add(this.add.text(X + 100, y + 26, extra, textStyle(16, '#9fd0ff')));
+      const vx = Math.max(X + 340, lb.x + lb.width + 50);
+      this.layer.add(this.add.text(vx, y, String(total), textStyle(24, '#ffffff', true)).setOrigin(1, 0));
+      if (bonus) this.layer.add(this.add.text(vx + 8, y + 2, `(${bonus > 0 ? '+' : ''}${bonus})`, textStyle(20, bonus > 0 ? '#9fe39f' : '#e07a6a')));
+      let rowH = lb.height;
+      if (extra) { const ex = this.add.text(X + 140, lb.y + lb.height - 2, extra, textStyle(16, '#9fd0ff')); this.layer.add(ex); rowH += ex.height - 2; }
+      y += Math.max(54, rowH + 14);
     });
 
     // effects of equipment (incl. sets) and talents/artifacts
-    this.layer.add(panel(this, X + 760, 260, 480, 420));
-    this.layer.add(this.add.text(X + 760, 112, t('hero.effects'), titleStyle(28)).setOrigin(0.5));
+    this.layer.add(panel(this, X + 760, 262, 480, 444));
+    this.layer.add(this.add.text(X + 760, 92, t('hero.effects'), titleStyle(28)).setOrigin(0.5));
     const m = playerMods(r);
     const diff: Partial<SideMods> = {};
     for (const [k, v] of Object.entries(m) as [keyof SideMods, number][]) if (v !== NO_MODS[k]) diff[k] = v;
     const lines = effectLines({}, diff);
-    const et = this.add.text(X + 565, 148, lines.length ? lines.join('\n') : t('hero.noEffects'),
-      { ...textStyle(lines.length > 8 ? 16 : 19, '#efe3c8'), wordWrap: { width: 390 }, lineSpacing: 2 });
-    this.layer.add(et);
+    // between the corners: x 1405..1835 (wrap 410), y 132..402; the text shrinks until it fits
     const activeSets = Object.entries(sets).filter(([, n]) => n >= 2);
-    if (activeSets.length) {
-      this.layer.add(this.add.text(X + 565, 148 + et.height + 8, activeSets.map(([id, n]) => `${t(`set.${id}`)} ${n}/3`).join('\n'), textStyle(18, '#5fe0c0', true)));
+    const effects = this.add.container(0, 0);
+    this.layer.add(effects);
+    for (let size = 19; size >= 11; size--) {
+      effects.removeAll(true);
+      const et = this.add.text(X + 545, 132, lines.length ? lines.join('\n') : t('hero.noEffects'),
+        { ...textStyle(size, '#efe3c8'), wordWrap: { width: 410 }, lineSpacing: 2 });
+      effects.add(et);
+      let bottom = et.y + et.height;
+      if (activeSets.length) {
+        const st = this.add.text(X + 545, bottom + 8, activeSets.map(([id, n]) => `${t(`set.${id}`)} ${n}/3`).join('\n'), textStyle(size - 1, '#5fe0c0', true));
+        effects.add(st);
+        bottom = st.y + st.height;
+      }
+      if (bottom <= 404) break;
     }
 
     // backpack
@@ -187,7 +202,12 @@ export class HeroScene extends Phaser.Scene {
         this.refresh();
       }, sets[ITEMS[it.id].set ?? ''] ?? 0, faction);
     }
-    this.layer.add(this.add.text(X + 530, 545, t('hero.help'), { ...textStyle(17, '#d9c7a0'), wordWrap: { width: 190 } }));
+    // help text between the backpack and the back button; shrinks if large text would not fit
+    for (let size = 17; size >= 10; size--) {
+      const ht = this.add.text(X + 530, 545, t('hero.help'), { ...textStyle(size, '#d9c7a0'), wordWrap: { width: 190 } });
+      if (ht.height <= 108 || size === 10) { this.layer.add(ht); break; }
+      ht.destroy();
+    }
     this.showHint();
   }
 
@@ -249,16 +269,22 @@ export class HeroScene extends Phaser.Scene {
 
   private showHint(): void {
     this.detail.removeAll(true);
-    this.detail.add(panel(this, 1360, 868, 1000, 390));
-    this.detail.add(this.add.text(1360, 868, t('hero.hover'), textStyle(22, '#c9b896')).setOrigin(0.5));
+    this.detail.add(panel(this, 1360, 866, 1000, 412));
+    this.detail.add(this.add.text(1360, 866, t('hero.hover'), textStyle(22, '#c9b896')).setOrigin(0.5));
   }
 
   private showItem(it: ItemInst, setCount: number, faction: string, from: Drop): void {
     const r = run();
     this.detail.removeAll(true);
-    this.detail.add(panel(this, 1360, 868, 1000, 390));
+    this.detail.add(panel(this, 1360, 866, 1000, 412));
     const info = itemInfo(it, faction, setCount);
-    itemInfoBlock(this, this.detail, 905, 715, 520, info, 18);
+    // left column x 950..1480, right column x 1510..1790, both between y 690 and 1035
+    const block = this.add.container(0, 0);
+    this.detail.add(block);
+    for (let size = 18; size >= 11; size--) {
+      block.removeAll(true);
+      if (itemInfoBlock(this, block, 950, 690, 530, info, size) <= 345) break;
+    }
     // comparison: what would change if this item were put on (or taken off)
     const before = heroTotals(r);
     const sim = JSON.parse(JSON.stringify(r));
@@ -268,18 +294,20 @@ export class HeroScene extends Phaser.Scene {
       .filter((k) => after[k] !== before[k])
       .map((k) => `${t(`stat.${k}`)} ${after[k] > before[k] ? '+' : ''}${after[k] - before[k]}`);
     const head = from.kind === 'bag' ? t('hero.ifEquip') : t('hero.ifRemove');
-    this.detail.add(this.add.text(1460, 715, head, titleStyle(22)));
+    const hd = this.add.text(1510, 690, head, titleStyle(22));
+    this.detail.add(hd);
     const old = from.kind === 'bag' ? slotsFor(it).map((s) => r.equip?.[s]).find(Boolean) : null;
     const txt = (ch.length ? ch.join('\n') : t('hero.noChange')) + (old ? `\n\n${t('hero.replaces', { name: t(`item.${old.id}`) })}` : '');
-    this.detail.add(this.add.text(1460, 752, txt, { ...textStyle(20, '#efe3c8'), wordWrap: { width: 380 } }));
+    this.detail.add(this.add.text(1510, hd.y + hd.height + 8, txt, { ...textStyle(20, '#efe3c8'), wordWrap: { width: 280 } }));
   }
 
   private showConsumable(id: string): void {
     this.detail.removeAll(true);
-    this.detail.add(panel(this, 1360, 868, 1000, 390));
-    this.detail.add(this.add.text(905, 715, consumableName(id), textStyle(28, '#ffe08a', true)));
-    this.detail.add(this.add.text(905, 757, t('hero.consumable'), textStyle(19, '#c9b896')));
-    this.detail.add(this.add.text(905, 795, consumableDesc(id, heroTotals().power), { ...textStyle(21, '#efe3c8'), wordWrap: { width: 900 } }));
+    this.detail.add(panel(this, 1360, 866, 1000, 412));
+    const nm = this.add.text(950, 690, consumableName(id), textStyle(28, '#ffe08a', true));
+    const sb = this.add.text(950, nm.y + nm.height + 4, t('hero.consumable'), textStyle(19, '#c9b896'));
+    const ds = this.add.text(950, sb.y + sb.height + 14, consumableDesc(id, heroTotals().power), { ...textStyle(21, '#efe3c8'), wordWrap: { width: 820 } });
+    this.detail.add([nm, sb, ds]);
     void heroById;
   }
 }

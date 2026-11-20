@@ -131,13 +131,21 @@ export class NodeScene extends Phaser.Scene {
     };
     draw(false);
     c.add(g);
-    c.add(this.add.text(-w / 2 + 22, o.hint ? -h / 2 + 14 : 0, o.label, {
+    const lb = this.add.text(-w / 2 + 22, o.hint ? -h / 2 + 10 : 0, o.label, {
       fontFamily: FONT_BODY, fontSize: '26px', fontStyle: '700', color: enabled ? COLOR.gold : '#b3a58a',
-    }).setOrigin(0, o.hint ? 0 : 0.5));
+    }).setOrigin(0, o.hint ? 0 : 0.5);
+    if (lb.width > w - 170) lb.setScale((w - 170) / lb.width);
+    c.add(lb);
     if (o.hint) {
-      c.add(this.add.text(-w / 2 + 22, -h / 2 + 52, o.hint, {
-        fontFamily: FONT_BODY, fontSize: '20px', color: enabled ? '#e8dcc0' : '#a89a80', wordWrap: { width: w - 170 },
-      }));
+      // with a large text setting the hint shrinks until it fits into the row
+      const top = lb.y + lb.displayHeight;
+      for (let size = 20; size >= 11; size--) {
+        const ht = this.add.text(-w / 2 + 22, top, o.hint, {
+          fontFamily: FONT_BODY, fontSize: `${size}px`, color: enabled ? '#e8dcc0' : '#a89a80', wordWrap: { width: w - 170 },
+        });
+        if (top + ht.height <= h / 2 - 4 || size === 11) { c.add(ht); break; }
+        ht.destroy();
+      }
     }
     if (o.price !== undefined) {
       const gi = this.add.image(w / 2 - 105, 0, 'icon_gold'); gi.setScale(34 / gi.width);

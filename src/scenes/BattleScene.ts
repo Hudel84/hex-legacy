@@ -15,7 +15,7 @@ import { showUnitInfo, loadAbilityIcons, ABILITY_ICON, STATUS_ICON } from '../ui
 import { loadRunUi } from '../core/assets';
 import { SPELLS, type Element } from '../battle/spells';
 import { loadSpellIcons, spellName, spellDesc, spellIcon, levelStars, SCHOOL_COLOR } from '../ui/spellUi';
-import { panel, titleStyle, textStyle } from '../ui/widgets';
+import { panel, titleStyle, textStyle, fitWidth } from '../ui/widgets';
 import { racePassive } from '../ui/UnitInfo';
 import { CONSUMABLES } from '../run/items';
 import { loadItemAssets, consumableIcon, consumableName, consumableDesc } from '../ui/itemUi';
@@ -287,8 +287,8 @@ export class BattleScene extends Phaser.Scene {
       const eh = this.add.image(w - 125, 640, `herobattle_${this.cfg.enemyHero}`).setOrigin(0.5, 1).setFlipX(true);
       eh.setScale(380 / eh.height);
     }
-    this.add.text(125, 650, t(`hero.${this.cfg.playerHero}`), this.smallLabel()).setOrigin(0.5, 0);
-    if (this.cfg.enemyHero) this.add.text(w - 125, 650, t(`hero.${this.cfg.enemyHero}`), this.smallLabel()).setOrigin(0.5, 0);
+    fitWidth(this.add.text(125, 650, t(`hero.${this.cfg.playerHero}`), this.smallLabel()).setOrigin(0.5, 0), 240);
+    if (this.cfg.enemyHero) fitWidth(this.add.text(w - 125, 650, t(`hero.${this.cfg.enemyHero}`), this.smallLabel()).setOrigin(0.5, 0), 240);
     this.buildMagicHud();
 
     // grid
@@ -314,11 +314,12 @@ export class BattleScene extends Phaser.Scene {
 
     // HUD
     this.initBar = this.add.container(w / 2, 78).setDepth(2000);
-    this.infoText = this.add.text(w / 2, h - 92, '', {
+    this.infoText = this.add.text(w / 2 + 130 * Math.min(1, settings.textSize ?? 0), h - 92, '', {
       fontFamily: FONT_BODY, fontSize: '28px', color: COLOR.light, stroke: '#000', strokeThickness: 5, align: 'center',
     }).setOrigin(0.5).setDepth(2000);
     this.logText = this.add.text(30, h - 18, '', {
       fontFamily: FONT_BODY, fontSize: '21px', color: '#e8dcc0', stroke: '#000', strokeThickness: 4, lineSpacing: 1,
+      wordWrap: { width: settings.textSize ? 780 : 1400 },
     }).setOrigin(0, 1).setDepth(2000);
 
     const bx = w - 150;
@@ -841,7 +842,7 @@ export class BattleScene extends Phaser.Scene {
       }
       root.add(c);
     });
-    root.add(this.add.text(w / 2, top + PH - 78, t('battle.spellbookHint'), textStyle(19, '#c9b896')).setOrigin(0.5));
+    root.add(fitWidth(this.add.text(w / 2, top + PH - 78, t('battle.spellbookHint'), textStyle(19, '#c9b896')).setOrigin(0.5), PW - 200));
     root.setAlpha(0);
     this.tweens.add({ targets: root, alpha: 1, duration: 120 });
     playSfx(this, 'ui_open', 0.6);
@@ -1167,10 +1168,10 @@ export class BattleScene extends Phaser.Scene {
         roundMarked = true;
         const line = this.add.graphics();
         line.lineStyle(3, 0xf3d48a, 0.9).lineBetween(x + 6, -40, x + 6, 40);
-        items.push(line, this.add.text(x + 16, 0, t('battle.round', { n: this.battle.round + 1 }).replace(' ', '\n'), {
+        items.push(line, fitWidth(this.add.text(x + 16, 0, t('battle.round', { n: this.battle.round + 1 }).replace(' ', '\n'), {
           fontFamily: FONT_TITLE, fontSize: '17px', fontStyle: '700', color: COLOR.gold, stroke: '#000', strokeThickness: 4,
           align: 'center',
-        }).setOrigin(0, 0.5));
+        }).setOrigin(0, 0.5), 72));
         x += 92;
       }
       const size = i === 0 ? 104 : 80;
@@ -1461,7 +1462,11 @@ export class BattleScene extends Phaser.Scene {
   private log(line: string): void {
     this.logLines.push(line);
     if (this.logLines.length > 4) this.logLines.shift();
-    this.logText?.setText(this.logLines.join('\n'));
+    if (this.logText) {
+      // keep the log left of the turn text (large text setting)
+      this.logText.setScale(1).setText(this.logLines.join('\n'));
+      if (this.logText.height > 140) this.logText.setScale(140 / this.logText.height);
+    }
   }
 
   // ---------- result ----------

@@ -6,6 +6,7 @@ export interface Settings {
   lang: Lang;
   musicVolume: number; // 0..1
   sfxVolume: number;   // 0..1
+  textSize: number;    // 0 normal, 1 large, 2 very large
 }
 
 const KEY = 'hexlegacy.settings.v1';
@@ -14,6 +15,7 @@ const defaults: Settings = {
   lang: navigator.language?.toLowerCase().startsWith('de') ? 'de' : 'en',
   musicVolume: 0.6,
   sfxVolume: 0.8,
+  textSize: 0,
 };
 
 function load(): Settings {

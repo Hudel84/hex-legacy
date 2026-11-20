@@ -49,6 +49,9 @@ export function nine(scene: Phaser.Scene, x: number, y: number, key: string, w: 
 
 /** Stretchable panel from one of the painted panel images. Centred on (x, y). */
 export function panel(scene: Phaser.Scene, x: number, y: number, w: number, h: number, key = 'ui_panel_dark_wood', border = 70): Phaser.GameObjects.Container {
+  // the dark wood panel has big metal corners: slice them whole (so they are not stretched along the edges)
+  // and draw them a bit smaller. Keep text about PANEL_PAD away from the corners.
+  if (key === 'ui_panel_dark_wood') return nine(scene, x, y, key, w, h, 150, 150, 150, 150, 0.55);
   return nine(scene, x, y, key, w, h, border, border, border, border);
 }
 
@@ -85,19 +88,32 @@ export function card(scene: Phaser.Scene, x: number, y: number, o: CardOpts): Ph
   const frame = nine(scene, 0, 0, 'ui_frame_unit_card', w, h, 45, 45, 200, 70, fs);
   c.add(frame);
   const ty = -h / 2 + w * 0.95;
-  const title = scene.add.text(0, ty, o.title, { ...titleStyle(Math.round(w / 13)), align: 'center', wordWrap: { width: w * 0.8 } }).setOrigin(0.5, 0);
-  if (title.height > w / 8) title.setFontSize(Math.round(w / 16));
-  c.add(title);
-  let yy = ty + title.height + 6;
-  if (o.subtitle) {
-    const sub = scene.add.text(0, yy, o.subtitle, { ...textStyle(Math.round(w / 17), o.subtitleColor ?? '#d9c7a0', !!o.subtitleColor), align: 'center', wordWrap: { width: w * 0.8 } }).setOrigin(0.5, 0);
-    c.add(sub);
-    yy += sub.height + 8;
-  }
-  if (o.lines?.length) {
-    c.add(scene.add.text(0, yy, o.lines.join('\n'), {
-      ...textStyle(o.lineSize ?? Math.round(w / 17)), align: 'center', lineSpacing: 3, wordWrap: { width: w * 0.8 },
-    }).setOrigin(0.5, 0));
+  // texts below the arch; with a large text setting they shrink until they fit into the card
+  const texts = scene.add.container(0, 0);
+  c.add(texts);
+  for (let f = 1; f >= 0.55; f -= 0.075) {
+    texts.removeAll(true);
+    const title = scene.add.text(0, ty, o.title, { ...titleStyle(Math.round(w / 13 * f)), align: 'center', wordWrap: { width: w * 0.8 } }).setOrigin(0.5, 0);
+    if (title.getWrappedText().length > 1) {
+      title.destroy();
+      texts.add(scene.add.text(0, ty, o.title, { ...titleStyle(Math.round(w / 16 * f)), align: 'center', wordWrap: { width: w * 0.8 } }).setOrigin(0.5, 0));
+    } else texts.add(title);
+    const tt = texts.last as Phaser.GameObjects.Text;
+    if (tt.width > w * 0.84) tt.setScale(w * 0.84 / tt.width);
+    let yy = ty + tt.displayHeight + 6;
+    if (o.subtitle) {
+      const sub = scene.add.text(0, yy, o.subtitle, { ...textStyle(Math.round(w / 17 * f), o.subtitleColor ?? '#d9c7a0', !!o.subtitleColor), align: 'center', wordWrap: { width: w * 0.8 } }).setOrigin(0.5, 0);
+      texts.add(sub);
+      yy += sub.height + 8;
+    }
+    if (o.lines?.length) {
+      const ln = scene.add.text(0, yy, o.lines.join('\n'), {
+        ...textStyle(Math.round((o.lineSize ?? w / 17) * f)), align: 'center', lineSpacing: 3, wordWrap: { width: w * 0.8 },
+      }).setOrigin(0.5, 0);
+      texts.add(ln);
+      yy += ln.height;
+    }
+    if (yy <= h / 2 - 22) break;
   }
   if (o.highlight) {
     const g = scene.add.graphics();
@@ -113,6 +129,12 @@ export function card(scene: Phaser.Scene, x: number, y: number, o: CardOpts): Ph
     c.on('pointerup', () => { playSfx(scene, 'ui_click'); o.onClick!(); });
   }
   return c;
+}
+
+/** Scale a text down (never up) so it is at most maxW wide, e.g. names with the large text setting. */
+export function fitWidth<T extends Phaser.GameObjects.Text>(tx: T, maxW: number): T {
+  if (tx.width > maxW) tx.setScale(maxW / tx.width);
+  return tx;
 }
 
 /** Icon + value pair, e.g. gold or attack. */

@@ -15,6 +15,7 @@ export class Button extends Phaser.GameObjects.Container {
   private label: Phaser.GameObjects.Text;
   private base: string;
   private enabled = true;
+  private maxLabelW: number;
 
   constructor(scene: Phaser.Scene, x: number, y: number, text: string, opts: ButtonOpts) {
     super(scene, x, y);
@@ -30,6 +31,8 @@ export class Button extends Phaser.GameObjects.Container {
       stroke: '#2a1608',
       strokeThickness: 6,
     }).setOrigin(0.5);
+    this.maxLabelW = w * 0.8;
+    this.fitLabel();
     this.add([this.bg, this.label]);
     this.setSize(this.bg.displayWidth * 0.86, this.bg.displayHeight * 0.62);
     this.setInteractive({ useHandCursor: true });
@@ -62,7 +65,15 @@ export class Button extends Phaser.GameObjects.Container {
 
   setLabel(text: string): this {
     this.label.setText(text);
+    this.fitLabel();
     return this;
+  }
+
+  /** Shrink the label if (large) text would spill over the button. */
+  private fitLabel(): void {
+    this.label.setScale(1);
+    const lw = this.label.width;
+    if (lw > this.maxLabelW) this.label.setScale(this.maxLabelW / lw);
   }
 
   setEnabled(on: boolean): this {
