@@ -198,7 +198,7 @@ export function battleConfig(node: MapNode, enemy: EnemyArmy, rewardMul = 1): Ru
     playerHero: hero.id,
     background: BIOME_BG[r.biome] ?? 'bg_act1_meadows',
     ambient: `amb_${r.biome}`,
-    music: isBoss ? 'mus_battle_boss' : 'mus_battle',
+    music: isBoss ? 'mus_battle_boss' : isElite ? 'mus_battle_elite' : 'mus_battle',
     setup: {
       seed,
       obstacles: Battle.randomObstacles(seed, isBoss ? 2 : 3),
@@ -232,7 +232,7 @@ export function finalConfig(): RunBattleConfig {
   cfg.final = true;
   cfg.background = 'bg_act3_demon_wasteland';
   cfg.ambient = 'amb_demon_wasteland';
-  cfg.music = 'mus_battle_boss';
+  cfg.music = 'mus_battle_final';
   cfg.reward = { gold: 0, xp: 0, draft: false };
   return cfg;
 }

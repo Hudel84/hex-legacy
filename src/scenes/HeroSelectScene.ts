@@ -8,6 +8,7 @@ import { loadRunUi, loadHeroPortrait, loadPortrait, img } from '../core/assets';
 import { card, titleStyle, textStyle } from '../ui/widgets';
 import { Button } from '../ui/Button';
 import { playMusic } from '../core/audio';
+import { playVoice } from '../core/voice';
 
 export class HeroSelectScene extends Phaser.Scene {
   private selected = HEROES[0].id;
@@ -71,7 +72,7 @@ export class HeroSelectScene extends Phaser.Scene {
         ],
         highlight: this.selected === hero.id,
         disabled: !unlocked,
-        onClick: () => { this.selected = hero.id; this.drawCards(); },
+        onClick: () => { this.selected = hero.id; this.drawCards(); playVoice(this, hero.id, 'select'); },
       });
       if (!unlocked && lockInfo) {
         const [b, lv] = lockInfo.split(':');

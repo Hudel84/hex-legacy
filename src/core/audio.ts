@@ -32,3 +32,21 @@ export function playSfx(scene: Phaser.Scene, key: string, volume = 1): void {
   if (scene.sound.locked || !scene.cache.audio.exists(key)) return;
   scene.sound.play(key, { volume: settings.sfxVolume * volume });
 }
+
+/** Fade out the current music (e.g. before a stinger). The next playMusic starts fresh. */
+export function stopMusic(scene: Phaser.Scene, fadeMs = 600): void {
+  const old = currentMusic;
+  currentMusic = null;
+  currentKey = '';
+  if (old) scene.tweens.add({ targets: old, volume: 0, duration: fadeMs, onComplete: () => old.destroy() });
+}
+
+/** Short non-looping music cue (victory, defeat, act cleared) at music volume. */
+export function playStinger(scene: Phaser.Scene, key: string, fadeMs = 500): void {
+  stopMusic(scene, fadeMs);
+  if (scene.sound.locked || !scene.cache.audio.exists(key)) return;
+  scene.sound.play(key, { volume: settings.musicVolume });
+}
+
+/** Map music per act (1..3). */
+export const mapMusic = (act: number): string => `mus_map_act${Math.max(1, Math.min(3, act || 1))}`;

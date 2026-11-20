@@ -2,7 +2,9 @@ import Phaser from 'phaser';
 import { t } from '../core/i18n';
 import { COLOR, FONT_BODY } from '../core/theme';
 import { playSfx, playMusic } from '../core/audio';
-import { img, loadRunUi } from '../core/assets';
+import { img, sfx, loadRunUi } from '../core/assets';
+
+const NODE_MUSIC: Record<string, string> = { shop: 'mus_shop', rest: 'mus_rest', event: 'mus_event', treasure: 'mus_event', shrine: 'mus_event' };
 import {
   run, save, addLeadership, applyBoon, BOONS, rng, commitRng, MAX_UNIT_LEVEL, MAX_SLOTS, nodeById, draftPool, rebalance, unitDef, type ArmySlot, heroTotals,
 } from '../run/state';
@@ -65,10 +67,13 @@ export class NodeScene extends Phaser.Scene {
       img(this, BG[this.kind], `ui/screens/${BG[this.kind]}.webp`);
     }
     if (this.kind === 'shop') for (const id of draftPool(owner().faction, 99)) img(this, `portrait_${id}`, unitDef(id).portrait);
+    const mus = NODE_MUSIC[this.kind];
+    if (mus) sfx(this, mus, `audio/music/${mus}.ogg`);
   }
 
   create(): void {
     const { width: w, height: h } = this.scale;
+    if (NODE_MUSIC[this.kind]) playMusic(this, NODE_MUSIC[this.kind]);
     if (this.kind === 'event') {
       const ev = eventById(this.eventId);
       const bg = this.add.image(w / 2, h / 2, ev.image).setDisplaySize(w, h).setAlpha(0.35);

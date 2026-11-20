@@ -5,7 +5,8 @@ import type { BattleEvent, Stack, Side, UnitDef } from '../battle/types';
 import { UNITS } from '../data/units';
 import { t } from '../core/i18n';
 import { FONT_TITLE, FONT_BODY, COLOR } from '../core/theme';
-import { playMusic, playSfx } from '../core/audio';
+import { playMusic, playSfx, playStinger } from '../core/audio';
+import { loadVoices, playVoice } from '../core/voice';
 import { settings } from '../core/settings';
 import { Button } from '../ui/Button';
 import { shade } from '../ui/widgets';
@@ -150,6 +151,7 @@ export class BattleScene extends Phaser.Scene {
   private btnDefend!: Button;
   private btnAuto!: Button;
   private auto = false;
+  private lastSpellVoice = -1e9;
   private inputOpen = false;
   private resolveInput: (() => void) | null = null;
   private reach = new Map<string, Hex[]>();
@@ -244,6 +246,8 @@ export class BattleScene extends Phaser.Scene {
     const amb = this.cfg.ambient ?? 'amb_meadows';
     if (!this.cache.audio.exists(music)) this.load.audio(music, `${A}audio/music/${music}.ogg`);
     if (!this.cache.audio.exists(amb)) this.load.audio(amb, `${A}audio/ambient/${amb}.ogg`);
+    for (const k of ['stinger_victory', 'stinger_defeat']) if (!this.cache.audio.exists(k)) this.load.audio(k, `${A}audio/music/${k}.ogg`);
+    if (this.cfg.playerHero) loadVoices(this, this.cfg.playerHero, ['battle', 'victory', 'spell']);
     this.load.once(Phaser.Loader.Events.COMPLETE, () => txt.destroy());
   }
 
@@ -346,6 +350,7 @@ export class BattleScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-D', () => this.playerAction({ type: 'defend' }));
 
     playMusic(this, this.cfg.music ?? 'mus_battle');
+    this.time.delayedCall(900, () => playVoice(this, this.cfg.playerHero, 'battle'));
     const startAmbient = () => {
       this.ambient = this.sound.add(this.cfg.ambient ?? 'amb_meadows', { loop: true, volume: settings.sfxVolume * 0.12 });
       this.ambient.play();
@@ -929,6 +934,10 @@ export class BattleScene extends Phaser.Scene {
     const p = this.heroPos(e.side);
     const snd = SPELL_SND[e.spell] ?? (sp.element ? ELEMENT_FX[sp.element].snd : SCHOOL_SND[sp.school]);
     playSfx(this, `sp_${snd}_cast`, 0.8);
+    if (e.side === 'player' && !this.auto && this.time.now - this.lastSpellVoice > 20000) {
+      this.lastSpellVoice = this.time.now;
+      playVoice(this, this.cfg.playerHero, 'spell', 0.9);
+    }
     const ck = CAST_FX[sp.school];
     if (this.textures.exists(ck)) {
       const fx = this.add.image(p.x, p.y, ck).setDepth(3200).setAlpha(0);
@@ -1482,6 +1491,8 @@ export class BattleScene extends Phaser.Scene {
     }
     const won = winner === 'player';
     playSfx(this, won ? 'ev_victory_crowd' : 'cb_death_human');
+    playStinger(this, won ? 'stinger_victory' : 'stinger_defeat');
+    if (won) this.time.delayedCall(1300, () => playVoice(this, this.cfg.playerHero, 'victory'));
     this.closeBook();
     this.beltBar?.setVisible(false);
     for (const o of [this.initBar, this.infoText, this.logText, this.btnWait, this.btnDefend, this.btnAuto, this.btnAbility, this.btnSpell, this.manaText, this.castNote]) {

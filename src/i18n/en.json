@@ -13,7 +13,7 @@
   "settings.sfx": "Sound effects",
   "settings.fullscreen": "Fullscreen",
   "credits.title": "Credits",
-  "credits.body": "HEX LEGACY\nA free fan project by Ben\n\nDesign & direction: Ben\nCode: Claude (Anthropic)\nArt: Higgsfield (Nano Banana Pro, Seedance), Freebeat\nSound effects & hero voices: elevenlabs.io\nMusic: Made with ElevenMusic\nEngine: Phaser\nFonts: Cinzel, Alegreya (SIL Open Font License)\n\nInspired by Heroes of Might and Magic and Slay the Spire.\nNon-commercial. Thanks for playing!",
+  "credits.body": "HEX LEGACY\nA game by Hudel\n\nDesign & direction: Ben\nCode: Claude (Anthropic)\nArt: Higgsfield (Nano Banana Pro, Seedance), Freebeat\nSound effects, hero voices & music: ElevenLabs\nEngine: Phaser\nFonts: Cinzel, Alegreya (SIL Open Font License)\n\nInspired by Heroes of Might and Magic and Slay the Spire.\nThanks for playing!",
   "battle.wait": "Wait",
   "battle.defend": "Defend",
   "battle.auto": "Auto",

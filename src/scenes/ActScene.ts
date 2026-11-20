@@ -1,7 +1,7 @@
 // Between acts: announces the next act and its biome. After act 3 it leads into the final battle.
 import Phaser from 'phaser';
 import { t } from '../core/i18n';
-import { playMusic, playSfx } from '../core/audio';
+import { playMusic, playSfx, playStinger, mapMusic } from '../core/audio';
 import { img, sfx, loadRunUi } from '../core/assets';
 import { run, save } from '../run/state';
 import { finalConfig } from '../run/encounters';
@@ -21,8 +21,9 @@ export class ActScene extends Phaser.Scene {
     if (this.final) img(this, 'boss_final_void_god_still', 'bosses/boss_final_void_god.webp');
     else img(this, ADVMAP[r.biome], `map/biomes/${ADVMAP[r.biome]}.webp`);
     img(this, 'ui_victory_screen', 'ui/screens/ui_victory_screen.webp');
-    sfx(this, 'mus_battle_boss', 'audio/music/mus_battle_boss.ogg');
-    sfx(this, 'mus_map_act1', 'audio/music/mus_map_act1.ogg');
+    const mus = this.final ? 'mus_battle_final' : mapMusic(r.act);
+    sfx(this, mus, `audio/music/${mus}.ogg`);
+    sfx(this, 'stinger_act_clear', 'audio/music/stinger_act_clear.ogg');
   }
 
   create(): void {
@@ -59,6 +60,7 @@ export class ActScene extends Phaser.Scene {
     go.setAlpha(0);
     this.tweens.add({ targets: go, alpha: 1, duration: 600, delay: 1500 });
     playSfx(this, 'ui_reward');
-    playMusic(this, this.final ? 'mus_battle_boss' : 'mus_map_act1');
+    playStinger(this, 'stinger_act_clear');
+    this.time.delayedCall(6500, () => playMusic(this, this.final ? 'mus_battle_final' : mapMusic(r.act), 2000));
   }
 }

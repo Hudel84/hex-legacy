@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { t } from '../core/i18n';
-import { playSfx, playMusic } from '../core/audio';
-import { img, loadRunUi, loadPortrait } from '../core/assets';
+import { playSfx, playMusic, mapMusic } from '../core/audio';
+import { img, sfx, loadRunUi, loadPortrait } from '../core/assets';
 import {
   run, save, gainXp, rng, commitRng, draftPool, nodeById, MAX_SLOTS, MAX_UNIT_LEVEL, rebalance, unitDef,
   addLoot, lootFor, owner, grantPerk, perkFactor, spellReward, learnSpell, spellMax, magicGrowth, heroTotals,
@@ -56,6 +56,7 @@ export class RewardScene extends Phaser.Scene {
     loadPerkIcons(this);
     loadSpellIcons(this);
     for (const id of [...this.draft, ...run().army.map((s) => s.unitId)]) loadPortrait(this, id);
+    sfx(this, mapMusic(run().act), `audio/music/${mapMusic(run().act)}.ogg`);
   }
 
   create(): void {
@@ -65,7 +66,7 @@ export class RewardScene extends Phaser.Scene {
     this.add.image(w / 2, h / 2, 'ui_victory_screen').setDisplaySize(w, h);
     this.add.rectangle(0, 0, w, h, 0x000000, 0.55).setOrigin(0);
     this.layer = this.add.container(0, 0);
-    playMusic(this, 'mus_map_act1');
+    this.time.delayedCall(3500, () => playMusic(this, mapMusic(r.act), 2000)); // after the victory stinger
 
     // apply gold and xp once
     r.gold += this.cfg.reward.gold;

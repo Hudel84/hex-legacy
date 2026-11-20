@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { t } from '../core/i18n';
 import { COLOR } from '../core/theme';
-import { playMusic, playSfx } from '../core/audio';
+import { playMusic, playSfx, mapMusic } from '../core/audio';
 import { img, sfx, loadRunUi } from '../core/assets';
 import { run, save, availableNodes, nodeById, rng, commitRng, count , heroTotals } from '../run/state';
 import type { MapNode, NodeType } from '../run/mapgen';
@@ -55,7 +55,7 @@ export class MapScene extends Phaser.Scene {
     for (const k of ['ring_available', 'ring_current', 'ring_visited', 'path_dot', 'path_dot_lit', 'marker_check']) img(this, k, `map/node_states/${k}.webp`);
     const wk = this.walkKey();
     if (!this.textures.exists(wk)) this.load.spritesheet(wk, `assets/map/animated/anim_map_hero_${wk.slice(5)}_walk_sheet_8x4.webp`, { frameWidth: 320, frameHeight: 320 });
-    sfx(this, 'mus_map_act1', 'audio/music/mus_map_act1.ogg');
+    sfx(this, mapMusic(r.act), `audio/music/${mapMusic(r.act)}.ogg`);
     loadPerkIcons(this, [...(r.talents ?? []), ...(r.artifacts ?? [])].map(perkById));
     loadSpellIcons(this, (r.spells ?? []).map((x) => x.id));
   }
@@ -219,7 +219,7 @@ export class MapScene extends Phaser.Scene {
       });
     });
 
-    playMusic(this, 'mus_map_act1');
+    playMusic(this, mapMusic(run().act));
     if (!availableNodes().length) toast(this, '…');
   }
 
