@@ -716,7 +716,8 @@
       "noRetaliation"
     ],
     "sheet": "neutrals/animated/anim_neutral_harpy_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/neutrals/portrait_neutral_harpy.webp"
+    "portrait": "ui/portraits/neutrals/portrait_neutral_harpy.webp",
+    "faceLeft": true
   },
   "neutral_harpy_v2": {
     "faction": "neutral",
