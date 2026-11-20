@@ -346,7 +346,7 @@ export function spellReward(g: Rng, r = run()): { kind: 'learn' | 'upgrade'; id:
 export const playerMods = (r = run()): SideMods => {
   const perks = sideMods(owner(r));
   const eq = equipped(r);
-  return combine(perks, heroById(r.heroId).mods ?? {}, ...eq.map(itemMods), ...setBonuses(eq).map((b) => b.mods));
+  return combine(perks, heroById(r.heroId).mods ?? {}, ...eq.map((i) => itemMods(i, heroFaction(r))), ...setBonuses(eq).map((b) => b.mods));
 };
 
 // ---------- equipment ----------

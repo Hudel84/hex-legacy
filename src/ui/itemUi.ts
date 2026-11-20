@@ -5,7 +5,7 @@ import { perkLines } from './perkUi';
 import type { PerkDef } from '../run/perks';
 import type { ModPatch } from '../battle/mods';
 import {
-  ITEMS, CONSUMABLES, SETS, RARITY_COLOR, STAT_KEYS, SCROLL_LEVEL, itemIconKey, itemIconPath, itemStats, setById, sellPrice,
+  ITEMS, CONSUMABLES, SETS, RARITY_COLOR, STAT_KEYS, SCROLL_LEVEL, itemIconKey, itemIconPath, itemStats, itemMods, setById, sellPrice,
   type ItemInst, type Stats, type ItemRarity,
 } from '../run/items';
 import { spellIconKey, spellIconPath } from '../battle/spells';
@@ -105,7 +105,7 @@ export function itemInfo(inst: ItemInst, faction: string, setCount = 0): { title
   const d = ITEMS[inst.id];
   const lines: { text: string; color?: string }[] = [];
   const st = itemStats({ ...inst, bonus: undefined }, faction);
-  for (const l of effectLines(st, d.mods)) lines.push({ text: l });
+  for (const l of effectLines(st, itemMods({ ...inst, bonus: undefined }, faction))) lines.push({ text: l });
   if (inst.bonus) {
     const isStat = (STAT_KEYS as string[]).includes(inst.bonus.key);
     const l = effectLines(isStat ? { [inst.bonus.key]: inst.bonus.v } : {}, isStat ? {} : { [inst.bonus.key]: inst.bonus.v } as ModPatch)[0];

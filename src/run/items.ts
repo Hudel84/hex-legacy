@@ -127,10 +127,17 @@ export function itemStats(inst: ItemInst, faction: string): Stats {
   return out;
 }
 
-/** Battle mods of one item incl. its random bonus. */
-export function itemMods(inst: ItemInst): ModPatch {
+/** Modifiers that count in whole steps (initiative, shots …); the others are shares. */
+const FLAT_MODS = ['ini', 'speed', 'shots', 'counters', 'startShield', 'cooldown', 'round1Ini', 'mana', 'frost', 'markShots', 'furyMax'];
+
+/** Battle mods of one item for a hero of `faction` (people items: +50 % here too) incl. its random bonus. */
+export function itemMods(inst: ItemInst, faction = ''): ModPatch {
   const d = ITEMS[inst.id];
-  const out: Record<string, number> = { ...(d.mods ?? {}) };
+  const boost = d.faction && d.faction === faction ? 1.5 : 1;
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(d.mods ?? {}) as [string, number][]) {
+    out[k] = boost === 1 ? v : FLAT_MODS.includes(k) ? Math.ceil(v * boost) : Math.round(v * boost * 1000) / 1000;
+  }
   if (inst.bonus && !(STAT_KEYS as string[]).includes(inst.bonus.key)) out[inst.bonus.key] = (out[inst.bonus.key] ?? 0) + inst.bonus.v;
   return out as ModPatch;
 }
