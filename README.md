@@ -12,6 +12,7 @@ Free, non-commercial fan project by Ben. Code by Claude (Anthropic).
 
 ## Structure
 - `src/scenes/` – Boot, Preload, Title, Modal (settings/credits), Battle, HeroSelect, Map, Node (shop/camp/treasure/shrine/events), Reward (gold, XP, level-up, draft), RunEnd
+- `src/meta/meta.ts` – the city: meta resources, buildings, bonuses and unlocks (saved as `hexlegacy.meta.v1`)
 - `src/run/` – run state + autosave (localStorage), map generator, encounters (difficulty curve `DIFFICULTY`), heroes, events
 - `src/battle/` – battle rules (hex grid, stacks, initiative, damage, AI), no Phaser inside
 - `src/data/units.json` – unit stats (placeholders for balancing)

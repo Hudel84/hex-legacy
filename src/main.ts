@@ -12,6 +12,7 @@ import { MapScene } from './scenes/MapScene';
 import { NodeScene } from './scenes/NodeScene';
 import { RewardScene } from './scenes/RewardScene';
 import { RunEndScene } from './scenes/RunEndScene';
+import { CityScene } from './scenes/CityScene';
 
 // ?test: real-time deltas so slow headless test browsers run the game at normal speed
 const params = new URLSearchParams(location.search);
@@ -25,7 +26,7 @@ const game = new Phaser.Game({
   height: GAME_H,
   backgroundColor: '#0d0a08',
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-  scene: [BootScene, PreloadScene, TitleScene, ModalScene, BattleScene, HeroSelectScene, MapScene, NodeScene, RewardScene, RunEndScene],
+  scene: [BootScene, PreloadScene, TitleScene, ModalScene, BattleScene, HeroSelectScene, MapScene, NodeScene, RewardScene, RunEndScene, CityScene],
 });
 
 // handy for automated tests and debugging in the browser console

@@ -3,7 +3,9 @@ import { t } from '../core/i18n';
 import { playMusic, playSfx } from '../core/audio';
 import { img } from '../core/assets';
 import { run, setRun } from '../run/state';
-import { titleStyle, textStyle } from '../ui/widgets';
+import { titleStyle, textStyle, resRow } from '../ui/widgets';
+import { addRes, bonus, getMeta, saveMeta } from '../meta/meta';
+import { loadRunUi } from '../core/assets';
 import { Button } from '../ui/Button';
 
 /** End of a run: act cleared (demo end) or army defeated. The save is cleared. */
@@ -15,6 +17,7 @@ export class RunEndScene extends Phaser.Scene {
   preload(): void {
     img(this, 'ui_victory_screen', 'ui/screens/ui_victory_screen.webp');
     img(this, 'ui_defeat_screen', 'ui/screens/ui_defeat_screen.webp');
+    loadRunUi(this);
   }
 
   create(): void {
@@ -29,9 +32,20 @@ export class RunEndScene extends Phaser.Scene {
       '',
       t('runEnd.stats', { battles: r.battlesWon, level: r.level, gold: r.gold }),
     ];
-    this.add.text(w / 2, 300, lines.join('\n'), { ...textStyle(32), align: 'center', wordWrap: { width: 1300 }, lineSpacing: 6 }).setOrigin(0.5, 0);
-    new Button(this, w / 2 - 230, h - 110, t('heroSelect.again'), { style: 'red', width: 400, fontSize: 28, onClick: () => this.scene.start('HeroSelect') });
-    new Button(this, w / 2 + 230, h - 110, t('battle.toTitle'), { width: 400, fontSize: 28, onClick: () => this.scene.start('Title') });
+    this.add.text(w / 2, 290, lines.join('\n'), { ...textStyle(32), align: 'center', wordWrap: { width: 1300 }, lineSpacing: 6 }).setOrigin(0.5, 0);
+
+    // transfer the loot to the city: all of it after a win, a part after a defeat
+    const factor = this.won ? 1 : bonus.keepOnDefeat();
+    const fame = floor * 2 + r.battlesWon + (this.won ? 15 : 0);
+    const gained = addRes({ ...(r.loot ?? {}), fame }, factor);
+    const m = getMeta();
+    m.runs++; if (this.won) m.wins++; m.bestFloor = Math.max(m.bestFloor, floor);
+    saveMeta();
+    this.add.text(w / 2, 520, t(this.won ? 'runEnd.lootWon' : 'runEnd.lootLost', { pct: Math.round(factor * 100) }), textStyle(28, '#e8dcc0')).setOrigin(0.5);
+    this.add.existing(resRow(this, w / 2, 590, gained, 36, '+'));
+
+    new Button(this, w / 2 - 230, h - 110, t('runEnd.toCity'), { style: 'red', width: 400, fontSize: 28, onClick: () => this.scene.start('City') });
+    new Button(this, w / 2 + 230, h - 110, t('heroSelect.again'), { width: 400, fontSize: 28, onClick: () => this.scene.start('HeroSelect') });
     playSfx(this, this.won ? 'ev_victory_crowd' : 'cb_death_human');
     playMusic(this, 'mus_main_menu');
     setRun(null);

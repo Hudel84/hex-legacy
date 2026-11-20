@@ -4,6 +4,7 @@ import type { UnitDef } from '../battle/types';
 import { generateMap, type MapNode } from './mapgen';
 import { heroById } from './heroes';
 import { Rng } from './rng';
+import { bonus, unitUnlocked, type Res } from '../meta/meta';
 
 export const MAX_SLOTS = 3;
 export const MAX_UNIT_LEVEL = 2;
@@ -31,6 +32,7 @@ export interface RunState {
   battlesWon: number;
   pending?: { kind: 'reward'; nodeId: number } | null;
   seenEvents?: string[];
+  loot: Partial<Record<Res, number>>;
 }
 
 const KEY = 'hexlegacy.run.v1';
@@ -40,12 +42,13 @@ export function newRun(heroId: string, seed = Math.floor(Math.random() * 2 ** 31
   const hero = heroById(heroId);
   const rng = new Rng(seed);
   const biome = rng.pick(ACT1_BIOMES);
-  const share = Math.floor(hero.leadership / hero.startArmy.length);
+  const leadership = hero.leadership + bonus.leadership();
+  const share = Math.floor(leadership / hero.startArmy.length);
   return {
     version: 1, seed, rngState: seed ^ 0x51f15e, act: 1, biome,
-    heroId, atk: hero.atk, def: hero.def, leadership: hero.leadership, level: 1, xp: 0, gold: 60,
-    army: hero.startArmy.map((unitId) => ({ unitId, alloc: share, level: 0 })),
-    map: generateMap(seed), currentNode: null, visited: [], shopBuys: 0, battlesWon: 0, pending: null,
+    heroId, atk: hero.atk + bonus.atk(), def: hero.def + bonus.def(), leadership, level: 1, xp: 0, gold: 60 + bonus.startGold(),
+    army: hero.startArmy.map((unitId, i) => ({ unitId, alloc: share, level: i < bonus.smithy() ? 1 : 0 })),
+    map: generateMap(seed), currentNode: null, visited: [], shopBuys: 0, battlesWon: 0, pending: null, loot: {},
   };
 }
 
@@ -193,5 +196,20 @@ export function availableNodes(r = run()): MapNode[] {
 
 export function draftPool(faction: string, floor: number): string[] {
   const maxTier = floor < 3 ? 3 : floor < 7 ? 4 : 5;
-  return Object.values(UNITS).filter((u) => u.faction === faction && u.tier <= maxTier).map((u) => u.id);
+  return Object.values(UNITS).filter((u) => u.faction === faction && u.tier <= maxTier && unitUnlocked(u.id)).map((u) => u.id);
+}
+
+/** Meta resources found during the run (transferred to the city at the end). */
+export function addLoot(gain: Partial<Record<Res, number>>, r = run()): void {
+  r.loot ??= {};
+  for (const [k, v] of Object.entries(gain) as [Res, number][]) r.loot[k] = (r.loot[k] ?? 0) + v;
+}
+
+export function lootFor(type: string, floor: number): Partial<Record<Res, number>> {
+  switch (type) {
+    case 'boss': return { wood: 5, stone: 5, ore: 5, crystals: 4, seal: 5 };
+    case 'elite': return { wood: 2, stone: 2, ore: 3, crystals: 1, seal: 2 };
+    case 'treasure': return { wood: 3, stone: 3, ore: 1 };
+    default: return { wood: 4 + Math.floor(floor / 3), stone: 3 + Math.floor(floor / 4), seal: 1 };
+  }
 }

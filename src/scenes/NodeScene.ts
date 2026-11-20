@@ -9,6 +9,8 @@ import {
 import { eventById, type EventOutcome } from '../run/events';
 import { buildEnemy, battleConfig } from '../run/encounters';
 import { ArmyPanel } from '../ui/ArmyPanel';
+import { bonus } from '../meta/meta';
+import { addLoot, lootFor } from '../run/state';
 import { panel, titleStyle, inkStyle } from '../ui/widgets';
 import { Button } from '../ui/Button';
 
@@ -161,7 +163,7 @@ export class NodeScene extends Phaser.Scene {
 
   // ---------- shop ----------
 
-  private price(base: number): number { return base + 15 * run().shopBuys; }
+  private price(base: number): number { return Math.round((base + 15 * run().shopBuys) * (1 - bonus.shopDiscount())); }
 
   private shop(): void {
     const r = run();
@@ -181,16 +183,16 @@ export class NodeScene extends Phaser.Scene {
       { label: t('shop.def'), hint: t('shop.defHint'), price: this.price(45), enabled: r.gold >= this.price(45), action: buy(this.price(45), () => { r.def += 1; }) },
       { label: t('shop.lead'), hint: t('shop.leadHint'), price: this.price(50), enabled: r.gold >= this.price(50), action: buy(this.price(50), () => addLeadership(15)) },
       {
-        label: t('shop.upgrade'), hint: t('shop.upgradeHint'), price: 70,
-        enabled: r.gold >= 70 && r.army.some((s) => s.level < MAX_UNIT_LEVEL),
+        label: t('shop.upgrade'), hint: t('shop.upgradeHint'), price: this.price(55),
+        enabled: r.gold >= this.price(55) && r.army.some((s) => s.level < MAX_UNIT_LEVEL),
         action: () => this.chooseSlot(t('shop.upgrade'), (s) => s.level < MAX_UNIT_LEVEL, (s) => {
-          r.gold -= 70; s.level++; playSfx(this, 'ui_equip'); save(); this.shop();
+          r.gold -= this.price(55); r.shopBuys++; s.level++; playSfx(this, 'ui_equip'); save(); this.shop();
         }, () => this.shop()),
       },
     ];
     if (this.shopUnit) {
       const id = this.shopUnit;
-      const cost = 40 + unitDef(id).tier * 20;
+      const cost = Math.round((40 + unitDef(id).tier * 20) * (1 - bonus.shopDiscount()));
       const full = r.army.length >= MAX_SLOTS;
       opts.push({
         label: t('shop.unit', { unit: t(`unit.${id}`) }),
@@ -215,12 +217,13 @@ export class NodeScene extends Phaser.Scene {
         label: t('rest.upgrade'), hint: t('rest.upgradeHint'), enabled: r.army.some((s) => s.level < MAX_UNIT_LEVEL),
         action: () => this.chooseSlot(t('rest.upgrade'), (s) => s.level < MAX_UNIT_LEVEL, (s) => {
           s.level++; playSfx(this, 'ui_equip');
+          if (bonus.campLeadership()) addLeadership(bonus.campLeadership());
           this.result(t('node.rest'), t('rest.upgraded', { unit: t(`unit.${s.unitId}`) }));
         }, () => this.rest()),
       },
       {
-        label: t('rest.drill'), hint: t('rest.drillHint'),
-        action: () => { addLeadership(12); playSfx(this, 'ui_levelup'); this.result(t('node.rest'), t('rest.drilled')); },
+        label: t('rest.drill'), hint: t('rest.drillHint', { n: bonus.campDrill() }),
+        action: () => { addLeadership(bonus.campDrill() + bonus.campLeadership()); playSfx(this, 'ui_levelup'); this.result(t('node.rest'), t('rest.drilled', { n: bonus.campDrill() + bonus.campLeadership() })); },
       },
     ]);
   }
@@ -235,6 +238,7 @@ export class NodeScene extends Phaser.Scene {
     commitRng(g);
     r.gold += gold;
     if (boon) applyBoon(boon);
+    addLoot(lootFor('treasure', 6));
     playSfx(this, 'ui_reward');
     save();
     const text = t('treasure.text', { gold }) + (boon ? `\n\n${t('treasure.boon', { boon: t(`boon.${boon}`) })}` : '');

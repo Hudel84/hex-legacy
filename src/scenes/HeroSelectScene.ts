@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { t } from '../core/i18n';
 import { COLOR } from '../core/theme';
 import { HEROES } from '../run/heroes';
+import { heroUnlocked, heroUnlockText } from '../meta/meta';
 import { newRun, setRun } from '../run/state';
 import { loadRunUi, loadHeroPortrait, loadPortrait, img } from '../core/assets';
 import { card, titleStyle, textStyle } from '../ui/widgets';
@@ -38,7 +39,10 @@ export class HeroSelectScene extends Phaser.Scene {
     const { width: w } = this.scale;
     HEROES.forEach((hero, i) => {
       const x = w / 2 + (i - 1) * 420;
+      const army0 = 0; void army0;
       const army = hero.startArmy.map((u) => t(`unit.${u}`)).join(', ');
+      const unlocked = heroUnlocked(hero.id);
+      const lockInfo = heroUnlockText(hero.id);
       const c = card(this, x, 530, {
         w: 360, h: 600,
         portrait: `heroportrait_${hero.id}`,
@@ -49,14 +53,23 @@ export class HeroSelectScene extends Phaser.Scene {
           army,
         ],
         highlight: this.selected === hero.id,
+        disabled: !unlocked,
         onClick: () => { this.selected = hero.id; this.drawCards(); },
       });
+      if (!unlocked && lockInfo) {
+        const [b, lv] = lockInfo.split(':');
+        const lock = this.add.image(0, -60, 'ui_icon_lock'); lock.setScale(90 / lock.width);
+        const lt = this.add.text(0, 30, t('heroSelect.locked', { building: t(`building.${b}.name`), n: lv }),
+          { ...textStyle(22, '#ffffff', true), align: 'center', wordWrap: { width: 300 } }).setOrigin(0.5);
+        c.add([lock, lt]);
+      }
       this.cards.push(c);
     });
     void COLOR;
   }
 
   private start(): void {
+    if (!heroUnlocked(this.selected)) this.selected = HEROES[0].id;
     setRun(newRun(this.selected));
     this.scene.start('Map');
   }

@@ -4,9 +4,11 @@ import { playSfx, playMusic } from '../core/audio';
 import { img, loadRunUi, loadPortrait } from '../core/assets';
 import {
   run, save, gainXp, applyBoon, BOONS, type Boon, rng, commitRng, draftPool, nodeById, MAX_SLOTS, MAX_UNIT_LEVEL, rebalance, unitDef,
+  addLoot, lootFor,
 } from '../run/state';
+import { bonus } from '../meta/meta';
 import type { RunBattleConfig } from '../run/encounters';
-import { card, titleStyle, textStyle, stat } from '../ui/widgets';
+import { card, titleStyle, textStyle, stat, resRow } from '../ui/widgets';
 import { Button } from '../ui/Button';
 
 const BOON_ICON: Record<Boon, string> = { atk2: 'icon_atk', def2: 'icon_def', lead20: 'icon_lead', atkdef: 'icon_atk', gold60: 'icon_gold' };
@@ -16,6 +18,7 @@ export class RewardScene extends Phaser.Scene {
   private layer!: Phaser.GameObjects.Container;
   private levelUps = 0;
   private draft: string[] = [];
+  private loot: Record<string, number> = {};
 
   constructor() { super('Reward'); }
 
@@ -44,6 +47,9 @@ export class RewardScene extends Phaser.Scene {
     r.gold += this.cfg.reward.gold;
     r.battlesWon++;
     this.levelUps = gainXp(this.cfg.reward.xp);
+    const node = nodeById(this.cfg.nodeId);
+    this.loot = lootFor(node.type, node.floor) as Record<string, number>;
+    addLoot(this.loot);
     save();
     playSfx(this, 'ui_coins');
     this.summary();
@@ -57,7 +63,9 @@ export class RewardScene extends Phaser.Scene {
     this.layer.add(this.add.text(w / 2, 120, t('reward.title'), titleStyle(64)).setOrigin(0.5));
     this.layer.add(stat(this, w / 2 - 170, 260, 'icon_gold', `+${this.cfg.reward.gold}`, 40));
     this.layer.add(this.add.text(w / 2 + 60, 260, `+${this.cfg.reward.xp} XP`, textStyle(40, '#bcd8f0', true)).setOrigin(0, 0.5));
-    this.time.delayedCall(700, () => this.next());
+    this.layer.add(this.add.text(w / 2, 345, t('reward.loot'), textStyle(24, '#e8dcc0')).setOrigin(0.5));
+    this.layer.add(resRow(this, w / 2, 395, this.loot, 30, '+'));
+    this.time.delayedCall(1300, () => this.next());
   }
 
   private next(): void {
@@ -74,10 +82,10 @@ export class RewardScene extends Phaser.Scene {
     this.layer.add(this.add.text(w / 2, 120, t('reward.levelUp', { n: r.level - this.levelUps + 1 }), titleStyle(60)).setOrigin(0.5));
     this.layer.add(this.add.text(w / 2, 195, t('reward.chooseBoon'), textStyle(30)).setOrigin(0.5));
     const g = rng();
-    const opts = g.shuffle([...BOONS]).slice(0, 3);
+    const opts = g.shuffle([...BOONS]).slice(0, bonus.levelUpChoices());
     commitRng(g);
     opts.forEach((b, i) => {
-      const c = card(this, w / 2 + (i - 1) * 360, 560, {
+      const c = card(this, w / 2 + (i - (opts.length - 1) / 2) * 340, 560, {
         w: 300, h: 470, portrait: BOON_ICON[b], title: t(`boon.${b}`), subtitle: t(`boonText.${b}`),
         onClick: () => { applyBoon(b); this.levelUps--; save(); playSfx(this, 'ui_talent_pick'); this.next(); },
       });

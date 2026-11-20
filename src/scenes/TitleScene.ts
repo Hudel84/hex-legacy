@@ -6,6 +6,8 @@ import { Button } from '../ui/Button';
 import { shade } from '../ui/widgets';
 import { hasSave, loadSave } from '../run/state';
 
+let quickDone = false;
+
 export class TitleScene extends Phaser.Scene {
   private buttons: { btn: Button; key: string }[] = [];
   private versionText!: Phaser.GameObjects.Text;
@@ -47,7 +49,7 @@ export class TitleScene extends Phaser.Scene {
     if (hasSave()) items.push({ key: 'title.continue', style: 'red', action: () => { if (loadSave()) this.scene.start('Map'); } });
     items.push(
       { key: 'title.newRun', style: hasSave() ? 'wood' : 'red', action: () => this.scene.start('HeroSelect') },
-      { key: 'title.quickBattle', action: () => this.scene.start('Battle') },
+      { key: 'title.city', action: () => this.scene.start('City') },
       { key: 'title.settings', action: () => this.openModal('settings') },
       { key: 'title.credits', action: () => this.openModal('credits') },
     );
@@ -65,6 +67,8 @@ export class TitleScene extends Phaser.Scene {
     this.refreshTexts();
 
     playMusic(this, 'mus_main_menu');
+    // quick test battle is still reachable with ?quick
+    if (!quickDone && new URLSearchParams(location.search).has('quick')) { quickDone = true; this.time.delayedCall(300, () => this.scene.start('Battle')); }
 
     // modal scenes tell us when the language changed
     this.game.events.on('lang-changed', this.refreshTexts, this);

@@ -147,3 +147,19 @@ export function shade(scene: Phaser.Scene, x: number, y: number, w: number, h: n
   }
   return scene.add.image(x, y, k).setOrigin(0).setDisplaySize(w, h);
 }
+
+/** Row of resource icons with amounts, centred on x. Skips zero values unless showZero. */
+export function resRow(scene: Phaser.Scene, x: number, y: number, res: Partial<Record<string, number>>, size = 28, prefix = '', showZero = false): Phaser.GameObjects.Container {
+  const c = scene.add.container(x, y);
+  let xx = 0;
+  for (const [k, v] of Object.entries(res)) {
+    if (!v && !showZero) continue;
+    const ic = scene.add.image(xx, 0, `res_${k}`);
+    ic.setScale((size * 1.35) / Math.max(ic.width, ic.height));
+    const tx = scene.add.text(xx + size * 0.85, 0, `${prefix}${v}`, textStyle(size, '#ffffff', true)).setOrigin(0, 0.5);
+    c.add([ic, tx]);
+    xx += size * 0.85 + tx.width + size * 0.9;
+  }
+  for (const o of c.list as unknown as Phaser.GameObjects.Components.Transform[]) o.x -= (xx - size * 0.9) / 2 - size * 0.35;
+  return c;
+}
