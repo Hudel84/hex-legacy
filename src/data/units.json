@@ -789,7 +789,8 @@
     "speed": 5,
     "cost": 29,
     "sheet": "neutrals/animated/anim_neutral_hobgoblin_captain_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/neutrals/portrait_neutral_hobgoblin_captain.webp"
+    "portrait": "ui/portraits/neutrals/portrait_neutral_hobgoblin_captain.webp",
+    "faceLeft": true
   },
   "neutral_rogue_assassin": {
     "faction": "neutral",
@@ -1370,7 +1371,8 @@
       "rage"
     ],
     "sheet": "neutrals/animated/anim_neutral_cyclops_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/neutrals/portrait_neutral_cyclops.webp"
+    "portrait": "ui/portraits/neutrals/portrait_neutral_cyclops.webp",
+    "faceLeft": true
   },
   "neutral_dragon_turtle": {
     "faction": "neutral",
@@ -1495,7 +1497,8 @@
       "unlimitedRetaliation"
     ],
     "sheet": "bosses/animated/anim_boss_extra_corrupted_treant_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/bosses/portrait_boss_extra_corrupted_treant.webp"
+    "portrait": "ui/portraits/bosses/portrait_boss_extra_corrupted_treant.webp",
+    "faceLeft": true
   },
   "boss_extra_green_dragon": {
     "faction": "neutral",
