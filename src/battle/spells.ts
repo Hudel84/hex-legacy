@@ -86,8 +86,6 @@ export const FACTION_SCHOOLS: Record<Faction, School[]> = {
 /** Old school ids (saves, texts before v0.15). */
 export const OLD_SCHOOL: Record<string, School> = { mind: 'storm', death: 'dark', chaos: 'fire' };
 
-/** Interim rule until the magic talents (GDD 17.5): tiers open by act (T1 act 1, T2 act 2, T3 act 3); foreign schools up to T2. */
-export const maxTier = (act: number, native: boolean): Tier => Math.max(1, Math.min(native ? 3 : 2, act || 1)) as Tier;
 
 export const MAX_SPELL_LEVEL = 3;
 /** Spells of a foreign school can only be raised to level 2. */

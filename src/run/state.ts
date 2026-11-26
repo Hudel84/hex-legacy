@@ -3,11 +3,12 @@ import { UNITS } from '../data/units';
 import type { UnitDef } from '../battle/types';
 import { generateMap, type MapNode } from './mapgen';
 import { heroById } from './heroes';
-import { perkById, sideMods, runFactor } from './perks';
+import { perkById, sideMods, runFactor, PERKS, type PerkDef, type RunKey } from './perks';
+import { THEMES, START_THEME, MAX_THEMES, MAX_RANK, themeById, basePerkId } from './talents';
 import type { SideMods } from '../battle/mods';
 import { Rng } from './rng';
 import { bonus, unitUnlocked, FACTION_RES, type Res } from '../meta/meta';
-import { SPELLS, FACTION_SCHOOLS, MAX_SPELL_LEVEL, MAX_FOREIGN_LEVEL, SCHOOLS, maxTier, type SpellSlot, type School } from '../battle/spells';
+import { SPELLS, FACTION_SCHOOLS, MAX_SPELL_LEVEL, MAX_FOREIGN_LEVEL, type SpellSlot, type School } from '../battle/spells';
 import type { Faction } from '../battle/types';
 import { combine } from '../battle/mods';
 import { applyUpgrades, activeSynergies, synergyMods, roleOf, upgradeOffer, type SynergyDef, type UpgradeDef } from './upgrades';
@@ -50,6 +51,10 @@ export interface RunState {
   loot: Partial<Record<Res, number>>;
   talents?: string[];
   artifacts?: string[];
+  /** Hero talent themes and their ranks (v0.16, GDD 17.5). */
+  themes?: { id: string; rank: number }[];
+  /** A rank was gained, its upgrade (1 of 3 / legendary 1 of 2) is not chosen yet. */
+  pendingTalent?: { theme: string; rank: number } | null;
   power?: number;          // spell power (Zauberkraft)
   knowledge?: number;      // 10 mana per point (Wissen)
   spells?: SpellSlot[];
@@ -78,6 +83,7 @@ export function advanceAct(r = run()): void {
 
 export function newRun(heroId: string, seed = Math.floor(Math.random() * 2 ** 31)): RunState {
   const r = baseRun(heroId, seed);
+  giveStartTheme(r);
   if (bonus.extraSpell()) {
     const opts = learnable(false, r);
     if (opts.length) learnSpell(new Rng(seed ^ 0x5eed).pick(opts), r);
@@ -123,6 +129,14 @@ function migrate(r: RunState): void {
   r.battlesWon ??= 0;
   for (const s of r.army ?? []) s.level ??= 0;
   r.army = (r.army ?? []).filter((s) => !!UNITS[s.unitId]);
+  // before v0.16: no talent themes yet -> the hero gets his start theme (old talents stay)
+  if (!r.themes) giveStartTheme(r);
+}
+
+function giveStartTheme(r: RunState): void {
+  r.themes = [];
+  const th = START_THEME[r.heroId];
+  if (th) takeThemeRank(th, r, false);
 }
 
 let current: RunState | null = null;
@@ -313,23 +327,27 @@ export function grantPerk(id: string, r = run()): void {
 // ---------- magic ----------
 
 export const nativeSchools = (r = run()): School[] => FACTION_SCHOOLS[heroById(r.heroId).faction as Faction] ?? [];
+/** Highest spell tier the hero may learn in a school: magic talent rank (GDD 17.5), native schools at least T1. */
+export function schoolTier(school: School, r = run()): number {
+  const th = THEMES.find((x) => x.magic === school);
+  const rank = th ? themeRank(th.id, r) : 0;
+  return Math.max(rank, nativeSchools(r).includes(school) ? 1 : 0);
+}
 /** The one foreign school a hero may learn (the first foreign spell decides it). */
 export function foreignSchool(r = run()): School | null {
   const own = nativeSchools(r);
   for (const s of r.spells ?? []) if (SPELLS[s.id] && !own.includes(SPELLS[s.id].school)) return SPELLS[s.id].school;
   return null;
 }
+/** Spell levels: up to 3 in native schools and schools of a magic talent, otherwise 2. */
 export function spellMax(id: string, r = run()): number {
-  return nativeSchools(r).includes(SPELLS[id].school) ? MAX_SPELL_LEVEL : MAX_FOREIGN_LEVEL;
+  return schoolTier(SPELLS[id].school, r) > 0 ? MAX_SPELL_LEVEL : MAX_FOREIGN_LEVEL;
 }
 export const knows = (id: string, r = run()): boolean => !!r.spells?.some((s) => s.id === id);
-/** Spells the hero could learn: native schools, or the foreign school (only one). */
+/** Spells the hero could learn: every tier his schools allow (native T1, magic talents T1-T3). `foreign` = other schools (none since v0.16). */
 export function learnable(foreign: boolean, r = run()): string[] {
-  const own = nativeSchools(r);
-  const fs = foreignSchool(r);
-  const schools: School[] = foreign ? (fs ? [fs] : SCHOOLS.filter((x) => !own.includes(x))) : own;
-  return Object.values(SPELLS).filter((s) => schools.includes(s.school) && !knows(s.id, r)
-    && s.tier <= maxTier(r.act, own.includes(s.school))).map((s) => s.id);
+  if (foreign) return [];
+  return Object.values(SPELLS).filter((s) => s.tier <= schoolTier(s.school, r) && !knows(s.id, r)).map((s) => s.id);
 }
 export const upgradable = (r = run()): SpellSlot[] => (r.spells ?? []).filter((s) => s.level < spellMax(s.id, r));
 export function learnSpell(id: string, r = run()): void {
@@ -375,7 +393,7 @@ export function heroTotals(r = run()): { atk: number; def: number; power: number
   const e = equipStats(r);
   return {
     atk: r.atk + (e.atk ?? 0), def: r.def + (e.def ?? 0), power: (r.power ?? 0) + (e.power ?? 0),
-    knowledge: (r.knowledge ?? 0) + (e.knowledge ?? 0), lead: r.leadership + (e.lead ?? 0),
+    knowledge: (r.knowledge ?? 0) + (e.knowledge ?? 0), lead: Math.round((r.leadership + (e.lead ?? 0)) * (1 + perkFactor('leadPct', r))),
   };
 }
 
@@ -432,5 +450,61 @@ export function addConsumable(id: string, r = run()): boolean {
   r.belt[i] = id;
   return true;
 }
-export const perkFactor = (k: 'gold' | 'xp' | 'draft', r = run()): number =>
+
+// ---------- hero talent themes (v0.16, GDD 17.5) ----------
+
+export const themeRank = (id: string, r = run()): number => r.themes?.find((x) => x.id === id)?.rank ?? 0;
+
+export type LevelOption = { kind: 'rank' | 'new'; theme: string } | { kind: 'boon'; boon: Boon };
+
+/** Level-up choice (Ben 26.11.): a new rank of an own theme, or one of two new themes (Academy: more), max. MAX_THEMES themes. */
+export function levelUpOptions(g: Rng, r = run()): LevelOption[] {
+  const own = r.themes ?? [];
+  const out: LevelOption[] = own.filter((x) => x.rank < MAX_RANK).map((x) => ({ kind: 'rank' as const, theme: x.id }));
+  if (own.length < MAX_THEMES) {
+    const fresh = g.shuffle(THEMES.filter((th) => !own.some((x) => x.id === th.id)).map((th) => th.id));
+    for (const id of fresh.slice(0, Math.max(2, bonus.levelUpChoices() - 1))) out.push({ kind: 'new', theme: id });
+  }
+  if (!out.length) for (const b of g.shuffle([...BOONS]).slice(0, 3)) out.push({ kind: 'boon', boon: b });
+  return out;
+}
+
+/** Gain the next rank of a theme: base effect, magic themes unlock their tier and teach one spell of it. */
+export function takeThemeRank(theme: string, r = run(), freeSpell = true): void {
+  r.themes ??= [];
+  let e = r.themes.find((x) => x.id === theme);
+  if (!e) { e = { id: theme, rank: 0 }; r.themes.push(e); }
+  if (e.rank >= MAX_RANK) return;
+  e.rank++;
+  grantPerk(basePerkId(theme, e.rank), r);
+  const th = themeById(theme);
+  if (th?.magic && freeSpell) {
+    const opts = Object.values(SPELLS).filter((s) => s.school === th.magic && s.tier === e!.rank && !knows(s.id, r)).map((s) => s.id);
+    if (opts.length) learnSpell(new Rng((r.rngState ^ (e.rank * 7919)) >>> 0).pick(opts), r);
+  }
+  r.pendingTalent = { theme, rank: e.rank };
+}
+
+/** The upgrades on offer for a rank (rank 3: two legendary ones). */
+export function rankUpgrades(theme: string, rank: number): PerkDef[] {
+  return PERKS.filter((p) => p.theme === theme && p.upgrade && p.id.startsWith(`${theme}_r${rank}`));
+}
+
+export function chooseTalentUpgrade(perkId: string, r = run()): void {
+  grantPerk(perkId, r);
+  r.pendingTalent = null;
+}
+
+/** Summoning talent: creatures of the hero's people (tier 1 + summonTier) worth a share of the leadership. */
+export function summonFor(r = run()): { id: string; count: number } | undefined {
+  const m = playerMods(r);
+  if (m.summon <= 0) return undefined;
+  const faction = heroById(r.heroId).faction;
+  const tier = Math.min(6, 1 + m.summonTier);
+  const def = Object.values(UNITS).find((u) => u.faction === faction && u.tier === tier);
+  if (!def) return undefined;
+  return { id: def.id, count: Math.max(1, Math.floor(heroTotals(r).lead * m.summon / def.cost)) };
+}
+
+export const perkFactor = (k: RunKey, r = run()): number =>
   runFactor(owner(r), k) + (k === 'gold' ? heroById(r.heroId).runGold ?? 0 : 0);

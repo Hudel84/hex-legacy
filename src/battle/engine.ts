@@ -99,7 +99,9 @@ export class Battle {
   /** Hero mana left in this battle and whether the hero already cast a spell this round. */
   mana: Record<Side, number> = { player: 0, enemy: 0 };
   maxMana: Record<Side, number> = { player: 0, enemy: 0 };
-  castThisRound: Record<Side, boolean> = { player: false, enemy: false };
+  castThisRound: Record<Side, boolean> = { player: false, enemy: false };   // true = no more spells this round
+  private castsDone: Record<Side, number> = { player: 0, enemy: 0 };
+  private freeUsed: Record<Side, Set<string>> = { player: new Set(), enemy: new Set() };
   itemThisRound: Record<Side, boolean> = { player: false, enemy: false };
   belts: Record<Side, string[]> = { player: [], enemy: [] };
   /** Belt places used up in this battle (removed from the run afterwards). */
@@ -432,7 +434,8 @@ export class Battle {
   private strike(att: Stack, def: Stack, ranged: boolean, o: StrikeOpts = {}): BattleEvent[] {
     const am = this.sm(att);
     const crit = !o.noCrit && this.random() < this.critChance(att);
-    const raw = Math.round(this.roll(att, def, ranged, o) * (crit ? this.critMult(att) : 1));
+    const bonus = o.kind !== 'counter' && att.bonusTurn && this.activeUid === att.uid ? 1 + am.moraleDmg : 1;
+    const raw = Math.round(this.roll(att, def, ranged, o) * (crit ? this.critMult(att) : 1) * bonus);
     if (o.kind !== 'counter') att.attacks++;
     const kills = this.damage(def, raw);
     const dmg = raw - this.lastAbsorb;
@@ -508,21 +511,29 @@ export class Battle {
   }
 
   private startRound(): BattleEvent[] {
+    const ev: BattleEvent[] = [];
+    // end of the previous round: Burning (hellfire talent)
+    if (this.round >= 1) for (const side of ['player', 'enemy'] as Side[]) this.hellfireRound(side, ev);
+    if (this.winner) return ev;
     this.round++;
     for (const s of this.alive) { s.retaliated = false; s.counters = 0; s.waited = false; s.acted = false; s.started = false; s.bonusTurn = false; }
     this.queue = this.initiativeOrder();
     this.waitQueue = [];
     this.castThisRound = { player: false, enemy: false };
+    this.castsDone = { player: 0, enemy: 0 };
     this.itemThisRound = { player: false, enemy: false };
-    const ev: BattleEvent[] = [{ type: 'round', round: this.round }];
-    for (const side of ['player', 'enemy'] as Side[]) this.relicSkills(side, ev);
+    ev.push({ type: 'round', round: this.round });
+    for (const side of ['player', 'enemy'] as Side[]) {
+      this.relicSkills(side, ev);
+      this.talentRound(side, ev);
+    }
     for (const s of this.alive) if (s.def.sizeScale && s.summonRounds === undefined) this.bossSkill(s, ev);
     return ev;
   }
 
   // ---------- boss skills, relics and traps ----------
 
-  private hurt(s: Stack, dmg: number, ev: BattleEvent[], source: 'trap' | 'skill'): void {
+  private hurt(s: Stack, dmg: number, ev: BattleEvent[], source: 'trap' | 'skill' | 'decay' | 'hellfire'): void {
     const kills = this.damage(s, dmg);
     this.wardEvent(s, ev);
     ev.push({ type: 'dot', uid: s.uid, damage: dmg - this.lastAbsorb, kills, left: s.count, source });
@@ -566,8 +577,13 @@ export class Battle {
       if (!tr || tr.side === s.side) continue;
       this.traps.delete(k);
       ev.push({ type: 'trap', hex: c, side: tr.side, on: false, uid: s.uid });
-      this.hurt(s, Math.max(1, Math.round(this.hpTotal(s) * tr.share)), ev, 'trap');
+      const tm = this.mods[tr.side];
+      const dmg = Math.max(1, Math.round(this.hpTotal(s) * tr.share * (1 + tm.trapDmg)));
+      this.hurt(s, dmg, ev, 'trap');
       if (s.count > 0) this.addStatus(s, 'root', 2, 1, ev);
+      if (s.count > 0 && tm.trapPoison > 0) this.addStatus(s, 'poison', 3, Math.max(1, Math.round(dmg * 0.3)), ev);
+      if (s.count > 0 && tm.trapSlow > 0) this.addStatus(s, 'slow', 2, 1, ev);
+      if (s.count > 0 && tm.trapStun > 0 && !s.def.sizeScale) this.addStatus(s, 'stun', 1, 1, ev);
       return true;
     }
     return false;
@@ -586,6 +602,64 @@ export class Battle {
     this.queue.push(st.uid);
     ev.push({ type: 'summon', uid: st.uid });
     return true;
+  }
+
+  /** Hero talents at round start: Death and Decay, automatic healing, Summoning (GDD 17.5/17.7). */
+  private talentRound(side: Side, ev: BattleEvent[]): void {
+    const m = this.mods[side];
+    const hero = this.heroes[side];
+    const own = this.alive.filter((o) => o.side === side && o.summonRounds === undefined);
+    if (!own.length) return;
+    const skill = (name: string) => ev.push({ type: 'skill', side, name: `skill.${name}` });
+    if (hero.summon && (this.round === 1 || (this.round === 4 && m.summonTwice > 0))) {
+      const at = ev.length;
+      if (this.summonFor(side, hero.summon.id, hero.summon.count, own, ev)) ev.splice(at, 0, { type: 'skill', side, name: 'skill.summon' });
+    }
+    if (m.decay > 0) {
+      const foes = this.foesOf(side);
+      const dmg = Math.max(1, Math.round(m.decay * (1.6 + 0.6 * hero.atk + 1 * (hero.power ?? 0))));
+      if (foes.length) skill('decay');
+      for (const e of foes) {
+        const d = Math.max(1, Math.round(dmg * (1 - this.sm(e).taken)));
+        this.hurt(e, d, ev, 'decay');
+        if (e.count <= 0) continue;
+        if (m.decayWeak > 0) this.addStatus(e, 'atkDown', 2, m.decayWeak, ev, true);
+        if (m.decayArmor > 0) this.addStatus(e, 'defDown', 2, m.decayArmor, ev, true);
+        if (m.decaySlow > 0) this.addStatus(e, 'slow', 2, 1, ev, true);
+        if (m.decayPoison > 0) this.addStatus(e, 'poison', 2, Math.max(1, Math.round(d * m.decayPoison)), ev, true);
+        if (m.decayFear > 0 && this.random() < m.decayFear) this.addStatus(e, 'fear', 1, 1, ev, true);
+      }
+    }
+    if (m.autoHeal > 0) {
+      const a = own.slice().sort((x, y) => (y.startCount * y.def.hp - this.hpTotal(y)) - (x.startCount * x.def.hp - this.hpTotal(x)))[0];
+      if (a && a.startCount * a.def.hp > this.hpTotal(a)) {
+        skill('autoHeal');
+        this.spellHeal(side, a, m.autoHeal * (10 + 5 * (hero.power ?? 0)), true, ev);
+      }
+    }
+  }
+
+  /** Burning talent at round end: fire damage to the strongest enemy stack(s). */
+  private hellfireRound(side: Side, ev: BattleEvent[]): void {
+    const m = this.mods[side];
+    if (m.hellfire <= 0 || this.winner) return;
+    const hero = this.heroes[side];
+    if (!this.alive.some((o) => o.side === side && o.summonRounds === undefined)) return;
+    const targets = this.foesOf(side).sort((a, b) => this.power(b) - this.power(a)).slice(0, 1 + m.hellTargets);
+    if (!targets.length) return;
+    ev.push({ type: 'skill', side, name: 'skill.hellfire' });
+    const base = m.hellfire * (4 + 1.3 * hero.atk + 2 * (hero.power ?? 0));
+    for (const t of targets) {
+      if (t.count <= 0) continue;
+      const crit = m.hellCrit > 0 && this.random() < m.hellCrit;
+      const resist = t.def.faction === 'demon' ? 0.5 : 1;
+      const d = Math.max(1, Math.round(base * (crit ? 2 : 1) * resist * (1 - this.sm(t).taken)));
+      const near = m.hellSplash > 0 ? this.foesOf(side).filter((o) => o !== t && this.sdist(o, t) === 1) : [];
+      this.hurt(t, d, ev, 'hellfire');
+      if (t.count > 0 && m.hellBurn > 0 && !this.immune(t, 'burn')) this.addStatus(t, 'burn', 2, Math.max(1, Math.round(d * m.hellBurn)), ev, true);
+      for (const o of near) if (o.count > 0) this.hurt(o, Math.max(1, Math.round(d * m.hellSplash)), ev, 'hellfire');
+    }
+    this.checkEnd(ev);
   }
 
   /** Round-start effects of the legendary boss relics (side modifiers). */
@@ -798,7 +872,10 @@ export class Battle {
     const ev: BattleEvent[] = [];
     for (;;) {
       if (this.checkEnd(ev)) return ev;
-      if (!this.queue.length && !this.waitQueue.length) ev.push(...this.startRound());
+      if (!this.queue.length && !this.waitQueue.length) {
+        ev.push(...this.startRound());
+        if (this.checkEnd(ev)) return ev;   // round-start/-end talents can end the battle
+      }
       const uid = this.queue.length ? this.queue.shift()! : this.waitQueue.shift()!;
       const s = this.stack(uid);
       if (s.count <= 0) continue;
@@ -1055,13 +1132,13 @@ export class Battle {
   /** Can this side's hero cast a spell right now? (once per round, during one of its own stacks' turns) */
   canCast(side: Side): boolean {
     const a = this.active;
-    return !this.winner && !!a && a.side === side && !this.castThisRound[side] && this.spellbook(side).length > 0;
+    return !this.winner && !!a && a.side === side && this.castsDone[side] < 1 + this.mods[side].extraCast && this.spellbook(side).length > 0;
   }
 
   /** Stacks the spell may target now; for mass spells the stacks it would hit. [] = cannot be cast. */
   spellTargets(side: Side, id: string, scroll = false): number[] {
     const sp = SPELLS[id];
-    if (!sp || (!scroll && (!this.spellLevel(side, id) || this.mana[side] < sp.cost))) return [];
+    if (!sp || (!scroll && (!this.spellLevel(side, id) || this.mana[side] < this.spellCost(side, id)))) return [];
     const enemies = this.alive.filter((o) => o.side !== side && this.targetable(o));
     const allies = this.alive.filter((o) => o.side === side);
     const missing = (a: Stack, revive: boolean) => (revive ? a.startCount : a.count) * a.def.hp - this.hpTotal(a) > 0;
@@ -1090,6 +1167,25 @@ export class Battle {
     return list.map((x) => x.uid);
   }
 
+  /** Mana cost after talents: school cost reduction (max 80 %), the first spell of a "free" school costs nothing. */
+  spellCost(side: Side, id: string): number {
+    const sp = SPELLS[id];
+    if (!sp) return 0;
+    const m = this.mods[side];
+    if (m[`${sp.school}Free`] > 0 && !this.freeUsed[side].has(sp.school)) return 0;
+    return Math.max(1, Math.round(sp.cost * (1 - Math.min(0.8, m[`${sp.school}Cost`]))));
+  }
+  /** Talent mass upgrade of the spell's school: 'ally' spells on all allies, enemy spells on all enemies. */
+  massFor(side: Side, id: string): boolean {
+    const sp = SPELLS[id];
+    if (!sp) return false;
+    const m = this.mods[side];
+    if (sp.target === 'ally') return m[`${sp.school}MassAlly`] > 0;
+    if (sp.target === 'enemy' || sp.target === 'area') return m[`${sp.school}MassEnemy`] > 0;
+    return false;
+  }
+  castsWithoutTarget(side: Side, id: string): boolean { return noTarget(SPELLS[id]?.target ?? '') || this.massFor(side, id); }
+
   /** Stacks an area spell hits when aimed at `t`: the target and every enemy next to it. */
   areaOf(side: Side, t: Stack): Stack[] {
     return [t, ...this.alive.filter((o) => o.side !== side && o !== t && this.targetable(o) && this.sdist(o, t) === 1)];
@@ -1099,13 +1195,13 @@ export class Battle {
     if (!this.canCast(side)) return false;
     const targets = this.spellTargets(side, id);
     if (!targets.length) return false;
-    return noTarget(SPELLS[id].target) || (target !== undefined && targets.includes(target));
+    return this.castsWithoutTarget(side, id) || (target !== undefined && targets.includes(target));
   }
 
   /** Spell damage: ignores ATK/DEF and the ghosts' ethereal passive, but not elements and "damage taken" talents. */
   private spellHit(side: Side, t: Stack, spell: string, base: number, ev: BattleEvent[]): number {
     const el = SPELLS[spell].element;
-    let m = 1 + this.mods[side].spellDmg;
+    let m = 1 + this.mods[side].spellDmg + this.mods[side][`${SPELLS[spell].school}Dmg`];
     if (el === 'holy' && (t.def.undead || t.def.faction === 'demon')) m *= 1.5;
     if (el === 'death' && t.def.undead) m *= 0.5;
     if (el === 'fire' && t.def.faction === 'demon') m *= 0.5;
@@ -1121,7 +1217,7 @@ export class Battle {
   }
 
   private spellHeal(side: Side, a: Stack, amount: number, revive: boolean, ev: BattleEvent[]): number {
-    const healed = this.heal(a, Math.round(amount * (1 + this.mods[side].spellDmg)), revive);
+    const healed = this.heal(a, Math.round(amount * (1 + this.mods[side].spellDmg + this.mods[side].spellHeal)), revive);
     if (healed > 0) ev.push({ type: 'heal', uid: a.uid, amount: healed, count: a.count });
     return healed;
   }
@@ -1129,16 +1225,24 @@ export class Battle {
   /** Cast a hero spell. Does not end the active stack's turn. */
   cast(side: Side, id: string, target?: number): BattleEvent[] {
     if (!this.isLegalCast(side, id, target)) throw new Error(`illegal spell ${id} -> ${target}`);
-    this.mana[side] -= SPELLS[id].cost;
-    this.castThisRound[side] = true;
-    const ev: BattleEvent[] = [{ type: 'cast', side, spell: id, target, mana: this.mana[side] }];
-    ev.push(...this.spellEffect(side, id, target, this.spellLevel(side, id)));
+    const mass = this.massFor(side, id);
+    const all = mass ? this.spellTargets(side, id) : [];
+    const cost = this.spellCost(side, id);
+    if (cost === 0 && this.mods[side][`${SPELLS[id].school}Free`] > 0) this.freeUsed[side].add(SPELLS[id].school);
+    this.mana[side] -= cost;
+    this.castsDone[side]++;
+    this.castThisRound[side] = this.castsDone[side] >= 1 + this.mods[side].extraCast;
+    const ev: BattleEvent[] = [{ type: 'cast', side, spell: id, target: mass ? undefined : target, mana: this.mana[side] }];
+    if (mass) {
+      // talent "mass" upgrade: the spell works on every valid target (area spells hit each target once)
+      for (const uid of all) if (this.stack(uid).count > 0) ev.push(...this.spellEffect(side, id, uid, this.spellLevel(side, id), true));
+    } else ev.push(...this.spellEffect(side, id, target, this.spellLevel(side, id)));
     this.checkEnd(ev);
     return ev;
   }
 
   /** The effect of a spell at a given level (used by casting and by scrolls). */
-  private spellEffect(side: Side, id: string, target: number | undefined, lvl: number): BattleEvent[] {
+  private spellEffect(side: Side, id: string, target: number | undefined, lvl: number, single = false): BattleEvent[] {
     const n = spellNumbers(id, this.spellPower(side), lvl);
     const ev: BattleEvent[] = [];
     const t = target !== undefined ? this.stack(target) : undefined;
@@ -1162,7 +1266,7 @@ export class Battle {
         let cur: Stack | undefined = t!;
         const hit = new Set<number>();
         let mult = 1;
-        for (let i = 0; i < 3 && cur; i++) {
+        for (let i = 0; i < (single ? 1 : 3) && cur; i++) {
           hit.add(cur.uid);
           this.spellHit(side, cur, id, n.n * mult, ev);
           mult *= 0.5;
@@ -1173,10 +1277,10 @@ export class Battle {
         break;
       }
       case 'deathCloud': case 'fireball': case 'radiantBurst': case 'boulderThrow':
-        for (const v of this.areaOf(side, t!)) if (v.count > 0) this.spellHit(side, v, id, n.n, ev);
+        for (const v of single ? [t!] : this.areaOf(side, t!)) if (v.count > 0) this.spellHit(side, v, id, n.n, ev);
         break;
       case 'meteor':
-        for (const v of this.areaOf(side, t!)) {
+        for (const v of single ? [t!] : this.areaOf(side, t!)) {
           if (v.count > 0) this.spellHit(side, v, id, n.n, ev);
           if (v.count > 0 && !this.immune(v, 'burn')) this.addStatus(v, 'burn', n.t, n.b, ev, true);
         }
@@ -1205,7 +1309,7 @@ export class Battle {
         break;
       }
       case 'poisonSpores':
-        for (const v of this.areaOf(side, t!)) this.addStatus(v, 'poison', n.t, n.n, ev, true);
+        for (const v of single ? [t!] : this.areaOf(side, t!)) this.addStatus(v, 'poison', n.t, n.n, ev, true);
         break;
       case 'inferno': this.addStatus(t!, 'burn', n.t, n.n, ev, true); break;
       case 'blessing': buff(t!, 'bless', n.t, n.n); break;
@@ -1300,6 +1404,11 @@ export class Battle {
         }
         return 0;
       };
+      if (this.massFor(side, slot.id)) {
+        const sc = targets.reduce((a, u) => a + score(u), 0);
+        if (!best || sc > best.score) best = { id: slot.id, target: undefined, score: sc };
+        continue;
+      }
       const cands = noTarget(sp.target) ? [targets[0]] : targets;
       for (const uid of cands) {
         const sc = score(uid);
@@ -1308,7 +1417,7 @@ export class Battle {
     }
     if (!best) return null;
     // worth it? roughly one leadership point per mana point
-    return best.score >= SPELLS[best.id].cost ? best : null;
+    return best.score >= this.spellCost(side, best.id) ? best : null;
   }
 
   // ---------- consumables (potions and scrolls from the hero's belt) ----------

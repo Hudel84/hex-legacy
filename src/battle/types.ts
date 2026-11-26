@@ -41,6 +41,7 @@ export interface HeroStats {
   knowledge?: number;      // 10 mana per point (Wissen)
   spells?: { id: string; level: number }[];
   consumables?: string[];  // belt: consumable ids ('' = empty place)
+  summon?: { id: string; count: number };  // Summoning talent: creatures that join at battle start
 }
 
 /** One stack on the battlefield. */
@@ -79,7 +80,7 @@ export type BattleEvent =
   | { type: 'heal'; uid: number; amount: number; count: number }
   | { type: 'ability'; uid: number; ability: string; target?: number }
   | { type: 'status'; uid: number; status: StatusId; on: boolean }
-  | { type: 'dot'; uid: number; damage: number; kills: number; left: number; source?: 'thorns' | 'burn' | 'trap' | 'skill' }
+  | { type: 'dot'; uid: number; damage: number; kills: number; left: number; source?: 'thorns' | 'burn' | 'trap' | 'skill' | 'decay' | 'hellfire' }
   | { type: 'cast'; side: Side; spell: string; target?: number; mana: number }
   | { type: 'spellHit'; uid: number; spell: string; damage: number; kills: number; left: number; absorbed?: number }
   | { type: 'resist'; uid: number; status: StatusId }

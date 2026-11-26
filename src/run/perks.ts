@@ -2,6 +2,7 @@
 // battle modifiers (SideMods), one-time stat changes and run-wide factors.
 import { combine, type ModPatch, type SideMods } from '../battle/mods';
 import type { Rng } from './rng';
+import { TALENT_PERKS } from './talents';
 
 export type Rarity = 'common' | 'rare' | 'legendary';
 
@@ -17,10 +18,17 @@ export interface PerkDef {
   boss?: string;              // legendary boss relic: dropped by this boss only (never in normal offers)
   mods?: ModPatch;
   once?: { atk?: number; def?: number; lead?: number; gold?: number; power?: number; knowledge?: number };
-  run?: { gold?: number; xp?: number; draft?: number };
+  run?: Partial<Record<RunKey, number>>;
+  theme?: string;             // hero talent theme (talents.ts)
+  upgrade?: boolean;          // an upgrade of a theme rank (not its base effect)
+  legacy?: boolean;           // old talent (before v0.16), only kept for old saves
 }
 
-const T = (id: string, icon: string, rarity: Rarity, p: Partial<PerkDef>): PerkDef => ({ id, kind: 'talent', icon, rarity, ...p });
+/** Run-wide factors: gold/xp found, draft size, leadership/gold per won battle, item/consumable/artifact finds,
+ *  at least rare items, shop discount, leadership in percent. */
+export type RunKey = 'gold' | 'xp' | 'draft' | 'leadWin' | 'goldWin' | 'item' | 'cons' | 'artifact' | 'itemRare' | 'discount' | 'leadPct';
+
+const T = (id: string, icon: string, rarity: Rarity, p: Partial<PerkDef>): PerkDef => ({ id, kind: 'talent', icon, rarity, legacy: true, ...p });
 const A = (id: string, icon: string, rarity: Rarity, p: Partial<PerkDef>): PerkDef => ({ id, kind: 'artifact', icon, rarity, ...p });
 
 export const PERKS: PerkDef[] = [
@@ -181,6 +189,7 @@ export const PERKS: PerkDef[] = [
   A('magmaHeart', 'ruby_flame_prism', 'legendary', { boss: 'boss_act3_magma_wyrm', mods: { eruption: 0.08, burn: 0.15 } }),
   A('colossusCore', 'golem_core', 'legendary', { boss: 'boss_extra_stone_colossus', mods: { taken: 0.15, counters: 1, startShield: 5 } }),
   A('demonHorn', 'cursed_demon_horn', 'legendary', { boss: 'boss_extra_archdemon', mods: { imps: 1, dmg: 0.12 } }),
+  ...TALENT_PERKS,
 ];
 
 export const perkById = (id: string): PerkDef => PERKS.find((p) => p.id === id)!;
@@ -233,7 +242,7 @@ export function sideMods(o: Owner): SideMods {
   return combine(...perksOf(o).map((p) => p.mods ?? {}));
 }
 
-export function runFactor(o: Owner, k: 'gold' | 'xp' | 'draft'): number {
+export function runFactor(o: Owner, k: RunKey): number {
   return perksOf(o).reduce((a, p) => a + (p.run?.[k] ?? 0), 0);
 }
 
@@ -244,9 +253,10 @@ export function effectParts(p: PerkDef): { key: string; v: number }[] {
   for (const [k, v] of Object.entries(p.once ?? {})) if (v) out.push({ key: `eff.${k}`, v });
   for (const [k, v] of Object.entries(p.mods ?? {}) as [string, number][]) {
     if (!v) continue;
-    const flat = ['ini', 'speed', 'shots', 'counters', 'startShield', 'cooldown', 'round1Ini', 'mana', 'frost', 'markShots', 'furyMax', 'traps', 'entangle', 'raise', 'chill', 'imps'].includes(k);
+    const flat = ['ini', 'speed', 'shots', 'counters', 'startShield', 'cooldown', 'round1Ini', 'mana', 'frost', 'markShots', 'furyMax', 'traps', 'entangle', 'raise', 'chill', 'imps', 'decayWeak', 'decayArmor', 'decaySlow', 'hellTargets', 'summonTier',
+      'summonTwice', 'autoHeal', 'extraCast', 'trapPoison', 'trapSlow', 'trapStun'].includes(k) || /(Free|MassAlly|MassEnemy)$/.test(k);
     out.push({ key: `eff.${k}`, v: flat ? v : pct(v) });
   }
-  for (const [k, v] of Object.entries(p.run ?? {})) if (v) out.push({ key: `eff.run_${k}`, v: k === 'draft' ? v : pct(v) });
+  for (const [k, v] of Object.entries(p.run ?? {})) if (v) out.push({ key: `eff.run_${k}`, v: ['draft', 'leadWin', 'goldWin', 'itemRare'].includes(k) ? v : pct(v) });
   return out;
 }

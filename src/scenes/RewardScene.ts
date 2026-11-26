@@ -16,6 +16,9 @@ import { stashItem, addToBag, equipItem, bagFull, beltFull, addConsumable, slots
 import { withItemTextures, loadItemAssets, itemIcon, itemInfo, itemInfoBlock, consumableIcon, consumableName, consumableDesc, itemName } from '../ui/itemUi';
 import { setCounts } from '../run/items';
 import { offer, bossRelics, type PerkDef } from '../run/perks';
+import { levelUpOptions, takeThemeRank, rankUpgrades, chooseTalentUpgrade, themeRank, applyBoon, addLeadership } from '../run/state';
+import { levelOptionCard, themeName, rankLabel } from '../ui/talentUi';
+import { spellName } from '../ui/spellUi';
 import { perkCard, loadPerkIcons } from '../ui/perkUi';
 import { bonus } from '../meta/meta';
 import type { RunBattleConfig } from '../run/encounters';
@@ -57,8 +60,10 @@ export class RewardScene extends Phaser.Scene {
     // equipment finds (GDD 5.3): 35 % item and 15 % consumable after normal fights, elites offer an item next to artifacts
     if (node.type === 'elite') this.eliteItem = rollItem(g, globalFloor(node.floor), 'rare');
     else if (node.type !== 'boss') {
-      if (g.next() < 0.35) this.itemFind = rollItem(g, globalFloor(node.floor));
-      if (g.next() < 0.15) this.consFind = rollConsumable(g);
+      // talents (Plunder): more and better finds, sometimes an artifact
+      if (g.next() < 0.35 + perkFactor('item')) this.itemFind = rollItem(g, globalFloor(node.floor), perkFactor('itemRare') > 0 ? 'rare' : undefined);
+      if (g.next() < 0.15 + perkFactor('cons')) this.consFind = rollConsumable(g);
+      this.artifactDone = !(g.next() < perkFactor('artifact'));
     }
     if (this.treasure) {
       const gf = globalFloor(node.floor);
@@ -84,7 +89,8 @@ export class RewardScene extends Phaser.Scene {
     this.time.delayedCall(3500, () => playMusic(this, mapMusic(r.act), 2000)); // after the victory stinger
 
     // apply gold and xp once
-    r.gold += this.cfg.reward.gold + this.treasureGold;
+    r.gold += this.cfg.reward.gold + this.treasureGold + perkFactor('goldWin');
+    if (perkFactor('leadWin') > 0) addLeadership(perkFactor('leadWin'));
     r.battlesWon++;
     this.levelUps = gainXp(this.cfg.reward.xp);
     const node = nodeById(this.cfg.nodeId);
@@ -115,7 +121,7 @@ export class RewardScene extends Phaser.Scene {
     if (this.levelUps > 0) { this.levelUp(); return; }
     const node = nodeById(this.cfg.nodeId);
     if (node.type === 'boss' && !this.relicDone) { this.relicChoice(); return; }
-    if (node.type === 'elite' && !this.artifactDone) { this.artifactChoice(); return; }
+    if (node.type !== 'boss' && !this.artifactDone) { this.artifactChoice(); return; }
     if (!this.itemFind && this.extraItems.length) this.itemFind = this.extraItems.shift()!;
     if (this.itemFind) { this.showItemFind(); return; }
     if (this.consFind) { this.showConsFind(); return; }
@@ -133,23 +139,45 @@ export class RewardScene extends Phaser.Scene {
     const growth = magicGrowth(r.level - this.levelUps + 1);
     this.layer.add(this.add.text(w / 2, 188, growth ? t('reward.levelStats', { stat: t(`stat.${growth}`) }) : t('reward.levelLead'),
       textStyle(26, '#9fd0ff', true)).setOrigin(0.5));
-    const head = this.add.text(w / 2, 238, t('reward.chooseTalent'), textStyle(30)).setOrigin(0.5);
-    this.layer.add(head);
+    if (r.pendingTalent) { this.talentUpgrade(); return; }
+    this.layer.add(this.add.text(w / 2, 238, t('reward.chooseTalent'), textStyle(30)).setOrigin(0.5));
     const g = rng();
-    const opts = offer('talent', bonus.levelUpChoices(), owner(), g);
-    // sometimes the last card is a spell instead of a talent (GDD 5.5: spells from level-ups)
-    const sr = g.next() < 0.4 ? spellReward(g) : null;
+    const opts = levelUpOptions(g);
     commitRng(g);
-    const done = () => { this.levelUps--; save(); playSfx(this, 'ui_talent_pick'); this.next(); };
-    const cards: ((x: number) => Phaser.GameObjects.Container)[] = opts.map((p) => (x: number) => perkCard(this, x, 610, p, () => { grantPerk(p.id); done(); }));
-    if (sr && cards.length) {
-      const cur = r.spells?.find((s) => s.id === sr.id)?.level ?? 0;
-      const lvl = Math.min(spellMax(sr.id), cur + 1);
-      cards[cards.length - 1] = (x: number) => spellCard(this, x, 610, sr.kind, sr.id, heroTotals(r).power, lvl, () => { learnSpell(sr.id); done(); });
-      head.setText(t('reward.chooseBoon'));
-    }
-    const gap = cards.length > 3 ? 330 : 360;
-    cards.forEach((mk, i) => this.layer.add(mk(w / 2 + (i - (cards.length - 1) / 2) * gap)));
+    const gap = opts.length > 3 ? 330 : 360;
+    opts.forEach((o, i) => {
+      const x = w / 2 + (i - (opts.length - 1) / 2) * gap;
+      const cur = o.kind === 'boon' ? 0 : themeRank(o.theme);
+      this.layer.add(levelOptionCard(this, x, 620, o, cur, () => {
+        playSfx(this, 'ui_talent_pick');
+        if (o.kind === 'boon') { applyBoon(o.boon); this.levelUps--; save(); this.next(); return; }
+        const before = new Set((r.spells ?? []).map((s) => s.id));
+        takeThemeRank(o.theme);
+        save();
+        const learned = (r.spells ?? []).find((s) => !before.has(s.id));
+        if (learned) toast(this, t('talent.spellLearned', { spell: spellName(learned.id) }));
+        this.talentUpgrade();
+      }));
+    });
+  }
+
+  /** The upgrade of the rank just gained: one of three, rank 3 one of two legendary ones. */
+  private talentUpgrade(): void {
+    const { width: w } = this.scale;
+    const pt = run().pendingTalent!;
+    const opts = rankUpgrades(pt.theme, pt.rank);
+    this.clear();
+    this.layer.add(this.add.text(w / 2, 120, `${themeName(pt.theme)} · ${rankLabel(pt.rank)}`, titleStyle(56)).setOrigin(0.5));
+    this.layer.add(this.add.text(w / 2, 195, t(pt.rank === 3 ? 'talent.chooseLegendary' : 'talent.chooseUpgrade'), textStyle(30)).setOrigin(0.5));
+    opts.forEach((p, i) => {
+      this.layer.add(perkCard(this, w / 2 + (i - (opts.length - 1) / 2) * 360, 590, p, () => {
+        chooseTalentUpgrade(p.id);
+        this.levelUps--;
+        save();
+        playSfx(this, 'ui_equip');
+        this.next();
+      }));
+    });
   }
 
   private perkCards(opts: PerkDef[], pick: (p: PerkDef) => void): void {

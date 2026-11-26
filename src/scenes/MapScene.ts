@@ -1,3 +1,5 @@
+import { basePerkId } from '../run/talents';
+import { themeName, rankLabel, rankLines } from '../ui/talentUi';
 import Phaser from 'phaser';
 import { t } from '../core/i18n';
 import { COLOR } from '../core/theme';
@@ -65,6 +67,8 @@ export class MapScene extends Phaser.Scene {
     const { width: w, height: h } = this.scale;
     this.busy = false;
     // an event, rest or shrine was not finished (reload, crash): open it again
+    // a talent rank whose upgrade was not chosen yet (start talent, reload): choose it first
+    if (r.pendingTalent) { this.time.delayedCall(0, () => this.scene.start('Talent')); return; }
     const p = r.pendingNode;
     if (p && p.node === r.currentNode) { this.time.delayedCall(0, () => this.scene.start('Node', { kind: p.kind, eventId: p.eventId })); }
     else if (p) { delete r.pendingNode; save(); }
@@ -192,7 +196,34 @@ export class MapScene extends Phaser.Scene {
       });
       return y0 + 64 + Math.ceil(ids.length / 5) * 70;
     };
-    let py0 = perkGrid(t('map.talents'), r.talents ?? [], 560);
+    // talent themes: one icon per theme with its rank; tooltip = rank effects and chosen upgrades
+    const themeGrid = (y0: number): number => {
+      right.add(this.add.text(200, y0, t('map.talents'), titleStyle(24)).setOrigin(0.5, 0));
+      const themes = r.themes ?? [];
+      themes.forEach((th, i) => {
+        const x = 80 + i * 120, y = y0 + 70;
+        const p = perkById(basePerkId(th.id, 1));
+        const col = RARITY_COLOR[th.rank === 3 ? 'legendary' : th.rank === 2 ? 'rare' : 'common'];
+        const bg = this.add.graphics();
+        bg.fillStyle(0x000000, 0.45).fillRoundedRect(x - 34, y - 34, 68, 68, 10);
+        bg.lineStyle(2, Phaser.Display.Color.HexStringToColor(col).color, 1).strokeRoundedRect(x - 34, y - 34, 68, 68, 10);
+        const ic = this.add.image(x, y, perkIconKey(p)).setInteractive();
+        ic.setScale(58 / Math.max(ic.width, ic.height));
+        const lines: string[] = [];
+        for (let k = 1; k <= th.rank; k++) {
+          lines.push(`${rankLabel(k)}: ${rankLines(th.id, k).join(', ') || '–'}`);
+          for (const id of (r.talents ?? []).filter((x) => x.startsWith(`${th.id}_r${k}`) && x !== basePerkId(th.id, k))) {
+            lines.push(`  • ${t(`perk.${id}`)}: ${perkLines(perkById(id)).join(', ')}`);
+          }
+        }
+        tooltip(this, ic, `${themeName(th.id)} (${rankLabel(th.rank)})`, lines);
+        right.add([bg, ic, this.add.text(x, y + 44, rankLabel(th.rank), textStyle(15, col, true)).setOrigin(0.5, 0)]);
+      });
+      return y0 + (themes.length ? 140 : 60);
+    };
+    let py0 = themeGrid(560);
+    const legacy = (r.talents ?? []).filter((id) => perkById(id)?.legacy);
+    if (legacy.length) py0 = perkGrid(t('map.oldTalents'), legacy, py0);
     py0 = perkGrid(t('map.artifacts'), r.artifacts ?? [], py0 + 6);
     // spells with tooltips (level stars below the icon)
     const book = r.spells ?? [];

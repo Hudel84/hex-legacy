@@ -12,7 +12,7 @@ import { eventById, type EventOutcome } from '../run/events';
 import { buildEnemy, battleConfig, globalFloor } from '../run/encounters';
 import { ArmyPanel } from '../ui/ArmyPanel';
 import { bonus } from '../meta/meta';
-import { addLoot, lootFor, owner, grantPerk, learnable, learnSpell, upgradable, spellMax, spellReward } from '../run/state';
+import { addLoot, lootFor, owner, grantPerk, learnable, learnSpell, upgradable, spellMax, spellReward, perkFactor } from '../run/state';
 import { SPELLS } from '../battle/spells';
 import { rollItem, rollConsumable, sellPrice, ITEM_PRICE, ITEMS, CONSUMABLES, type ItemInst } from '../run/items';
 import { stashItem, slotsFor, bagFull, beltFull, addConsumable, sellItem, addToBag, heroFaction } from '../run/state';
@@ -33,6 +33,9 @@ interface Opt { label: string; hint?: string; price?: number; enabled?: boolean;
 const BG: Record<Exclude<Kind, 'event'>, string> = {
   shop: 'ui_node_shop_bg', rest: 'ui_node_rest_bg', treasure: 'ui_node_treasure_bg', shrine: 'ui_node_shrine_bg',
 };
+
+/** Shop discount: Marketplace (city) + Gold talent, max. 60 %. */
+const shopDiscount = (): number => Math.min(0.6, bonus.shopDiscount() + perkFactor('discount'));
 
 export class NodeScene extends Phaser.Scene {
   private kind: Kind = 'shop';
@@ -206,7 +209,7 @@ export class NodeScene extends Phaser.Scene {
 
   // ---------- shop ----------
 
-  private price(base: number): number { return Math.round((base + 15 * run().shopBuys) * (1 - bonus.shopDiscount())); }
+  private price(base: number): number { return Math.round((base + 15 * run().shopBuys) * (1 - shopDiscount())); }
 
   private shop(): void {
     const r = run();
@@ -242,7 +245,7 @@ export class NodeScene extends Phaser.Scene {
     ];
     if (this.shopUnit) {
       const id = this.shopUnit;
-      const cost = Math.round((40 + unitDef(id).tier * 20) * (1 - bonus.shopDiscount()));
+      const cost = Math.round((40 + unitDef(id).tier * 20) * (1 - shopDiscount()));
       const full = r.army.length >= MAX_SLOTS;
       opts.push({
         label: t('shop.unit', { unit: t(`unit.${id}`) }),
@@ -261,7 +264,7 @@ export class NodeScene extends Phaser.Scene {
     }
     if (this.shopArtifact) {
       const p = perkById(this.shopArtifact);
-      const cost = Math.round((p.rarity === 'legendary' ? 220 : p.rarity === 'rare' ? 150 : 110) * (1 - bonus.shopDiscount()));
+      const cost = Math.round((p.rarity === 'legendary' ? 220 : p.rarity === 'rare' ? 150 : 110) * (1 - shopDiscount()));
       opts.push({
         label: t('shop.artifact', { name: t(`perk.${p.id}`) }), hint: perkLines(p).join(' · '), price: cost, enabled: r.gold >= cost,
         action: () => { r.gold -= cost; grantPerk(p.id); this.shopArtifact = ''; playSfx(this, 'ui_buy'); save(); this.shop(); },
@@ -284,7 +287,7 @@ export class NodeScene extends Phaser.Scene {
       this.shopCons = [rollConsumable(g), rollConsumable(g)];
       commitRng(g);
     }
-    const disc = 1 - bonus.shopDiscount();
+    const disc = 1 - shopDiscount();
     const opts: Opt[] = [];
     for (const it of this.shopItems) {
       const d = ITEMS[it.id];
@@ -335,7 +338,7 @@ export class NodeScene extends Phaser.Scene {
       r.gold -= cost; fn(); playSfx(this, 'ui_buy'); save(); this.training();
     };
     // every attribute has its own price: +50 % per purchase of that attribute (Ben, 21.11.)
-    const cost = (key: string, base: number) => trainPrice(base, r.trainBuys?.[key] ?? 0, bonus.shopDiscount());
+    const cost = (key: string, base: number) => trainPrice(base, r.trainBuys?.[key] ?? 0, shopDiscount());
     const row = (key: string, base: number, fn: () => void): Opt => {
       const c = cost(key, base);
       return { label: t(`shop.${key}`), hint: t(`shop.${key}Hint`), price: c, enabled: r.gold >= c,
@@ -362,7 +365,7 @@ export class NodeScene extends Phaser.Scene {
       this.shopForeign = foreign.length && g.next() < 0.5 ? g.pick(foreign) : '';
       commitRng(g);
     }
-    const disc = 1 - bonus.shopDiscount();
+    const disc = 1 - shopDiscount();
     const opts: Opt[] = [];
     const learnOpt = (id: string, base: number, foreign: boolean): Opt => {
       const cost = Math.round((base + (foreign ? 60 : 50) * (SPELLS[id].tier - 1)) * disc); // T2/T3 cost more

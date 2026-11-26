@@ -3,7 +3,7 @@ import type { BattleSetup } from '../battle/engine';
 import type { UnitDef } from '../battle/types';
 import { Battle } from '../battle/engine';
 import type { MapNode } from './mapgen';
-import { run, rng, commitRng, count, upgradedDef, playerMods, perkFactor, heroTotals, type RunState } from './state';
+import { run, rng, commitRng, count, upgradedDef, playerMods, perkFactor, heroTotals, type RunState, summonFor } from './state';
 import { heroById } from './heroes';
 
 // Themed enemy groups for act 1. Units are picked from one group per fight.
@@ -120,7 +120,7 @@ function playerPower(r: RunState): number {
 export const TREASURE_GOBLIN = 'neutral_treasure_goblin';
 export const TREASURE_CHANCE = 0.1;
 
-export const DIFFICULTY = { base: 360, start: 0.5, perFloor: 0.075, perFloorLate: 0.09, elite: 1.1, boss: 0.55, bossEscort: 1.2, final: 1.8 };
+export const DIFFICULTY = { base: 400, start: 0.5, perFloor: 0.075, perFloorLate: 0.09, elite: 1.1, boss: 0.55, bossEscort: 1.2, final: 1.8 };
 
 /** Enemy budget factor: steep in act 1, flatter in acts 2 and 3 (the player's growth slows down there too). */
 export function curveAt(gf: number): number {
@@ -220,6 +220,7 @@ export function battleConfig(node: MapNode, enemy: EnemyArmy, rewardMul = 1): Ru
         hero: {
           atk: tot.atk, def: tot.def, power: tot.power, knowledge: tot.knowledge, spells: (r.spells ?? []).map((x) => ({ ...x })),
           consumables: (r.belt ?? []).map((x) => x ?? ''),
+          summon: summonFor(r),
         },
         mods: playerMods(r),
         army: r.army.filter((s) => count(s) > 0).map((s) => ({ def: upgradedDef(s), count: count(s) })),

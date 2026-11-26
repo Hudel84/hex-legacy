@@ -24,8 +24,9 @@ for (let i = 0; i < N; i++) {
   const hero = () => ({ atk: 1, def: 1, power: Math.floor(r() * 6), knowledge: 1 + Math.floor(r() * 5),
     spells: Array.from({ length: Math.floor(r() * 6) }, () => ({ id: SP[Math.floor(r() * SP.length)], level: 1 + Math.floor(r() * 3) }))
       .filter((x, j, a) => a.findIndex((y) => y.id === x.id) === j),
-    consumables: Array.from({ length: 3 }, () => (r() < 0.6 ? CS[Math.floor(r() * CS.length)] : '')) });
-  const mods = () => combine(...Array.from({ length: 6 }, () => PERKS[Math.floor(r() * PERKS.length)].mods ?? {}));
+    consumables: Array.from({ length: 3 }, () => (r() < 0.6 ? CS[Math.floor(r() * CS.length)] : '')),
+    summon: r() < 0.25 ? { id: ids[Math.floor(r() * ids.length)], count: 1 + Math.floor(r() * 8) } : undefined });
+  const mods = () => combine(...Array.from({ length: 9 }, () => PERKS[Math.floor(r() * PERKS.length)].mods ?? {}));
   const b = new Battle({ seed: i, obstacles: Battle.randomObstacles(i), player: { hero: hero(), army: army(), mods: mods() }, enemy: { hero: hero(), army: army(), mods: mods() } });
   let g = 0;
   try {

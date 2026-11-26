@@ -61,8 +61,20 @@ while (Date.now() - t0 < LIMIT) {
         if (!sc.auto) sc.toggleAuto();
         return 'battle';
       }
+      if (key === 'Talent') {
+        const c = sc.children.list.find((o) => o.type === 'Container' && o.listenerCount('pointerup') > 0);
+        if (!c) return 'talent-wait';
+        c.emit('pointerup');
+        return 'talent-start';
+      }
       if (key === 'Reward') {
-        if (sc.levelUps > 0) { sc.levelUps = 0; return 'reward-levelup-skip'; }
+        // level-ups (v0.16 talent themes): click the first card (new rank / new theme), then the first upgrade
+        if (sc.levelUps > 0) {
+          const c = sc.layer.list.find((o) => o.type === 'Container' && o.listenerCount('pointerup') > 0);
+          if (!c) return 'reward-wait';
+          c.emit('pointerup');
+          return 'reward-levelup ' + JSON.stringify(hexRun().themes);
+        }
         // item and consumable finds: press the first button (put on / into the belt)
         if ((sc.itemFind || sc.consFind) && sc._find !== (sc.itemFind || sc.consFind)) {
           sc._find = sc.itemFind || sc.consFind;

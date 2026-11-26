@@ -5,7 +5,7 @@ import { rollItem, rollConsumable } from '../src/run/items';
 import { offer, bossRelics } from '../src/run/perks';
 import { MAX_UNIT_LEVEL, upgradeOptions, levelUpUnit } from '../src/run/state';
 import { buildEnemy, battleConfig, DIFFICULTY, finalConfig } from '../src/run/encounters';
-import { advanceAct } from '../src/run/state';
+import { advanceAct, levelUpOptions, takeThemeRank, rankUpgrades, chooseTalentUpgrade, applyBoon } from '../src/run/state';
 import type { RunBattleConfig } from '../src/run/encounters';
 import { HEROES } from '../src/run/heroes';
 import { Rng } from '../src/run/rng';
@@ -28,6 +28,9 @@ for (let i = 0; i < RUNS; i++) {
   setRun(newRun(hero.id, 1000 + i));
   (byHero[hero.id] ??= [0, 0])[1]++;
   const pick = new Rng(77 + i);
+  const pickUpgrade = () => { const pt = run().pendingTalent; if (pt) chooseTalentUpgrade(pick.pick(rankUpgrades(pt.theme, pt.rank)).id); };
+  if (process.env.NOSTART) { const rr = run(); rr.themes = []; rr.talents = []; rr.pendingTalent = null; }   // ablation: without start talent
+  pickUpgrade();   // start talent
   let alive = true;
   while (alive) {
     const r = run();
@@ -69,9 +72,10 @@ for (let i = 0; i < RUNS; i++) {
     if (cfg.setup.enemy.army.some((a) => a.def.id === 'neutral_treasure_goblin')) goblins++;
     const ups = gainXp(cfg.reward.xp);
     for (let u = 0; u < ups && PERKS_ON; u++) {
-      const sr = MAGIC_ON && pick.next() < 0.3 ? spellReward(pick) : null;
-      if (sr) { learnSpell(sr.id); continue; }
-      const o = offer('talent', 3, owner(), pick); if (o.length) grantPerk(pick.pick(o).id);
+      // talent themes (v0.16): a new rank or a new theme, then a random upgrade
+      const o = pick.pick(levelUpOptions(pick));
+      if (o.kind === 'boon') applyBoon(o.boon);
+      else { takeThemeRank(o.theme); pickUpgrade(); }
     }
     if (ITEMS_ON) {
       if (node.type === 'elite' && pick.next() < 0.33) stashItem(rollItem(pick, node.floor, 'rare'));

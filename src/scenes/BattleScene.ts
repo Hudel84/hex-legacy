@@ -207,6 +207,7 @@ export class BattleScene extends Phaser.Scene {
     // spells that summon (Call of the Wild: dire wolves)
     const books = (['player', 'enemy'] as Side[]).flatMap((sd) => this.cfg.setup[sd].hero?.spells ?? []);
     if (books.some((x) => x.id === 'callOfTheWild')) defs.add(UNITS.neutral_dire_wolf);
+    for (const sd of ['player', 'enemy'] as Side[]) { const su = this.cfg.setup[sd].hero?.summon; if (su && UNITS[su.id]) defs.add(UNITS[su.id]); }
     if (passives.includes('voidCaller')) for (const id of ['summon_void_spawn', 'summon_void_eye_tentacle']) if (UNITS[id]) defs.add(UNITS[id]);
     for (const d of defs) {
       if (d.still) { if (!this.textures.exists(sheetKey(d))) this.load.image(sheetKey(d), A + d.still); }
@@ -251,6 +252,10 @@ export class BattleScene extends Phaser.Scene {
       for (const sc of ['light', 'mind', 'death', 'nature', 'earth', 'fire', 'lightning', 'blood']) magicSfx.push(`sp_${sc}_cast`, `sp_${sc}_impact`);
       magicSfx.push('cb_debuff');
     }
+    // talent effects without spells (Burning, Death and Decay)
+    const tm = [this.cfg.setup.player.mods, this.cfg.setup.enemy.mods];
+    if (tm.some((m) => (m?.hellfire ?? 0) > 0)) { magicImgs.push(['vfx_hit_fire_explosion', 'vfx/impacts/vfx_hit_fire_explosion']); magicSfx.push('sp_fire_impact'); }
+    if (tm.some((m) => (m?.decay ?? 0) > 0)) magicSfx.push('sp_death_impact');
     for (const [k, p] of magicImgs) if (!this.textures.exists(k)) this.load.image(k, `${A}${p}.webp`);
     for (const k of magicSfx) if (!this.cache.audio.exists(k)) this.load.audio(k, audioUrls(`audio/sfx/${k}.ogg`));
     const music = this.cfg.music ?? 'mus_battle';
@@ -837,7 +842,8 @@ export class BattleScene extends Phaser.Scene {
       const x = w / 2 - PW / 2 + 70 + (i % 2) * 540, y = top + 150 + Math.floor(i / 2) * 150;
       const targets = b.spellTargets('player', slot.id);
       const ok = targets.length > 0;
-      const reason = b.mana.player < sp.cost ? t('battle.noMana') : !ok ? t('battle.noTarget') : '';
+      const cost = b.spellCost('player', slot.id);
+      const reason = b.mana.player < cost ? t('battle.noMana') : !ok ? t('battle.noTarget') : '';
       const c = this.add.container(x, y);
       const g = this.add.graphics();
       const draw = (hover: boolean) => {
@@ -852,7 +858,7 @@ export class BattleScene extends Phaser.Scene {
       c.add(this.add.text(122, 10, `${spellName(slot.id)}  ${levelStars(slot.level)}  T${sp.tier}`, textStyle(23, SCHOOL_COLOR[sp.school], true)));
       const mi = this.add.image(470, 24, 'icon_mana'); mi.setScale(26 / mi.width);
       c.add(mi);
-      c.add(this.add.text(452, 24, String(sp.cost), textStyle(22, b.mana.player >= sp.cost ? '#9fd0ff' : '#e07a6a', true)).setOrigin(1, 0.5));
+      c.add(this.add.text(452, 24, String(cost), textStyle(22, b.mana.player >= cost ? '#9fd0ff' : '#e07a6a', true)).setOrigin(1, 0.5));
       c.add(this.add.text(122, 42, reason || spellDesc(slot.id, b.spellPower('player'), slot.level),
         { ...textStyle(18, reason ? '#e0a090' : '#efe3c8'), wordWrap: { width: 375 } }));
       if (!ok) c.setAlpha(0.55);
@@ -875,7 +881,7 @@ export class BattleScene extends Phaser.Scene {
   private chooseSpell(id: string): void {
     this.closeBook();
     const sp = SPELLS[id];
-    if (noTarget(sp.target)) { void this.castSpell(id); return; }
+    if (this.battle.castsWithoutTarget('player', id)) { void this.castSpell(id); return; }
     this.spellTargeting = id;
     this.targeting = false;
     this.hiG.clear();
@@ -1306,13 +1312,21 @@ export class BattleScene extends Phaser.Scene {
           const v = this.views.get(e.uid);
           if (v) {
             const burn = e.source === 'burn';
-            const col = burn ? 0xffa060 : e.source === 'trap' || e.source === 'thorns' ? 0xff8a70 : e.source === 'skill' ? 0x9fd0ff : 0x80ff80;
+            const col = burn ? 0xffa060 : e.source === 'trap' || e.source === 'thorns' ? 0xff8a70 : e.source === 'skill' ? 0x9fd0ff
+              : e.source === 'decay' ? 0xc9a8ff : e.source === 'hellfire' ? 0xff7a3a : 0x80ff80;
+            const hitFx = e.source === 'decay' ? 'vfx_hit_death_smoke' : e.source === 'hellfire' ? 'vfx_hit_fire_explosion' : '';
+            if (hitFx && this.textures.exists(hitFx)) {
+              const fx = this.add.image(v.box.x, v.box.y - 70, hitFx).setDepth(3000);
+              fx.setScale(160 / fx.width);
+              this.tweens.add({ targets: fx, scale: fx.scale * 1.3, alpha: 0, duration: 550, onComplete: () => fx.destroy() });
+              playSfx(this, e.source === 'decay' ? 'sp_death_impact' : 'sp_fire_impact', 0.6);
+            }
             this.floatText(e.uid, `-${e.damage}`, `#${col.toString(16).padStart(6, '0')}`);
             v.sprite.setTint(col);
             this.time.delayedCall(200, () => v.sprite.clearTint());
             this.setCount(e.uid, e.left);
             const lk = e.source === 'thorns' ? 'battle.log.thorns' : burn ? 'battle.log.burn' : e.source === 'trap' ? 'battle.log.trapDmg'
-              : e.source === 'skill' ? 'battle.log.skillDmg' : 'battle.log.poison';
+              : e.source === 'skill' || e.source === 'decay' || e.source === 'hellfire' ? 'battle.log.skillDmg' : 'battle.log.poison';
             this.log(t(lk, { a: unitName(v.stack.def), dmg: e.damage, kills: e.kills }));
             await this.wait(350);
           }
