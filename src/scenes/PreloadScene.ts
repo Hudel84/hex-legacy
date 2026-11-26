@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { FONT_TITLE, COLOR } from '../core/theme';
+import { audioUrls } from '../core/assets';
 
 const A = 'assets/';
 
@@ -35,9 +36,9 @@ export class PreloadScene extends Phaser.Scene {
     }
 
     // audio
-    this.load.audio('mus_main_menu', `${A}audio/music/mus_main_menu.ogg`);
+    this.load.audio('mus_main_menu', audioUrls('audio/music/mus_main_menu.ogg'));
     for (const k of ['ui_click', 'ui_hover', 'ui_open', 'ui_close']) {
-      this.load.audio(k, `${A}audio/sfx/${k}.ogg`);
+      this.load.audio(k, audioUrls(`audio/sfx/${k}.ogg`));
     }
   }
 

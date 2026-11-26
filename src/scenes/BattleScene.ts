@@ -13,7 +13,7 @@ import { shade } from '../ui/widgets';
 import { tooltip } from '../ui/perkUi';
 import type { RunBattleConfig } from '../run/encounters';
 import { showUnitInfo, loadAbilityIcons, ABILITY_ICON, STATUS_ICON } from '../ui/UnitInfo';
-import { loadRunUi } from '../core/assets';
+import { loadRunUi, audioUrls } from '../core/assets';
 import { SPELLS, type Element } from '../battle/spells';
 import { loadSpellIcons, spellName, spellDesc, spellIcon, levelStars, SCHOOL_COLOR } from '../ui/spellUi';
 import { panel, titleStyle, textStyle, fitWidth } from '../ui/widgets';
@@ -231,7 +231,7 @@ export class BattleScene extends Phaser.Scene {
     const sfx = ['cb_move', 'cb_fly', 'cb_hit_sword', 'cb_hit_claw', 'cb_hit_blunt', 'cb_hit_bolt', 'cb_counter', 'cb_block',
       'cb_heal', 'cb_death_human', 'cb_death_undead', 'cb_turn_start', 'sp_death_cast', 'ev_victory_crowd', 'cb_crit', 'cb_buff', 'ui_open',
       'cb_hit_arrow', 'cb_death_demon', 'cb_death_beast', 'sp_fire_cast'];
-    for (const k of sfx) if (!this.cache.audio.exists(k)) this.load.audio(k, `${A}audio/sfx/${k}.ogg`);
+    for (const k of sfx) if (!this.cache.audio.exists(k)) this.load.audio(k, audioUrls(`audio/sfx/${k}.ogg`));
     // hero magic
     const book = [...(this.cfg.setup.player.hero.spells ?? []), ...(this.cfg.setup.enemy.hero.spells ?? [])].map((x) => x.id);
     loadSpellIcons(this, book);
@@ -248,12 +248,12 @@ export class BattleScene extends Phaser.Scene {
       magicSfx.push('cb_debuff');
     }
     for (const [k, p] of magicImgs) if (!this.textures.exists(k)) this.load.image(k, `${A}${p}.webp`);
-    for (const k of magicSfx) if (!this.cache.audio.exists(k)) this.load.audio(k, `${A}audio/sfx/${k}.ogg`);
+    for (const k of magicSfx) if (!this.cache.audio.exists(k)) this.load.audio(k, audioUrls(`audio/sfx/${k}.ogg`));
     const music = this.cfg.music ?? 'mus_battle';
     const amb = this.cfg.ambient ?? 'amb_meadows';
-    if (!this.cache.audio.exists(music)) this.load.audio(music, `${A}audio/music/${music}.ogg`);
-    if (!this.cache.audio.exists(amb)) this.load.audio(amb, `${A}audio/ambient/${amb}.ogg`);
-    for (const k of ['stinger_victory', 'stinger_defeat']) if (!this.cache.audio.exists(k)) this.load.audio(k, `${A}audio/music/${k}.ogg`);
+    if (!this.cache.audio.exists(music)) this.load.audio(music, audioUrls(`audio/music/${music}.ogg`));
+    if (!this.cache.audio.exists(amb)) this.load.audio(amb, audioUrls(`audio/ambient/${amb}.ogg`));
+    for (const k of ['stinger_victory', 'stinger_defeat']) if (!this.cache.audio.exists(k)) this.load.audio(k, audioUrls(`audio/music/${k}.ogg`));
     if (this.cfg.playerHero) loadVoices(this, this.cfg.playerHero, ['battle', 'victory', 'spell']);
     this.load.once(Phaser.Loader.Events.COMPLETE, () => txt.destroy());
   }
@@ -359,11 +359,15 @@ export class BattleScene extends Phaser.Scene {
     playMusic(this, this.cfg.music ?? 'mus_battle');
     this.time.delayedCall(900, () => playVoice(this, this.cfg.playerHero, 'battle'));
     const startAmbient = () => {
-      this.ambient = this.sound.add(this.cfg.ambient ?? 'amb_meadows', { loop: true, volume: settings.sfxVolume * 0.12 });
-      this.ambient.play();
+      const amb = this.cfg.ambient ?? 'amb_meadows';
+      if (!this.sys.isActive() || this.ambient || !this.cache.audio.exists(amb)) return; // scene left or file missing
+      try {
+        this.ambient = this.sound.add(amb, { loop: true, volume: settings.sfxVolume * 0.12 });
+        this.ambient.play();
+      } catch { this.ambient = undefined; }
     };
     if (this.sound.locked) this.sound.once(Phaser.Sound.Events.UNLOCKED, startAmbient); else startAmbient();
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { this.ambient?.stop(); this.ambient?.destroy(); });
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { try { this.ambient?.stop(); this.ambient?.destroy(); } catch { /* gone */ } this.ambient = undefined; this.sound.off(Phaser.Sound.Events.UNLOCKED, startAmbient); });
 
     this.log(t('battle.help'));
     this.setButtonsEnabled(false);

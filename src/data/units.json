@@ -1454,7 +1454,8 @@
       "unlimitedRetaliation"
     ],
     "sheet": "bosses/animated/anim_elite_rune_sentinel_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/bosses/portrait_elite_rune_sentinel.webp"
+    "portrait": "ui/portraits/bosses/portrait_elite_rune_sentinel.webp",
+    "still": "bosses/elite_rune_sentinel.webp"
   },
   "elite_magma_salamander": {
     "faction": "neutral",

@@ -8,8 +8,29 @@ export const A = 'assets/';
 export function img(scene: Phaser.Scene, key: string, path: string): void {
   if (!scene.textures.exists(key)) scene.load.image(key, `${A}${path}`);
 }
+/**
+ * Audio URLs for a path like `audio/sfx/x.ogg`: OGG plus an M4A (AAC) twin.
+ * iOS/iPadOS (every browser there) and Safari get M4A first: older versions cannot play OGG at all
+ * (Phaser then skips the file and the key is missing), 17.4–18.3 only partly.
+ */
+const PREFER_M4A = (() => {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent;
+  const ios = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const safari = /Safari/.test(ua) && !/Chrome|Chromium|Edg|OPR|Firefox|Android/.test(ua);
+  return ios || safari;
+})();
+export function audioUrls(path: string): string[] {
+  const ogg = `${A}${path}`;
+  const m4a = ogg.replace(/\.ogg$/, '.m4a');
+  return PREFER_M4A ? [m4a, ogg] : [ogg, m4a];
+}
+/** Queue an audio file (OGG/M4A) if it is not loaded yet. */
+export function loadAudio(scene: Phaser.Scene, key: string, path: string): void {
+  if (!scene.cache.audio.exists(key)) scene.load.audio(key, audioUrls(path));
+}
 export function sfx(scene: Phaser.Scene, key: string, path = `audio/sfx/${key}.ogg`): void {
-  if (!scene.cache.audio.exists(key)) scene.load.audio(key, `${A}${path}`);
+  loadAudio(scene, key, path);
 }
 
 /** UI pieces, icons and sounds used by the run screens. */

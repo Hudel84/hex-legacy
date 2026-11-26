@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { A } from './assets';
+import { audioUrls } from './assets';
 import { settings } from './settings';
 
 /** Hero voice lines (ElevenLabs, EN + DE): audio/voice/vo_<lang>_<heroId>_<line>.ogg */
@@ -15,7 +15,7 @@ export function voiceKey(heroId: string, line: VoiceLine): string {
 export function loadVoices(scene: Phaser.Scene, heroId: string, lines: VoiceLine[]): void {
   for (const l of lines) {
     const k = voiceKey(heroId, l);
-    if (!scene.cache.audio.exists(k)) scene.load.audio(k, `${A}audio/voice/${k}.ogg`);
+    if (!scene.cache.audio.exists(k)) scene.load.audio(k, audioUrls(`audio/voice/${k}.ogg`));
   }
 }
 
@@ -32,7 +32,7 @@ export function playVoice(scene: Phaser.Scene, heroId: string, line: VoiceLine, 
   };
   const go = () => {
     if (scene.cache.audio.exists(k)) { play(); return; }
-    scene.load.audio(k, `${A}audio/voice/${k}.ogg`);
+    scene.load.audio(k, audioUrls(`audio/voice/${k}.ogg`));
     scene.load.once(`filecomplete-audio-${k}`, play);
     if (!scene.load.isLoading()) scene.load.start();
   };
