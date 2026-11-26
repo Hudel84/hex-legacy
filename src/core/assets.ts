@@ -46,6 +46,8 @@ export function loadRunUi(scene: Phaser.Scene): void {
   img(scene, 'icon_dmg', 'icons/stats/icon_stat_damage.webp');
   img(scene, 'icon_ini', 'icons/stats/icon_stat_initiative.webp');
   img(scene, 'icon_spd', 'icons/stats/icon_stat_speed.webp');
+  img(scene, 'icon_crit', 'icons/stats/icon_stat_luck.webp');
+  img(scene, 'icon_morale', 'icons/stats/icon_stat_morale.webp');
   for (const r of RES) img(scene, `res_${r}`, RES_ICON[r]);
   for (const k of ['ui_coins', 'ui_buy', 'ui_card_draft', 'ui_levelup', 'ui_reward', 'ui_error', 'ui_node_select', 'ui_equip', 'ui_talent_pick']) sfx(scene, k);
 }

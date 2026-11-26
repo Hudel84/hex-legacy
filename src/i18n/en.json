@@ -412,7 +412,7 @@
   "eff.vsBig": "{v}% damage against elites and bosses",
   "eff.executioner": "{v}% damage against weakened stacks",
   "eff.thorns": "Melee attackers take {v}% of their damage back",
-  "eff.crit": "{v}% chance for double damage",
+  "eff.crit": "{v}% critical chance (double damage)",
   "eff.undeadDmg": "{v}% damage against undead",
   "eff.run_gold": "{v}% gold from battles",
   "eff.run_xp": "{v}% experience",
@@ -1383,5 +1383,15 @@
   "battle.log.trapDmg": "The trap hurts {a}: {dmg} damage, {kills} fallen.",
   "battle.log.skillDmg": "{a} take {dmg} damage, {kills} fallen.",
   "passiveName.bladeDance": "Blade Dance",
-  "passive.bladeDance": "Enemies cannot strike back"
+  "passive.bladeDance": "Enemies cannot strike back",
+  "stat.crit": "Critical",
+  "stat.critDmg": "Crit. damage",
+  "stat.morale": "Morale",
+  "battle.morale": "Morale!",
+  "battle.log.morale": "Morale! {a} act once more.",
+  "eff.critDmg": "{v}% critical damage",
+  "eff.morale": "{v}% morale (chance to act twice)",
+  "upg.f_morale": "Battle Spirit",
+  "upg.f_brutal": "Brutal Blows",
+  "upg.s_banner": "Rallying Banner"
 }

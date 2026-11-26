@@ -8,7 +8,8 @@ import { heroById } from '../run/heroes';
 import { loadHeroPortrait, loadPortrait } from '../core/assets';
 import { panel, textStyle, titleStyle, stat, fitWidth } from './widgets';
 import { showUnitInfo, loadAbilityIcons } from './UnitInfo';
-import { upgradedDef, armySynergies } from '../run/state';
+import { upgradedDef, armySynergies, playerMods } from '../run/state';
+import { combine, BASE_CRIT, BASE_CRIT_DMG, BASE_MORALE } from '../battle/mods';
 import { loadSpellIcons } from './spellUi';
 import { tooltip } from './perkUi';
 import { maxMana } from '../battle/spells';
@@ -103,9 +104,14 @@ export class ArmyPanel extends Phaser.GameObjects.Container {
       c.add(g);
       // click the unit (not the +/- buttons) for details
       const hit = sc.add.zone(28 + 135, y, 270, 108).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      hit.on('pointerup', () => showUnitInfo(sc, {
-        def: upgradedDef(s), count: count(s), level: s.level, atkBonus: tot.atk, defBonus: tot.def,
-      }));
+      hit.on('pointerup', () => {
+        const ud = upgradedDef(s);
+        const m = ud.mods ? combine(playerMods(), ud.mods) : playerMods();
+        showUnitInfo(sc, {
+          def: ud, count: count(s), level: s.level, atkBonus: tot.atk, defBonus: tot.def,
+          crit: Math.min(0.65, BASE_CRIT + m.crit), critMult: BASE_CRIT_DMG + m.critDmg, morale: BASE_MORALE + m.morale,
+        });
+      });
       c.add(hit);
       const pk2 = `portrait_${s.unitId}`;
       if (sc.textures.exists(pk2)) { const p = sc.add.image(80, y, pk2); p.setDisplaySize(88, 88); c.add(p); }

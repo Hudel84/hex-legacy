@@ -625,6 +625,7 @@ export class BattleScene extends Phaser.Scene {
       atkBonus: this.battle.effAtk(st) - st.def.atk, defBonus: this.battle.effDef(st) - st.def.def,
       shots: st.shots, cooldown: st.def.active ? st.cooldown : undefined, statuses: st.statuses, level: st.def.level,
       portraitKey: portraitKey(st.def),
+      crit: this.battle.critChance(st), critMult: this.battle.critMult(st), morale: this.battle.moraleChance(st),
     });
   }
 
@@ -1257,6 +1258,17 @@ export class BattleScene extends Phaser.Scene {
           this.floatText(e.uid, '⌛', '#f3d48a');
           await this.wait(250);
           break;
+        case 'morale': {
+          const v = this.views.get(e.uid);
+          if (v) {
+            this.log(t('battle.log.morale', { a: unitName(v.stack.def) }));
+            this.floatText(e.uid, t('battle.morale'), '#ffe08a', -60);
+            playSfx(this, 'cb_buff', 0.8);
+            this.tweens.add({ targets: v.sprite, scaleX: v.sprite.scaleX * 1.08, scaleY: v.sprite.scaleY * 1.08, duration: 160, yoyo: true });
+          }
+          await this.wait(450);
+          break;
+        }
         case 'defend': {
           this.log(t('battle.log.defend', { a: unitName(this.battle.stack(e.uid).def) }));
           playSfx(this, 'cb_block');

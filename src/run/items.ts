@@ -68,7 +68,7 @@ const BONUS_POOL: { key: string; v: number; w: number }[] = [
   { key: 'atk', v: 1, w: 10 }, { key: 'def', v: 1, w: 10 }, { key: 'power', v: 1, w: 8 }, { key: 'knowledge', v: 1, w: 8 },
   { key: 'lead', v: 8, w: 8 }, { key: 'melee', v: 0.06, w: 6 }, { key: 'ranged', v: 0.06, w: 6 }, { key: 'taken', v: 0.04, w: 5 },
   { key: 'hp', v: 0.05, w: 5 }, { key: 'ini', v: 1, w: 3 }, { key: 'spellDmg', v: 0.08, w: 5 }, { key: 'mana', v: 4, w: 5 },
-  { key: 'firstStrike', v: 0.1, w: 4 }, { key: 'crit', v: 0.03, w: 3 }, { key: 'counterDmg', v: 0.1, w: 3 },
+  { key: 'firstStrike', v: 0.1, w: 4 }, { key: 'crit', v: 0.03, w: 3 }, { key: 'morale', v: 0.03, w: 3 }, { key: 'counterDmg', v: 0.1, w: 3 },
 ];
 const BONUS_MUL: Partial<Record<ItemRarity, number>> = { rare: 1, epic: 1.5, legendary: 2 };
 export const STAT_KEYS: StatKey[] = ['atk', 'def', 'power', 'knowledge', 'lead'];

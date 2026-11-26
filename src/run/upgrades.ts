@@ -38,6 +38,8 @@ export const UPGRADES: UpgradeDef[] = [
   U('f_edge', 'fighter', { dmg: 0.12 }),
   U('f_atk', 'fighter', { atk: 2 }),
   U('f_crit', 'fighter', { mods: { crit: 0.1 } }),
+  U('f_brutal', 'fighter', { mods: { critDmg: 0.5 } }),
+  U('f_morale', 'fighter', { mods: { morale: 0.1 } }),
   U('f_first', 'fighter', { mods: { firstStrike: 0.25 } }),
   U('f_lifesteal', 'fighter', { mods: { lifesteal: 0.12 } }),
   U('f_execute', 'fighter', { mods: { executioner: 0.25 } }),
@@ -80,6 +82,7 @@ export const UPGRADES: UpgradeDef[] = [
   U('s_shield', 'support', { mods: { startShield: 4 } }),
   U('s_swift', 'support', { ini: 2, speed: 1 }),
   U('s_taken', 'support', { mods: { taken: 0.08 } }),
+  U('s_banner', 'support', { mods: { morale: 0.1 } }),
   U('sc_saint', 'support', { cap: true, passive: 'regen', mods: { lifesteal: 0.08 } }),
   U('sc_marshal', 'support', { cap: true, passive: 'formation', mods: { counters: 1 } }),
 ];

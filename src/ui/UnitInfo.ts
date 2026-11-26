@@ -6,6 +6,7 @@ import Phaser from 'phaser';
 import { t } from '../core/i18n';
 import { COLOR, FONT_BODY } from '../core/theme';
 import { ABILITIES } from '../battle/engine';
+import { BASE_CRIT, BASE_CRIT_DMG, BASE_MORALE } from '../battle/mods';
 import type { UnitDef, Status } from '../battle/types';
 import { panel, titleStyle, textStyle } from './widgets';
 import { playSfx } from '../core/audio';
@@ -59,7 +60,12 @@ export interface UnitInfoData {
   level?: number;
   enemy?: boolean;
   portraitKey?: string;
+  crit?: number;        // critical chance (0..1), default: base + unit mods
+  critMult?: number;    // critical damage multiplier
+  morale?: number;      // morale chance (0..1)
 }
+
+const pctTxt = (v: number): string => `${Math.round(v * 100)}%`;
 
 /** Modal info card about a unit type / stack. Closes on any click or ESC. */
 export function showUnitInfo(scene: Phaser.Scene, o: UnitInfoData): Phaser.GameObjects.Container {
@@ -69,7 +75,7 @@ export function showUnitInfo(scene: Phaser.Scene, o: UnitInfoData): Phaser.GameO
   const dim = scene.add.rectangle(0, 0, w, h, 0x000000, 0.55).setOrigin(0).setInteractive();
   root.add(dim);
   const nPass = (d.passives?.length ?? 0) + (d.ranged ? 1 : 0) + (d.flying ? 1 : 0) + (d.mounted ? 1 : 0) + 1;
-  const PW = 900, PH = Math.min(h - 30, 760 + Math.max(0, nPass - 3) * 38 + (d.ups?.length || d.mods ? 110 : 0));
+  const PW = 900, PH = Math.min(h - 30, 822 + Math.max(0, nPass - 3) * 38 + (d.ups?.length || d.mods ? 110 : 0));
   const px = w / 2 - PW / 2, py = h / 2 - PH / 2;
   root.add(panel(scene, w / 2, h / 2, PW, PH, 'ui_panel_dark_wood', 70));
 
@@ -95,8 +101,11 @@ export function showUnitInfo(scene: Phaser.Scene, o: UnitInfoData): Phaser.GameO
     ['icon_dmg', `${d.dmg[0]}–${d.dmg[1]}`],
     ['icon_ini', `${d.ini}`],
     ['icon_spd', `${d.speed}${d.flying ? ' ✈' : ''}`],
+    ['icon_crit', `${pctTxt(o.crit ?? Math.min(0.65, BASE_CRIT + (d.mods?.crit ?? 0)))}`],
+    ['icon_crit', `×${+(o.critMult ?? BASE_CRIT_DMG + (d.mods?.critDmg ?? 0)).toFixed(2)}`],
+    ['icon_morale', `${pctTxt(o.morale ?? BASE_MORALE + (d.mods?.morale ?? 0))}`],
   ];
-  const labels = ['stat.hp', 'stat.atk', 'stat.def', 'stat.dmg', 'stat.ini', 'stat.spd'];
+  const labels = ['stat.hp', 'stat.atk', 'stat.def', 'stat.dmg', 'stat.ini', 'stat.spd', 'stat.crit', 'stat.critDmg', 'stat.morale'];
   stats.forEach(([icon, val], i) => {
     const x = px + 312 + (i % 3) * 190, y = py + 185 + Math.floor(i / 3) * 62;
     if (scene.textures.exists(icon)) { const ic = scene.add.image(x + 18, y, icon); ic.setScale(40 / Math.max(ic.width, ic.height)); root.add(ic); }
@@ -105,7 +114,7 @@ export function showUnitInfo(scene: Phaser.Scene, o: UnitInfoData): Phaser.GameO
   });
 
   // passives
-  let y = py + 330;
+  let y = py + 392;
   const passives: string[] = [];
   const race = racePassive(d);
   if (race) passives.push(`race:${race}`);

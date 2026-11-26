@@ -57,6 +57,8 @@ export interface Stack {
   defending: boolean;
   waited: boolean;
   acted: boolean;
+  started: boolean;         // start-of-turn effects (cooldown, statuses, regeneration ...) done this round
+  bonusTurn: boolean;       // morale: already had its extra action this round
   cooldown: number;         // rounds until the active ability is ready again (0 = ready)
   attacks: number;          // own attacks this battle (first-strike talents)
   counters: number;         // counter-attacks used this round
@@ -94,6 +96,8 @@ export type BattleEvent =
   | { type: 'ward'; uid: number; absorbed: number }
   | { type: 'death'; uid: number }
   | { type: 'wait'; uid: number }
+  /** Morale: the stack acts once more right away (once per round). */
+  | { type: 'morale'; uid: number }
   | { type: 'defend'; uid: number }
   | { type: 'round'; round: number }
   | { type: 'turn'; uid: number }

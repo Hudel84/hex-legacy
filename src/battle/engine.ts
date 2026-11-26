@@ -3,7 +3,7 @@
 // unit passives and active abilities with cooldowns (3.8).
 import { type Hex, key, eq, neighbors, distance, inBounds, allHexes, behind, COLS, ROWS } from './hex';
 import type { UnitDef, Stack, Side, HeroStats, BattleEvent, StatusId, Status } from './types';
-import { NO_MODS, combine, type SideMods } from './mods';
+import { NO_MODS, combine, BASE_CRIT, BASE_CRIT_DMG, BASE_MORALE, type SideMods } from './mods';
 import { SPELLS, spellNumbers, maxMana, type SpellSlot } from './spells';
 import { CONSUMABLES, SCROLL_LEVEL } from '../run/items';
 import { UNITS } from '../data/units';
@@ -151,7 +151,7 @@ export class Battle {
     const s: Stack = {
       uid: this.nextUid++, def, side, count, startCount: count, topHp: def.hp, pos,
       shots: def.ranged ?? 0, retaliated: false, defending: false, waited: false, acted: false,
-      cooldown: 0, statuses: [], attacks: 0, counters: 0,
+      started: false, bonusTurn: false, cooldown: 0, statuses: [], attacks: 0, counters: 0,
     };
     if (m !== base) this.unitMods.set(s.uid, m);
     this.stacks.push(s);
@@ -222,6 +222,20 @@ export class Battle {
     return false;
   }
   private lightFooted(s: Stack): boolean { return s.def.faction === 'elf' && !s.def.wide; }
+
+  /** Critical chance (5 % base + modifiers, max 65 %) and damage multiplier (x2 + modifiers). */
+  critChance(s: Stack): number { return Math.min(0.65, BASE_CRIT + this.sm(s).crit); }
+  critMult(s: Stack): number { return BASE_CRIT_DMG + this.sm(s).critDmg; }
+  /** Morale: chance for one extra action right after the stack's turn (5 % base + modifiers). */
+  moraleChance(s: Stack): number { return Math.max(0, Math.min(1, BASE_MORALE + this.sm(s).morale)); }
+  /** After an action (not wait/defend): roll morale; on success the stack acts again at once (max once per round). */
+  private rollMorale(s: Stack, ev: BattleEvent[]): void {
+    if (s.count <= 0 || s.bonusTurn || this.hasStatus(s, 'stun')) return;
+    if (this.random() >= this.moraleChance(s)) return;
+    s.bonusTurn = true;
+    this.queue.unshift(s.uid);
+    ev.push({ type: 'morale', uid: s.uid });
+  }
 
   /** Disembodied ghosts cannot be attacked. */
   targetable(s: Stack): boolean { return s.count > 0 && !this.hasStatus(s, 'disembodied'); }
@@ -418,8 +432,8 @@ export class Battle {
 
   private strike(att: Stack, def: Stack, ranged: boolean, o: StrikeOpts = {}): BattleEvent[] {
     const am = this.sm(att);
-    const crit = !o.noCrit && am.crit > 0 && this.random() < am.crit;
-    const raw = this.roll(att, def, ranged, o) * (crit ? 2 : 1);
+    const crit = !o.noCrit && this.random() < this.critChance(att);
+    const raw = Math.round(this.roll(att, def, ranged, o) * (crit ? this.critMult(att) : 1));
     if (o.kind !== 'counter') att.attacks++;
     const kills = this.damage(def, raw);
     const dmg = raw - this.lastAbsorb;
@@ -496,7 +510,7 @@ export class Battle {
 
   private startRound(): BattleEvent[] {
     this.round++;
-    for (const s of this.alive) { s.retaliated = false; s.counters = 0; s.waited = false; s.acted = false; }
+    for (const s of this.alive) { s.retaliated = false; s.counters = 0; s.waited = false; s.acted = false; s.started = false; s.bonusTurn = false; }
     this.queue = this.initiativeOrder();
     this.waitQueue = [];
     this.castThisRound = { player: false, enemy: false };
@@ -790,7 +804,12 @@ export class Battle {
       const s = this.stack(uid);
       if (s.count <= 0) continue;
       this.activeUid = uid;
-      if (!this.turnStart(s, ev)) { this.activeUid = -1; continue; }
+      // start-of-turn effects only once per round: waiting or a morale bonus turn must not
+      // tick cooldowns, statuses, poison or regeneration a second time
+      if (!s.started) {
+        s.started = true;
+        if (!this.turnStart(s, ev)) { this.activeUid = -1; continue; }
+      }
       ev.push({ type: 'turn', uid });
       return ev;
     }
@@ -1439,7 +1458,7 @@ export class Battle {
     }
     s.acted = true;
     this.activeUid = -1;
-    this.checkEnd(ev);
+    if (!this.checkEnd(ev) && a.type !== 'defend') this.rollMorale(s, ev);
     return ev;
   }
 

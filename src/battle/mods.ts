@@ -22,7 +22,9 @@ export interface SideMods {
   vsBig: number;        // damage against elites and bosses
   executioner: number;  // damage against stacks below half of their starting size
   thorns: number;       // melee attackers take this share of the damage they dealt
-  crit: number;         // chance for double damage
+  crit: number;         // extra critical chance (every unit has BASE_CRIT on top)
+  critDmg: number;      // extra critical damage multiplier (0.5 = x2.5 instead of x2)
+  morale: number;       // extra morale: chance for a second action in the round (every unit has BASE_MORALE)
   undeadDmg: number;    // damage against undead
   spellDmg: number;     // hero spell damage and healing
   mana: number;         // extra mana per battle (flat)
@@ -45,10 +47,15 @@ export interface SideMods {
 export const NO_MODS: SideMods = {
   dmg: 0, melee: 0, ranged: 0, taken: 0, hp: 0, ini: 0, speed: 0, shots: 0, counterDmg: 0, counters: 0,
   splitShot: 0, firstStrike: 0, regen: 0, lifesteal: 0, startShield: 0, poison: 0, cooldown: 0, round1Ini: 0,
-  vsBig: 0, executioner: 0, thorns: 0, crit: 0, undeadDmg: 0, spellDmg: 0, mana: 0,
+  vsBig: 0, executioner: 0, thorns: 0, crit: 0, critDmg: 0, morale: 0, undeadDmg: 0, spellDmg: 0, mana: 0,
   burn: 0, frost: 0, markShots: 0, furyMax: 0, pierceDef: 0,
   traps: 0, entangle: 0, breath: 0, regrow: 0, raise: 0, chill: 0, eruption: 0, imps: 0,
 };
+
+/** Every unit: 5 % critical chance (x2 damage) and 5 % morale (GDD 17.1/17.2). */
+export const BASE_CRIT = 0.05;
+export const BASE_CRIT_DMG = 2;
+export const BASE_MORALE = 0.05;
 
 export type ModPatch = Partial<SideMods>;
 

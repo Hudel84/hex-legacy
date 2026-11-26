@@ -412,7 +412,7 @@
   "eff.vsBig": "{v} % Schaden gegen Eliten und Bosse",
   "eff.executioner": "{v} % Schaden gegen geschwächte Stapel",
   "eff.thorns": "Nahkämpfer erleiden {v} % ihres Schadens selbst",
-  "eff.crit": "{v} % Chance auf doppelten Schaden",
+  "eff.crit": "{v} % kritische Trefferchance (doppelter Schaden)",
   "eff.undeadDmg": "{v} % Schaden gegen Untote",
   "eff.run_gold": "{v} % Gold aus Kämpfen",
   "eff.run_xp": "{v} % Erfahrung",
@@ -1383,5 +1383,15 @@
   "battle.log.trapDmg": "Die Falle verletzt {a}: {dmg} Schaden, {kills} gefallen.",
   "battle.log.skillDmg": "{a} erleiden {dmg} Schaden, {kills} gefallen.",
   "passiveName.bladeDance": "Klingentanz",
-  "passive.bladeDance": "Gegner können nicht kontern"
+  "passive.bladeDance": "Gegner können nicht kontern",
+  "stat.crit": "Kritisch",
+  "stat.critDmg": "Kritschaden",
+  "stat.morale": "Moral",
+  "battle.morale": "Moral!",
+  "battle.log.morale": "Moral! {a} handeln noch einmal.",
+  "eff.critDmg": "{v} % kritischer Schaden",
+  "eff.morale": "{v} % Moral (Chance auf zweite Aktion)",
+  "upg.f_morale": "Kampfgeist",
+  "upg.f_brutal": "Brutale Hiebe",
+  "upg.s_banner": "Sammelbanner"
 }
