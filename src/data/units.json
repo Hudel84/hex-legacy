@@ -35,7 +35,8 @@
     "cost": 10,
     "ranged": 10,
     "passives": [
-      "pierce"
+      "pierce",
+      "steadyAim"
     ],
     "sheet": "units/animated/anim_human_t2_crossbowman_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/units/portrait_human_t2_crossbowman.webp",
@@ -99,7 +100,8 @@
     "cost": 45,
     "flying": true,
     "passives": [
-      "noRetaliation"
+      "noRetaliation",
+      "skyKnight"
     ],
     "sheet": "units/animated/anim_human_t5_griffin_rider_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/units/portrait_human_t5_griffin_rider.webp",
@@ -279,7 +281,10 @@
     "speed": 5,
     "cost": 3,
     "sheet": "neutrals/animated/anim_neutral_giant_rat_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/neutrals/portrait_neutral_giant_rat.webp"
+    "portrait": "ui/portraits/neutrals/portrait_neutral_giant_rat.webp",
+    "passives": [
+      "vermin"
+    ]
   },
   "neutral_goblin_raider": {
     "faction": "neutral",
@@ -295,7 +300,10 @@
     "speed": 5,
     "cost": 4,
     "sheet": "neutrals/animated/anim_neutral_goblin_raider_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/neutrals/portrait_neutral_goblin_raider.webp"
+    "portrait": "ui/portraits/neutrals/portrait_neutral_goblin_raider.webp",
+    "passives": [
+      "ambush"
+    ]
   },
   "neutral_bandit_thug": {
     "faction": "neutral",
@@ -311,7 +319,10 @@
     "speed": 4,
     "cost": 5,
     "sheet": "neutrals/animated/anim_neutral_bandit_thug_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/neutrals/portrait_neutral_bandit_thug.webp"
+    "portrait": "ui/portraits/neutrals/portrait_neutral_bandit_thug.webp",
+    "passives": [
+      "dirtyFighting"
+    ]
   },
   "neutral_kobold_trapper": {
     "faction": "neutral",
@@ -328,7 +339,10 @@
     "cost": 5,
     "ranged": 8,
     "sheet": "neutrals/animated/anim_neutral_kobold_trapper_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/neutrals/portrait_neutral_kobold_trapper.webp"
+    "portrait": "ui/portraits/neutrals/portrait_neutral_kobold_trapper.webp",
+    "passives": [
+      "sneakyShots"
+    ]
   },
   "neutral_bandit_archer": {
     "faction": "neutral",
@@ -345,7 +359,10 @@
     "cost": 10,
     "ranged": 10,
     "sheet": "neutrals/animated/anim_neutral_bandit_archer_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/neutrals/portrait_neutral_bandit_archer.webp"
+    "portrait": "ui/portraits/neutrals/portrait_neutral_bandit_archer.webp",
+    "passives": [
+      "quickDraw"
+    ]
   },
   "neutral_dire_wolf": {
     "faction": "neutral",
@@ -361,7 +378,10 @@
     "speed": 7,
     "cost": 12,
     "sheet": "neutrals/animated/anim_neutral_dire_wolf_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/neutrals/portrait_neutral_dire_wolf.webp"
+    "portrait": "ui/portraits/neutrals/portrait_neutral_dire_wolf.webp",
+    "passives": [
+      "packHunter"
+    ]
   },
   "neutral_wild_boar": {
     "faction": "neutral",
@@ -377,7 +397,10 @@
     "speed": 5,
     "cost": 12,
     "sheet": "neutrals/animated/anim_neutral_wild_boar_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/neutrals/portrait_neutral_wild_boar.webp"
+    "portrait": "ui/portraits/neutrals/portrait_neutral_wild_boar.webp",
+    "passives": [
+      "goringCharge"
+    ]
   },
   "neutral_acid_slime": {
     "faction": "neutral",
@@ -395,7 +418,8 @@
     "sheet": "neutrals/animated/anim_neutral_acid_slime_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_acid_slime.webp",
     "passives": [
-      "corrode"
+      "corrode",
+      "slimy"
     ]
   },
   "neutral_cultist": {
@@ -413,7 +437,10 @@
     "cost": 14,
     "ranged": 6,
     "sheet": "neutrals/animated/anim_neutral_cultist_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/neutrals/portrait_neutral_cultist.webp"
+    "portrait": "ui/portraits/neutrals/portrait_neutral_cultist.webp",
+    "passives": [
+      "fanatic"
+    ]
   },
   "neutral_will_o_wisps": {
     "faction": "neutral",
@@ -430,7 +457,8 @@
     "cost": 14,
     "flying": true,
     "passives": [
-      "ethereal"
+      "ethereal",
+      "flicker"
     ],
     "sheet": "neutrals/animated/anim_neutral_will_o_wisps_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_will_o_wisps.webp"
@@ -450,7 +478,10 @@
     "cost": 20,
     "ranged": 8,
     "sheet": "neutrals/animated/anim_neutral_gnoll_hunter_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/neutrals/portrait_neutral_gnoll_hunter.webp"
+    "portrait": "ui/portraits/neutrals/portrait_neutral_gnoll_hunter.webp",
+    "passives": [
+      "scavenger"
+    ]
   },
   "neutral_giant_spider": {
     "faction": "neutral",
@@ -468,7 +499,8 @@
     "sheet": "neutrals/animated/anim_neutral_giant_spider_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_giant_spider.webp",
     "passives": [
-      "poisonHit"
+      "poisonHit",
+      "lurker"
     ]
   },
   "neutral_animated_armor": {
@@ -487,7 +519,8 @@
     "sheet": "neutrals/animated/anim_neutral_animated_armor_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_animated_armor.webp",
     "passives": [
-      "construct"
+      "construct",
+      "steelShell"
     ],
     "still": "neutrals/neutral_animated_armor.webp"
   },
@@ -508,7 +541,8 @@
     "sheet": "neutrals/animated/anim_neutral_hedge_mage_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_hedge_mage.webp",
     "passives": [
-      "curseHit"
+      "curseHit",
+      "arcaneFocus"
     ]
   },
   "neutral_cave_bear": {
@@ -525,7 +559,10 @@
     "speed": 5,
     "cost": 25,
     "sheet": "neutrals/animated/anim_neutral_cave_bear_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/neutrals/portrait_neutral_cave_bear.webp"
+    "portrait": "ui/portraits/neutrals/portrait_neutral_cave_bear.webp",
+    "passives": [
+      "mauling"
+    ]
   },
   "neutral_treant": {
     "faction": "neutral",
@@ -543,7 +580,8 @@
     "sheet": "neutrals/animated/anim_neutral_treant_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_treant.webp",
     "passives": [
-      "regen"
+      "regen",
+      "deepRoots"
     ]
   },
   "elite_bandit_captain": {
@@ -561,7 +599,10 @@
     "cost": 100,
     "sizeScale": 1.3,
     "sheet": "bosses/animated/anim_elite_bandit_captain_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/bosses/portrait_elite_bandit_captain.webp"
+    "portrait": "ui/portraits/bosses/portrait_elite_bandit_captain.webp",
+    "passives": [
+      "rallyingCry"
+    ]
   },
   "elite_giant_spider": {
     "faction": "neutral",
@@ -580,7 +621,8 @@
     "sheet": "bosses/animated/anim_elite_giant_spider_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/bosses/portrait_elite_giant_spider.webp",
     "passives": [
-      "poisonHit"
+      "poisonHit",
+      "lurker"
     ]
   },
   "elite_minotaur": {
@@ -600,7 +642,8 @@
     "sheet": "bosses/animated/anim_elite_minotaur_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/bosses/portrait_elite_minotaur.webp",
     "passives": [
-      "rage"
+      "rage",
+      "labyrinthFury"
     ]
   },
   "boss_act1_bandit_king": {
@@ -640,7 +683,8 @@
     "cost": 7,
     "flying": true,
     "passives": [
-      "lifesteal"
+      "lifesteal",
+      "echolocation"
     ],
     "sheet": "neutrals/animated/anim_neutral_giant_bat_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_giant_bat.webp"
@@ -679,7 +723,10 @@
     "cost": 10,
     "undead": true,
     "sheet": "neutrals/animated/anim_neutral_skeleton_pirate_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/neutrals/portrait_neutral_skeleton_pirate.webp"
+    "portrait": "ui/portraits/neutrals/portrait_neutral_skeleton_pirate.webp",
+    "passives": [
+      "cutthroat"
+    ]
   },
   "neutral_lizardman_warrior": {
     "faction": "neutral",
@@ -696,7 +743,10 @@
     "cost": 12,
     "sheet": "neutrals/animated/anim_neutral_lizardman_warrior_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_lizardman_warrior.webp",
-    "faceLeft": true
+    "faceLeft": true,
+    "passives": [
+      "coldBlooded"
+    ]
   },
   "neutral_harpy": {
     "faction": "neutral",
@@ -713,7 +763,8 @@
     "cost": 12,
     "flying": true,
     "passives": [
-      "noRetaliation"
+      "noRetaliation",
+      "swoop"
     ],
     "sheet": "neutrals/animated/anim_neutral_harpy_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_harpy.webp",
@@ -734,7 +785,10 @@
     "cost": 13,
     "flying": true,
     "sheet": "neutrals/animated/anim_neutral_harpy_v2_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/neutrals/portrait_neutral_harpy_v2.webp"
+    "portrait": "ui/portraits/neutrals/portrait_neutral_harpy_v2.webp",
+    "passives": [
+      "shrillCry"
+    ]
   },
   "neutral_satyr_piper": {
     "faction": "neutral",
@@ -751,7 +805,8 @@
     "cost": 12,
     "ranged": 6,
     "passives": [
-      "curseHit"
+      "curseHit",
+      "merryTune"
     ],
     "sheet": "neutrals/animated/anim_neutral_satyr_piper_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_satyr_piper.webp"
@@ -770,7 +825,8 @@
     "speed": 5,
     "cost": 29,
     "passives": [
-      "rage"
+      "rage",
+      "tusks"
     ],
     "sheet": "neutrals/animated/anim_neutral_boar_beastman_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_boar_beastman.webp"
@@ -790,7 +846,10 @@
     "cost": 29,
     "sheet": "neutrals/animated/anim_neutral_hobgoblin_captain_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_hobgoblin_captain.webp",
-    "faceLeft": true
+    "faceLeft": true,
+    "passives": [
+      "drillmaster"
+    ]
   },
   "neutral_rogue_assassin": {
     "faction": "neutral",
@@ -806,7 +865,8 @@
     "speed": 6,
     "cost": 29,
     "passives": [
-      "noRetaliation"
+      "noRetaliation",
+      "backstab"
     ],
     "sheet": "neutrals/animated/anim_neutral_rogue_assassin_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_rogue_assassin.webp"
@@ -825,7 +885,8 @@
     "speed": 3,
     "cost": 29,
     "passives": [
-      "poisonHit"
+      "poisonHit",
+      "surprise"
     ],
     "sheet": "neutrals/animated/anim_neutral_mimic_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_mimic.webp"
@@ -845,7 +906,8 @@
     "cost": 31,
     "flying": true,
     "passives": [
-      "construct"
+      "construct",
+      "stoneHide"
     ],
     "sheet": "neutrals/animated/anim_neutral_stone_gargoyle_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_stone_gargoyle.webp"
@@ -864,7 +926,8 @@
     "speed": 4,
     "cost": 29,
     "passives": [
-      "poisonHit"
+      "poisonHit",
+      "sporeBody"
     ],
     "sheet": "neutrals/animated/anim_neutral_myconid_brute_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_myconid_brute.webp"
@@ -884,7 +947,8 @@
     "cost": 31,
     "ranged": 6,
     "passives": [
-      "curseHit"
+      "curseHit",
+      "witchcraft"
     ],
     "sheet": "neutrals/animated/anim_neutral_bog_witch_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_bog_witch.webp"
@@ -904,7 +968,8 @@
     "cost": 31,
     "undead": true,
     "passives": [
-      "curseHit"
+      "curseHit",
+      "embalmed"
     ],
     "sheet": "neutrals/animated/anim_neutral_mummy_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_mummy.webp"
@@ -924,7 +989,8 @@
     "cost": 31,
     "flying": true,
     "passives": [
-      "corrode"
+      "corrode",
+      "peck"
     ],
     "sheet": "neutrals/animated/anim_neutral_cockatrice_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_cockatrice.webp"
@@ -943,7 +1009,8 @@
     "speed": 5,
     "cost": 31,
     "passives": [
-      "poisonHit"
+      "poisonHit",
+      "stingerCarapace"
     ],
     "sheet": "neutrals/animated/anim_neutral_giant_scorpion_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_giant_scorpion.webp"
@@ -982,7 +1049,10 @@
     "speed": 5,
     "cost": 52,
     "sheet": "neutrals/animated/anim_neutral_bandit_chieftain_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/neutrals/portrait_neutral_bandit_chieftain.webp"
+    "portrait": "ui/portraits/neutrals/portrait_neutral_bandit_chieftain.webp",
+    "passives": [
+      "ringleader"
+    ]
   },
   "neutral_owlbear": {
     "faction": "neutral",
@@ -998,7 +1068,8 @@
     "speed": 5,
     "cost": 52,
     "passives": [
-      "rage"
+      "rage",
+      "ferocity"
     ],
     "sheet": "neutrals/animated/anim_neutral_owlbear_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_owlbear.webp"
@@ -1017,7 +1088,8 @@
     "speed": 7,
     "cost": 52,
     "passives": [
-      "lifesteal"
+      "lifesteal",
+      "bloodMoon"
     ],
     "sheet": "neutrals/animated/anim_neutral_werewolf_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_werewolf.webp"
@@ -1038,7 +1110,10 @@
     "ranged": 10,
     "mounted": true,
     "sheet": "neutrals/animated/anim_neutral_centaur_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/neutrals/portrait_neutral_centaur.webp"
+    "portrait": "ui/portraits/neutrals/portrait_neutral_centaur.webp",
+    "passives": [
+      "steppeArcher"
+    ]
   },
   "neutral_cave_troll": {
     "faction": "neutral",
@@ -1054,7 +1129,8 @@
     "speed": 4,
     "cost": 55,
     "passives": [
-      "regen"
+      "regen",
+      "trollHide"
     ],
     "sheet": "neutrals/animated/anim_neutral_cave_troll_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_cave_troll.webp"
@@ -1073,7 +1149,8 @@
     "speed": 5,
     "cost": 55,
     "passives": [
-      "poisonHit"
+      "poisonHit",
+      "serpentStrike"
     ],
     "sheet": "neutrals/animated/anim_neutral_naga_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_naga.webp"
@@ -1156,7 +1233,8 @@
     "speed": 5,
     "cost": 55,
     "passives": [
-      "frostHit"
+      "frostHit",
+      "thunderRoar"
     ],
     "sheet": "neutrals/animated/anim_neutral_yeti_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_yeti.webp"
@@ -1216,7 +1294,8 @@
     "speed": 5,
     "cost": 52,
     "passives": [
-      "construct"
+      "construct",
+      "tidalSurge"
     ],
     "sheet": "neutrals/animated/anim_neutral_water_elemental_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_water_elemental.webp"
@@ -1235,7 +1314,8 @@
     "speed": 4,
     "cost": 72,
     "passives": [
-      "frostHit"
+      "frostHit",
+      "deadlyGaze"
     ],
     "sheet": "neutrals/animated/anim_neutral_basilisk_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_basilisk.webp"
@@ -1255,7 +1335,8 @@
     "cost": 75,
     "flying": true,
     "passives": [
-      "poisonHit"
+      "poisonHit",
+      "tailSpikes"
     ],
     "sheet": "neutrals/animated/anim_neutral_manticore_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_manticore.webp"
@@ -1275,7 +1356,8 @@
     "cost": 78,
     "flying": true,
     "passives": [
-      "burnHit"
+      "burnHit",
+      "threeHeads"
     ],
     "sheet": "neutrals/animated/anim_neutral_chimera_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_chimera.webp"
@@ -1294,7 +1376,8 @@
     "speed": 5,
     "cost": 75,
     "passives": [
-      "unlimitedRetaliation"
+      "unlimitedRetaliation",
+      "twoHeads"
     ],
     "sheet": "neutrals/animated/anim_neutral_ettin_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_ettin.webp"
@@ -1313,7 +1396,8 @@
     "speed": 5,
     "cost": 78,
     "passives": [
-      "corrode"
+      "corrode",
+      "devour"
     ],
     "sheet": "neutrals/animated/anim_neutral_sand_wurm_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_sand_wurm.webp"
@@ -1332,7 +1416,8 @@
     "speed": 4,
     "cost": 75,
     "passives": [
-      "construct"
+      "construct",
+      "mossCover"
     ],
     "sheet": "neutrals/animated/anim_neutral_moss_stone_golem_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_moss_stone_golem.webp"
@@ -1352,7 +1437,10 @@
     "cost": 78,
     "mounted": true,
     "sheet": "neutrals/animated/anim_neutral_black_knight_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/neutrals/portrait_neutral_black_knight.webp"
+    "portrait": "ui/portraits/neutrals/portrait_neutral_black_knight.webp",
+    "passives": [
+      "darkChampion"
+    ]
   },
   "neutral_cyclops": {
     "faction": "neutral",
@@ -1368,7 +1456,8 @@
     "speed": 5,
     "cost": 104,
     "passives": [
-      "rage"
+      "rage",
+      "crushingBlow"
     ],
     "sheet": "neutrals/animated/anim_neutral_cyclops_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_cyclops.webp",
@@ -1409,7 +1498,8 @@
     "cost": 110,
     "flying": true,
     "passives": [
-      "burnHit"
+      "burnHit",
+      "blazingFlight"
     ],
     "sheet": "neutrals/animated/anim_neutral_phoenix_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_phoenix.webp"
@@ -1430,7 +1520,8 @@
     "flying": true,
     "sizeScale": 1.3,
     "passives": [
-      "poisonHit"
+      "poisonHit",
+      "wyvernStrike"
     ],
     "sheet": "bosses/animated/anim_elite_bog_wyvern_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/bosses/portrait_elite_bog_wyvern.webp"
@@ -1472,7 +1563,8 @@
     "cost": 115,
     "sizeScale": 1.3,
     "passives": [
-      "burnHit"
+      "burnHit",
+      "moltenHide"
     ],
     "sheet": "bosses/animated/anim_elite_magma_salamander_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/bosses/portrait_elite_magma_salamander.webp"
@@ -1698,7 +1790,10 @@
     "speed": 6,
     "cost": 25,
     "sheet": "bosses/animated/anim_summon_void_spawn_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/bosses/portrait_summon_void_spawn.webp"
+    "portrait": "ui/portraits/bosses/portrait_summon_void_spawn.webp",
+    "passives": [
+      "voidHunger"
+    ]
   },
   "summon_void_eye_tentacle": {
     "faction": "neutral",
@@ -1715,7 +1810,10 @@
     "cost": 35,
     "ranged": 10,
     "sheet": "bosses/animated/anim_summon_void_eye_tentacle_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/bosses/portrait_summon_void_eye_tentacle.webp"
+    "portrait": "ui/portraits/bosses/portrait_summon_void_eye_tentacle.webp",
+    "passives": [
+      "allSeeingEye"
+    ]
   },
   "elf_t1_scout": {
     "faction": "elf",
@@ -1796,7 +1894,8 @@
     "speed": 6,
     "cost": 30,
     "passives": [
-      "healAura"
+      "healAura",
+      "natureGrace"
     ],
     "active": "sporeCloud",
     "sheet": "units/animated/anim_elf_t4_dryad_idle_sheet_8x4.webp",
@@ -1860,7 +1959,8 @@
     "speed": 4,
     "cost": 5,
     "passives": [
-      "barkskin"
+      "barkskin",
+      "tunnelFighter"
     ],
     "active": "burrow",
     "sheet": "units/animated/anim_dwarf_t1_miner_idle_sheet_8x4.webp",
@@ -1881,7 +1981,8 @@
     "speed": 4,
     "cost": 10,
     "passives": [
-      "rangedResist"
+      "rangedResist",
+      "crushingHammer"
     ],
     "active": "quakeStrike",
     "sheet": "units/animated/anim_dwarf_t2_hammerer_idle_sheet_8x4.webp",
@@ -1903,7 +2004,8 @@
     "cost": 20,
     "ranged": 10,
     "passives": [
-      "pierce"
+      "pierce",
+      "veteranEye"
     ],
     "active": "explosiveBolt",
     "sheet": "units/animated/anim_dwarf_t3_crossbow_veteran_idle_sheet_8x4.webp",
@@ -1987,7 +2089,8 @@
     "speed": 5,
     "cost": 5,
     "passives": [
-      "bloodthirst"
+      "bloodthirst",
+      "warBlood"
     ],
     "active": "warcry",
     "sheet": "units/animated/anim_orc_t1_grunt_idle_sheet_8x4.webp",
@@ -2073,7 +2176,8 @@
     "speed": 5,
     "cost": 45,
     "passives": [
-      "rage"
+      "rage",
+      "bruteForce"
     ],
     "active": "smash",
     "sheet": "units/animated/anim_orc_t5_ogre_idle_sheet_8x4.webp",
@@ -2117,7 +2221,8 @@
     "cost": 5,
     "flying": true,
     "passives": [
-      "burnHit"
+      "burnHit",
+      "mischief"
     ],
     "active": "fireSpark",
     "sheet": "units/animated/anim_demon_t1_imp_idle_sheet_8x4.webp",
@@ -2138,7 +2243,8 @@
     "speed": 8,
     "cost": 10,
     "passives": [
-      "burnHit"
+      "burnHit",
+      "hellPack"
     ],
     "active": "howl",
     "sheet": "units/animated/anim_demon_t2_hellhound_idle_sheet_8x4.webp",
@@ -2203,7 +2309,8 @@
     "cost": 45,
     "ranged": 8,
     "passives": [
-      "burnHit"
+      "burnHit",
+      "infernalFocus"
     ],
     "active": "infernoBlast",
     "sheet": "units/animated/anim_demon_t5_fire_lord_idle_sheet_8x4.webp",

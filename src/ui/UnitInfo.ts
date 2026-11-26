@@ -7,6 +7,7 @@ import { t } from '../core/i18n';
 import { COLOR, FONT_BODY } from '../core/theme';
 import { ABILITIES } from '../battle/engine';
 import { BASE_CRIT, BASE_CRIT_DMG, BASE_MORALE } from '../battle/mods';
+import { PASSIVE_MODS, unitMods } from '../battle/passives';
 import type { UnitDef, Status } from '../battle/types';
 import { panel, titleStyle, textStyle } from './widgets';
 import { playSfx } from '../core/audio';
@@ -67,6 +68,12 @@ export interface UnitInfoData {
 
 const pctTxt = (v: number): string => `${Math.round(v * 100)}%`;
 
+/** Description of a unit passive; modifier passives describe their modifiers. */
+export function passiveDesc(p: string): string {
+  const m = PASSIVE_MODS[p];
+  return m ? perkLines({ mods: m } as PerkDef).join(', ') : t(`passive.${p}`);
+}
+
 /** Modal info card about a unit type / stack. Closes on any click or ESC. */
 export function showUnitInfo(scene: Phaser.Scene, o: UnitInfoData): Phaser.GameObjects.Container {
   const { width: w, height: h } = scene.scale;
@@ -94,6 +101,7 @@ export function showUnitInfo(scene: Phaser.Scene, o: UnitInfoData): Phaser.GameO
   root.add(scene.add.text(px + 312, py + 122, t('reward.tierCost', { tier: d.tier, cost: d.cost }) + stars, textStyle(22, '#d9c7a0')));
 
   // stats with icons
+  const um = unitMods(d);
   const stats: [string, string][] = [
     ['icon_hp', o.topHp !== undefined ? `${o.topHp} / ${d.hp}` : `${d.hp}`],
     ['icon_atk', `${d.atk}${o.atkBonus ? (o.atkBonus > 0 ? ` +${o.atkBonus}` : ` ${o.atkBonus}`) : ''}`],
@@ -101,9 +109,9 @@ export function showUnitInfo(scene: Phaser.Scene, o: UnitInfoData): Phaser.GameO
     ['icon_dmg', `${d.dmg[0]}–${d.dmg[1]}`],
     ['icon_ini', `${d.ini}`],
     ['icon_spd', `${d.speed}${d.flying ? ' ✈' : ''}`],
-    ['icon_crit', `${pctTxt(o.crit ?? Math.min(0.65, BASE_CRIT + (d.mods?.crit ?? 0)))}`],
-    ['icon_crit', `×${+(o.critMult ?? BASE_CRIT_DMG + (d.mods?.critDmg ?? 0)).toFixed(2)}`],
-    ['icon_morale', `${pctTxt(o.morale ?? BASE_MORALE + (d.mods?.morale ?? 0))}`],
+    ['icon_crit', `${pctTxt(o.crit ?? Math.min(0.65, BASE_CRIT + um.crit))}`],
+    ['icon_crit', `×${+(o.critMult ?? BASE_CRIT_DMG + um.critDmg).toFixed(2)}`],
+    ['icon_morale', `${pctTxt(o.morale ?? BASE_MORALE + um.morale)}`],
   ];
   const labels = ['stat.hp', 'stat.atk', 'stat.def', 'stat.dmg', 'stat.ini', 'stat.spd', 'stat.crit', 'stat.critDmg', 'stat.morale'];
   stats.forEach(([icon, val], i) => {
@@ -131,7 +139,7 @@ export function showUnitInfo(scene: Phaser.Scene, o: UnitInfoData): Phaser.GameO
     for (const p of passives) {
       const isRace = p.startsWith('race:');
       const rk = p.slice(5);
-      const desc = isRace ? t(`race.${rk}.desc`) : p === 'ranged' ? `${o.shots ?? d.ranged ?? 0} ${t('info.shots')}` : t(`passive.${p}`);
+      const desc = isRace ? t(`race.${rk}.desc`) : p === 'ranged' ? `${o.shots ?? d.ranged ?? 0} ${t('info.shots')}` : passiveDesc(p);
       const label = isRace ? t(`race.${rk}.name`) : p === 'ranged' ? t('passiveName.ranged') : p === 'flying' ? t('passiveName.flying') : t(`passiveName.${p}`);
       const tx = scene.add.text(px + 75, y, `• ${label}: `, { fontFamily: FONT_BODY, fontSize: '22px', fontStyle: '700', color: isRace ? '#9fe0ff' : COLOR.gold });
       const dx = scene.add.text(tx.x + tx.width, y, p === 'flying' ? '' : desc, { fontFamily: FONT_BODY, fontSize: '22px', color: '#efe3c8', wordWrap: { width: PW - 160 - tx.width } });

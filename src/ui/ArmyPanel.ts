@@ -9,7 +9,8 @@ import { loadHeroPortrait, loadPortrait } from '../core/assets';
 import { panel, textStyle, titleStyle, stat, fitWidth } from './widgets';
 import { showUnitInfo, loadAbilityIcons } from './UnitInfo';
 import { upgradedDef, armySynergies, playerMods } from '../run/state';
-import { combine, BASE_CRIT, BASE_CRIT_DMG, BASE_MORALE } from '../battle/mods';
+import { BASE_CRIT, BASE_CRIT_DMG, BASE_MORALE } from '../battle/mods';
+import { unitMods } from '../battle/passives';
 import { loadSpellIcons } from './spellUi';
 import { tooltip } from './perkUi';
 import { maxMana } from '../battle/spells';
@@ -106,7 +107,7 @@ export class ArmyPanel extends Phaser.GameObjects.Container {
       const hit = sc.add.zone(28 + 135, y, 270, 108).setOrigin(0.5).setInteractive({ useHandCursor: true });
       hit.on('pointerup', () => {
         const ud = upgradedDef(s);
-        const m = ud.mods ? combine(playerMods(), ud.mods) : playerMods();
+        const m = unitMods(ud, playerMods());
         showUnitInfo(sc, {
           def: ud, count: count(s), level: s.level, atkBonus: tot.atk, defBonus: tot.def,
           crit: Math.min(0.65, BASE_CRIT + m.crit), critMult: BASE_CRIT_DMG + m.critDmg, morale: BASE_MORALE + m.morale,

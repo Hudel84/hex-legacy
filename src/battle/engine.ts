@@ -3,6 +3,7 @@
 // unit passives and active abilities with cooldowns (3.8).
 import { type Hex, key, eq, neighbors, distance, inBounds, allHexes, behind, COLS, ROWS } from './hex';
 import type { UnitDef, Stack, Side, HeroStats, BattleEvent, StatusId, Status } from './types';
+import { innateMods } from './passives';
 import { NO_MODS, combine, BASE_CRIT, BASE_CRIT_DMG, BASE_MORALE, type SideMods } from './mods';
 import { SPELLS, spellNumbers, maxMana, type SpellSlot } from './spells';
 import { CONSUMABLES, SCROLL_LEVEL } from '../run/items';
@@ -142,8 +143,9 @@ export class Battle {
 
   private addStack(def0: UnitDef, side: Side, count: number, pos: Hex): Stack {
     const base = this.mods?.[side] ?? NO_MODS;
-    // per-unit modifiers (unit upgrades, synergies) on top of the side's modifiers
-    const m = def0.mods ? combine(base, def0.mods) : base;
+    // per-unit modifiers (unit upgrades, synergies, people passive, modifier passives) on top of the side's modifiers
+    const innate = innateMods(def0);
+    const m = def0.mods || innate.length ? combine(base, def0.mods ?? {}, ...innate) : base;
     const def: UnitDef = (m.hp || m.ini || m.speed || (m.shots && def0.ranged))
       ? { ...def0, hp: Math.round(def0.hp * (1 + m.hp)), ini: def0.ini + m.ini, speed: def0.speed + m.speed,
         ranged: def0.ranged ? def0.ranged + m.shots : undefined }
@@ -203,8 +205,7 @@ export class Battle {
 
   /**
    * People passives (one per people):
-   * humans – Discipline: immune to fear, defending gives +50 % DEF instead of +30 %;
-   * elves – Light-footed: walk through obstacles and other stacks (must end on a free hex);
+   * humans – Valor: +10 % morale, elves – Keen Eye: +10 % critical chance (both as modifiers, see passives.ts);
    * dwarves – Unyielding: immune to weakening (−ATK, −DEF) and slow;
    * undead – Undead: immune to poison (and fear);
    * orcs – Fury: +1 ATK each time they are attacked (max +4 per battle);
@@ -214,14 +215,13 @@ export class Battle {
     const f = s.def.faction;
     switch (id) {
       case 'poison': return !!s.def.undead || this.has(s, 'construct');
-      case 'fear': return !!s.def.undead || f === 'human' || !!s.def.sizeScale || this.has(s, 'construct');
+      case 'fear': return !!s.def.undead || !!s.def.sizeScale || this.has(s, 'construct');
       case 'burn': return f === 'demon';
       case 'stun': return !!s.def.sizeScale || this.has(s, 'stunImmune');
       case 'atkDown': case 'defDown': case 'slow': return f === 'dwarf';
     }
     return false;
   }
-  private lightFooted(s: Stack): boolean { return s.def.faction === 'elf' && !s.def.wide; }
 
   /** Critical chance (5 % base + modifiers, max 65 %) and damage multiplier (x2 + modifiers). */
   critChance(s: Stack): number { return Math.min(0.65, BASE_CRIT + this.sm(s).crit); }
@@ -264,7 +264,6 @@ export class Battle {
       }
       return res;
     }
-    const pass = this.lightFooted(s);
     const frontier: { h: Hex; path: Hex[] }[] = [{ h: s.pos, path: [] }];
     const seen = new Set([key(s.pos)]);
     while (frontier.length) {
@@ -274,7 +273,7 @@ export class Battle {
         const k = key(n);
         if (seen.has(k)) continue;
         const stand = this.fits(s, n);
-        if (!stand && !pass) continue;   // elves may walk through, but not stop on, blocked hexes
+        if (!stand) continue;
         seen.add(k);
         const p = [...path, n];
         if (stand) res.set(k, p);
@@ -321,7 +320,7 @@ export class Battle {
   effDef(def: Stack, attacker?: Stack, ranged = false, ignoreDefend = false): number {
     let d = def.def.def + this.heroes[def.side].def + this.status(def, 'shield') - this.status(def, 'defDown');
     d += 2 * this.adjacentAllies(def).filter((o) => this.has(o, 'guardAura')).length;
-    if (def.defending && !ignoreDefend) d = Math.ceil(d * (def.def.faction === 'human' ? 1.5 : 1.3));
+    if (def.defending && !ignoreDefend) d = Math.ceil(d * 1.3);
     if (ranged && attacker && this.has(attacker, 'pierce')) d -= 1;
     if (attacker && this.has(attacker, 'armorPierce')) d = Math.floor(d * 0.7);
     if (attacker && this.sm(attacker).pierceDef > 0) d = Math.floor(d * (1 - this.sm(attacker).pierceDef));

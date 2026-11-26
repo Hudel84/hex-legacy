@@ -1,3 +1,5 @@
+import { PASSIVE_MODS } from '../battle/passives';
+import { passiveDesc } from '../ui/UnitInfo';
 import Phaser from 'phaser';
 import { t } from '../core/i18n';
 import { playSfx, playMusic, mapMusic } from '../core/audio';
@@ -288,7 +290,7 @@ export class RewardScene extends Phaser.Scene {
         `${t('stat.dmg')} ${d.dmg[0]}–${d.dmg[1]}  ${t('stat.ini')} ${d.ini}  ${t('stat.spd')} ${d.speed}`,
         ...(d.ranged ? [t('passive.ranged', { n: d.ranged })] : []),
         ...(d.flying ? [t('passive.flying')] : []),
-        ...(d.passives ?? []).map((p) => t(`passive.${p}`)),
+        ...(d.passives ?? []).map((p) => (PASSIVE_MODS[p] ? `${t(`passiveName.${p}`)}: ${passiveDesc(p)}` : t(`passive.${p}`))),
       ];
       const c = card(this, w / 2 + (i - 1) * 380, 580, {
         w: 320, h: 600, portrait: `portrait_${id}`, title: t(`unit.${id}`),
