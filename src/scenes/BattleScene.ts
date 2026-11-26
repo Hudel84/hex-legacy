@@ -14,7 +14,7 @@ import { tooltip } from '../ui/perkUi';
 import type { RunBattleConfig } from '../run/encounters';
 import { showUnitInfo, loadAbilityIcons, ABILITY_ICON, STATUS_ICON } from '../ui/UnitInfo';
 import { loadRunUi, audioUrls } from '../core/assets';
-import { SPELLS, type Element } from '../battle/spells';
+import { SPELLS, type Element, noTarget } from '../battle/spells';
 import { loadSpellIcons, spellName, spellDesc, spellIcon, levelStars, SCHOOL_COLOR } from '../ui/spellUi';
 import { panel, titleStyle, textStyle, fitWidth } from '../ui/widgets';
 import { racePassive } from '../ui/UnitInfo';
@@ -31,9 +31,9 @@ const ELEMENT_FX: Record<Element, { hit: string; proj?: string; snd: string }> =
   fire: { hit: 'vfx_hit_fire_explosion', proj: 'vfx_proj_fireball', snd: 'fire' },
   lightning: { hit: 'vfx_hit_lightning', proj: 'vfx_proj_lightning_bolt', snd: 'lightning' },
 };
-const SCHOOL_SND: Record<string, string> = { light: 'light', mind: 'mind', death: 'death', nature: 'nature', earth: 'earth', chaos: 'fire' };
+const SCHOOL_SND: Record<string, string> = { light: 'light', nature: 'nature', earth: 'earth', storm: 'mind', dark: 'death', fire: 'fire' };
 const CAST_FX: Record<string, string> = {
-  light: 'vfx_cast_light', mind: 'vfx_cast_mind_rune', death: 'vfx_cast_death', nature: 'vfx_cast_nature', earth: 'vfx_cast_earth', chaos: 'vfx_cast_chaos',
+  light: 'vfx_cast_light', nature: 'vfx_cast_nature', earth: 'vfx_cast_earth', storm: 'vfx_cast_mind_rune', dark: 'vfx_cast_death', fire: 'vfx_cast_chaos',
 };
 /** Special impact images and sounds for spells without a damage element. */
 const SPELL_HIT: Record<string, string> = {
@@ -41,6 +41,7 @@ const SPELL_HIT: Record<string, string> = {
   slow: 'vfx_hit_frost', poisonSpores: 'vfx_hit_poison', inferno: 'vfx_hit_fire_explosion', bloodRage: 'vfx_hit_blood_magic',
   curseOfWeakness: 'vfx_hit_curse', fear: 'vfx_hit_curse', haste: 'vfx_hit_teleport', regrowth: 'vfx_hit_heal',
   confusion: 'vfx_hit_teleport', quicksand: 'vfx_hit_earth', entanglingRoots: 'vfx_hit_poison', stoneSkin: 'vfx_hit_earth',
+  healingRain: 'vfx_hit_heal', callOfTheWild: 'vfx_hit_heal',
 };
 const SPELL_SND: Record<string, string> = { bloodRage: 'blood', inferno: 'fire', lightningBolt: 'lightning', chainLightning: 'lightning' };
 const BUFFS = new Set(['bless', 'ward', 'haste', 'focus', 'regrowth', 'thornskin', 'frenzy', 'shield', 'fury', 'spearwall', 'disembodied']);
@@ -203,6 +204,9 @@ export class BattleScene extends Phaser.Scene {
     const mods = [this.cfg.setup.player.mods, this.cfg.setup.enemy.mods];
     if (passives.includes('raiseDead') || mods.some((m) => (m?.raise ?? 0) > 0)) defs.add(UNITS.undead_t1_skeleton);
     if (passives.includes('hellGate') || mods.some((m) => (m?.imps ?? 0) > 0)) defs.add(UNITS.demon_t1_imp);
+    // spells that summon (Call of the Wild: dire wolves)
+    const books = (['player', 'enemy'] as Side[]).flatMap((sd) => this.cfg.setup[sd].hero?.spells ?? []);
+    if (books.some((x) => x.id === 'callOfTheWild')) defs.add(UNITS.neutral_dire_wolf);
     if (passives.includes('voidCaller')) for (const id of ['summon_void_spawn', 'summon_void_eye_tentacle']) if (UNITS[id]) defs.add(UNITS[id]);
     for (const d of defs) {
       if (d.still) { if (!this.textures.exists(sheetKey(d))) this.load.image(sheetKey(d), A + d.still); }
@@ -845,7 +849,7 @@ export class BattleScene extends Phaser.Scene {
       c.add(g);
       const ic = spellIcon(this, 62, 68, slot.id, 96);
       c.add(ic);
-      c.add(this.add.text(122, 10, `${spellName(slot.id)}  ${levelStars(slot.level)}`, textStyle(23, SCHOOL_COLOR[sp.school], true)));
+      c.add(this.add.text(122, 10, `${spellName(slot.id)}  ${levelStars(slot.level)}  T${sp.tier}`, textStyle(23, SCHOOL_COLOR[sp.school], true)));
       const mi = this.add.image(470, 24, 'icon_mana'); mi.setScale(26 / mi.width);
       c.add(mi);
       c.add(this.add.text(452, 24, String(sp.cost), textStyle(22, b.mana.player >= sp.cost ? '#9fd0ff' : '#e07a6a', true)).setOrigin(1, 0.5));
@@ -871,7 +875,7 @@ export class BattleScene extends Phaser.Scene {
   private chooseSpell(id: string): void {
     this.closeBook();
     const sp = SPELLS[id];
-    if (sp.target === 'massEnemy') { void this.castSpell(id); return; }
+    if (noTarget(sp.target)) { void this.castSpell(id); return; }
     this.spellTargeting = id;
     this.targeting = false;
     this.hiG.clear();

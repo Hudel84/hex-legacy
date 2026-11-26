@@ -365,9 +365,9 @@ export class NodeScene extends Phaser.Scene {
     const disc = 1 - bonus.shopDiscount();
     const opts: Opt[] = [];
     const learnOpt = (id: string, base: number, foreign: boolean): Opt => {
-      const cost = Math.round(base * disc);
+      const cost = Math.round((base + (foreign ? 60 : 50) * (SPELLS[id].tier - 1)) * disc); // T2/T3 cost more
       return {
-        label: t(foreign ? 'shop.learnForeign' : 'shop.learn', { spell: spellName(id), school: t(`school.${SPELLS[id].school}`) }),
+        label: t(foreign ? 'shop.learnForeign' : 'shop.learn', { spell: spellName(id), school: `${t(`school.${SPELLS[id].school}`)} T${SPELLS[id].tier}` }),
         hint: spellDesc(id, heroTotals(r).power, 1), price: cost, enabled: r.gold >= cost,
         action: () => {
           r.gold -= cost; learnSpell(id);
@@ -385,7 +385,7 @@ export class NodeScene extends Phaser.Scene {
     });
     opts.push({ label: t('common.back'), action: () => this.shop() });
     const known = (r.spells ?? []).map((x) => `${spellName(x.id)} ${levelStars(x.level, spellMax(x.id))}`).join(', ');
-    this.show(t('shop.magic'), t('shop.magicText', { list: known || '–' }), opts);
+    this.show(t('shop.magic'), `${t('shop.magicText', { list: known || '–' })}\n${t('magic.tierRule')}`, opts);
   }
 
   private chooseSpellUpgrade(): void {

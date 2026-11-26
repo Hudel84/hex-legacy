@@ -5,7 +5,7 @@ import { type Hex, key, eq, neighbors, distance, inBounds, allHexes, behind, COL
 import type { UnitDef, Stack, Side, HeroStats, BattleEvent, StatusId, Status } from './types';
 import { innateMods } from './passives';
 import { NO_MODS, combine, BASE_CRIT, BASE_CRIT_DMG, BASE_MORALE, type SideMods } from './mods';
-import { SPELLS, spellNumbers, maxMana, type SpellSlot } from './spells';
+import { SPELLS, spellNumbers, maxMana, noTarget, type SpellSlot } from './spells';
 import { CONSUMABLES, SCROLL_LEVEL } from '../run/items';
 import { UNITS } from '../data/units';
 
@@ -1078,6 +1078,13 @@ export class Battle {
       case 'fear': list = enemies.filter((e) => can(e, 'fear')); break;
       case 'inferno': list = enemies.filter((e) => can(e, 'burn')); break;
       case 'earthquake': list = enemies.filter((e) => !e.def.flying); break;
+      case 'healingRain': list = allies.filter((a) => missing(a, false)); break;
+      case 'callOfTheWild': {
+        // one wolf pack at a time
+        const pack = allies.some((a) => a.summonRounds !== undefined && a.def.id === 'neutral_dire_wolf');
+        list = pack ? [] : allies.filter((a) => a.summonRounds === undefined);
+        break;
+      }
       default: list = sp.target === 'ally' ? allies : enemies;
     }
     return list.map((x) => x.uid);
@@ -1092,7 +1099,7 @@ export class Battle {
     if (!this.canCast(side)) return false;
     const targets = this.spellTargets(side, id);
     if (!targets.length) return false;
-    return SPELLS[id].target === 'massEnemy' || (target !== undefined && targets.includes(target));
+    return noTarget(SPELLS[id].target) || (target !== undefined && targets.includes(target));
   }
 
   /** Spell damage: ignores ATK/DEF and the ghosts' ethereal passive, but not elements and "damage taken" talents. */
@@ -1165,12 +1172,38 @@ export class Battle {
         }
         break;
       }
-      case 'deathCloud': case 'fireball':
+      case 'deathCloud': case 'fireball': case 'radiantBurst': case 'boulderThrow':
         for (const v of this.areaOf(side, t!)) if (v.count > 0) this.spellHit(side, v, id, n.n, ev);
+        break;
+      case 'meteor':
+        for (const v of this.areaOf(side, t!)) {
+          if (v.count > 0) this.spellHit(side, v, id, n.n, ev);
+          if (v.count > 0 && !this.immune(v, 'burn')) this.addStatus(v, 'burn', n.t, n.b, ev, true);
+        }
         break;
       case 'earthquake':
         for (const v of this.alive.filter((o) => o.side !== side && this.targetable(o) && !o.def.flying)) this.spellHit(side, v, id, n.n, ev);
         break;
+      case 'thunderstorm':
+        for (const v of this.alive.filter((o) => o.side !== side && this.targetable(o))) if (v.count > 0) this.spellHit(side, v, id, n.n, ev);
+        break;
+      case 'soulHarvest': {
+        let dealt = 0;
+        for (const v of this.alive.filter((o) => o.side !== side && this.targetable(o))) if (v.count > 0) dealt += this.spellHit(side, v, id, n.n, ev);
+        const own = this.alive.filter((a) => a.side === side && a.summonRounds === undefined)
+          .sort((a, b) => (b.startCount * b.def.hp - this.hpTotal(b)) - (a.startCount * a.def.hp - this.hpTotal(a)))[0];
+        if (own && dealt > 0) this.spellHeal(side, own, dealt * n.h / 100, true, ev);
+        break;
+      }
+      case 'healingRain':
+        for (const a of this.alive.filter((o) => o.side === side)) this.spellHeal(side, a, n.n, false, ev);
+        break;
+      case 'callOfTheWild': {
+        const own = this.alive.filter((a) => a.side === side && a.summonRounds === undefined);
+        const wolf = UNITS.neutral_dire_wolf;
+        this.summonFor(side, 'neutral_dire_wolf', Math.max(1, Math.floor(n.n / wolf.cost)), own, ev);
+        break;
+      }
       case 'poisonSpores':
         for (const v of this.areaOf(side, t!)) this.addStatus(v, 'poison', n.t, n.n, ev, true);
         break;
@@ -1233,8 +1266,14 @@ export class Battle {
             const more = this.alive.filter((o) => o.side !== side && o !== x && this.targetable(o)).length;
             return killValue(x, n.n) + (more >= 1 ? 0.5 : 0) * n.n / x.def.hp * x.def.cost * 0.8 + (more >= 2 ? 0.25 : 0) * n.n / x.def.hp * x.def.cost * 0.8;
           }
-          case 'deathCloud': case 'fireball': return this.areaOf(side, x).reduce((a, v) => a + killValue(v, n.n * elMul(v)), 0);
-          case 'earthquake': return targets.reduce((a, u) => { const v = this.stack(u); return a + killValue(v, n.n * elMul(v)); }, 0);
+          case 'deathCloud': case 'fireball': case 'radiantBurst': case 'boulderThrow':
+            return this.areaOf(side, x).reduce((a, v) => a + killValue(v, n.n * elMul(v)), 0);
+          case 'meteor': return this.areaOf(side, x).reduce((a, v) => a + killValue(v, n.n * elMul(v) + (this.immune(v, 'burn') ? 0 : n.b * n.t * 0.7)), 0);
+          case 'earthquake': case 'thunderstorm': return targets.reduce((a, u) => { const v = this.stack(u); return a + killValue(v, n.n * elMul(v)); }, 0);
+          case 'soulHarvest': return targets.reduce((a, u) => { const v = this.stack(u); return a + killValue(v, n.n * elMul(v)) * 1.25; }, 0);
+          case 'healingRain': return this.alive.filter((a) => a.side === side)
+            .reduce((a, v) => a + Math.min(v.count * v.def.hp - this.hpTotal(v), n.n) / v.def.hp * v.def.cost, 0);
+          case 'callOfTheWild': return n.n * 0.8;
           case 'poisonSpores': return this.areaOf(side, x).filter((v) => !this.immune(v, 'poison') && !this.hasStatus(v, 'poison'))
             .reduce((a, v) => a + killValue(v, n.n * n.t) * 0.7, 0);
           case 'inferno': return has('burn') ? 0 : killValue(x, n.n * n.t) * 0.7;
@@ -1261,10 +1300,10 @@ export class Battle {
         }
         return 0;
       };
-      const cands = sp.target === 'massEnemy' ? [targets[0]] : targets;
+      const cands = noTarget(sp.target) ? [targets[0]] : targets;
       for (const uid of cands) {
         const sc = score(uid);
-        if (!best || sc > best.score) best = { id: slot.id, target: sp.target === 'massEnemy' ? undefined : uid, score: sc };
+        if (!best || sc > best.score) best = { id: slot.id, target: noTarget(sp.target) ? undefined : uid, score: sc };
       }
     }
     if (!best) return null;
@@ -1294,7 +1333,7 @@ export class Battle {
     }
     if (c.spell) {
       const t = this.spellTargets(side, c.spell, true);
-      return c.target === 'massEnemy' ? (t.length ? [-1] : []) : t;
+      return noTarget(c.target) ? (t.length ? [-1] : []) : t;
     }
     return [];
   }

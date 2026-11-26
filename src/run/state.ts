@@ -7,7 +7,7 @@ import { perkById, sideMods, runFactor } from './perks';
 import type { SideMods } from '../battle/mods';
 import { Rng } from './rng';
 import { bonus, unitUnlocked, FACTION_RES, type Res } from '../meta/meta';
-import { SPELLS, FACTION_SCHOOLS, MAX_SPELL_LEVEL, MAX_FOREIGN_LEVEL, SCHOOLS, type SpellSlot, type School } from '../battle/spells';
+import { SPELLS, FACTION_SCHOOLS, MAX_SPELL_LEVEL, MAX_FOREIGN_LEVEL, SCHOOLS, maxTier, type SpellSlot, type School } from '../battle/spells';
 import type { Faction } from '../battle/types';
 import { combine } from '../battle/mods';
 import { applyUpgrades, activeSynergies, synergyMods, roleOf, upgradeOffer, type SynergyDef, type UpgradeDef } from './upgrades';
@@ -316,7 +316,7 @@ export const nativeSchools = (r = run()): School[] => FACTION_SCHOOLS[heroById(r
 /** The one foreign school a hero may learn (the first foreign spell decides it). */
 export function foreignSchool(r = run()): School | null {
   const own = nativeSchools(r);
-  for (const s of r.spells ?? []) if (!own.includes(SPELLS[s.id].school)) return SPELLS[s.id].school;
+  for (const s of r.spells ?? []) if (SPELLS[s.id] && !own.includes(SPELLS[s.id].school)) return SPELLS[s.id].school;
   return null;
 }
 export function spellMax(id: string, r = run()): number {
@@ -328,7 +328,8 @@ export function learnable(foreign: boolean, r = run()): string[] {
   const own = nativeSchools(r);
   const fs = foreignSchool(r);
   const schools: School[] = foreign ? (fs ? [fs] : SCHOOLS.filter((x) => !own.includes(x))) : own;
-  return Object.values(SPELLS).filter((s) => schools.includes(s.school) && !knows(s.id, r)).map((s) => s.id);
+  return Object.values(SPELLS).filter((s) => schools.includes(s.school) && !knows(s.id, r)
+    && s.tier <= maxTier(r.act, own.includes(s.school))).map((s) => s.id);
 }
 export const upgradable = (r = run()): SpellSlot[] => (r.spells ?? []).filter((s) => s.level < spellMax(s.id, r));
 export function learnSpell(id: string, r = run()): void {

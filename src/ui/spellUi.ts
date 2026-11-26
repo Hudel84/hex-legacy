@@ -5,7 +5,8 @@ import { FONT_BODY } from '../core/theme';
 import { card } from './widgets';
 
 export const SCHOOL_COLOR: Record<string, string> = {
-  light: '#ffe08a', mind: '#9fc8ff', death: '#c9a8ff', nature: '#9fe39f', earth: '#e0b07a', chaos: '#ff8a6a',
+  light: '#ffe08a', nature: '#9fe39f', earth: '#e0b07a', storm: '#9fc8ff', dark: '#c9a8ff', fire: '#ff8a6a',
+  mind: '#9fc8ff', death: '#c9a8ff', chaos: '#ff8a6a', // old ids
 };
 
 export function loadSpellIcons(scene: Phaser.Scene, ids: string[] = Object.keys(SPELLS)): void {
@@ -16,6 +17,9 @@ export function loadSpellIcons(scene: Phaser.Scene, ids: string[] = Object.keys(
 }
 
 export const spellName = (id: string): string => t(`spell.${id}.name`);
+/** "Fire · T2 · 10 mana" */
+export const schoolLine = (id: string): string =>
+  `${t(`school.${SPELLS[id].school}`)} · T${SPELLS[id].tier} · ${t('spell.cost', { n: SPELLS[id].cost })}`;
 export const levelStars = (level: number, max = 3): string => '★'.repeat(level) + '☆'.repeat(Math.max(0, max - level));
 
 /** Effect text of a spell for the given spell power and level (numbers filled in). */
@@ -35,7 +39,7 @@ export function spellTitle(slot: SpellSlot, max = 3): string {
 /** Spell description incl. school and mana cost, for tooltips. */
 export function spellTooltipLines(id: string, power: number, level: number): string[] {
   const sp = SPELLS[id];
-  return [`${t(`school.${sp.school}`)} · ${t('spell.cost', { n: sp.cost })}`, spellDesc(id, power, level)];
+  return [schoolLine(id), spellDesc(id, power, level)];
 }
 
 /** Square spell icon with a school-coloured frame. */
@@ -64,6 +68,6 @@ export function spellCard(scene: Phaser.Scene, x: number, y: number, kind: 'lear
     w, h: 520, portrait: spellIconKey(id), title: spellName(id),
     subtitle: kind === 'learn' ? t('reward.spellLearn') : t('reward.spellUpgrade', { n: newLevel }),
     subtitleColor: SCHOOL_COLOR[sp.school],
-    lines: [`${t(`school.${sp.school}`)} · ${t('spell.cost', { n: sp.cost })}`, spellDesc(id, power, newLevel)], lineSize: 20, onClick,
+    lines: [schoolLine(id), spellDesc(id, power, newLevel)], lineSize: 20, onClick,
   });
 }
