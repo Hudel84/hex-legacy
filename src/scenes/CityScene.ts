@@ -4,13 +4,24 @@ import { COLOR, FONT_BODY } from '../core/theme';
 import { playMusic, playSfx } from '../core/audio';
 import { img, sfx, loadRunUi } from '../core/assets';
 import {
-  BUILDINGS, LOCKED_DISTRICTS, RES, getMeta, level, maxLevel, nextCost, canAfford, build, blockedByTownHall,
+  BUILDINGS, LOCKED_DISTRICTS, RES, getMeta, saveMeta, level, maxLevel, nextCost, canAfford, build, blockedByTownHall,
   type BuildingDef, type Res,
 } from '../meta/meta';
 import { panel, titleStyle, textStyle, resRow, shade } from '../ui/widgets';
 import { Button, toast } from '../ui/Button';
 
 /** The city: spend meta resources on permanent buildings between runs. */
+/** Effect text of a building level: own text per level, or a template for the long buildings. */
+function levelText(id: string, i: number): string {
+  const own = t(`building.${id}.l${i}`);
+  if (!own.startsWith('[')) return own;
+  const n: Record<string, Record<string, number>> = {
+    townHall: { gold: 15 * i, max: i + 1 }, barracks: { n: 4 * i }, trainingYard: { atk: [0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3][i], def: [0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3][i] },
+    marketplace: { n: 6 * i },
+  };
+  return t(`building.${id}.lv`, n[id] ?? { n: i });
+}
+
 export class CityScene extends Phaser.Scene {
   private layer!: Phaser.GameObjects.Container;
   private resBar!: Phaser.GameObjects.Container;
@@ -36,6 +47,16 @@ export class CityScene extends Phaser.Scene {
     this.drawRes();
     this.drawBuildings();
     const m = getMeta();
+    // v0.17: the city was reset once, the built levels were refunded
+    if (m.resetNotice) {
+      const root = this.add.container(0, 0).setDepth(200);
+      root.add(this.add.rectangle(0, 0, w, h, 0x000000, 0.55).setOrigin(0).setInteractive());
+      root.add(panel(this, w / 2, h / 2, 1000, 520, 'ui_panel_parchment', 60));
+      root.add(this.add.text(w / 2, h / 2 - 190, t('city.resetTitle'), { ...titleStyle(40, '#4a2c10'), stroke: '#00000000', strokeThickness: 0 }).setOrigin(0.5));
+      root.add(this.add.text(w / 2, h / 2 - 120, t('city.resetText'), { fontFamily: FONT_BODY, fontSize: '25px', color: '#2b1a0c', align: 'center', wordWrap: { width: 840 } }).setOrigin(0.5, 0));
+      if (Object.values(m.resetNotice).some((v) => (v ?? 0) > 0)) root.add(resRow(this, w / 2, h / 2 + 60, m.resetNotice, 32, '+'));
+      root.add(new Button(this, w / 2, h / 2 + 170, t('city.resetOk'), { style: 'red', width: 300, fontSize: 28, onClick: () => { m.resetNotice = null; saveMeta(); root.destroy(); } }));
+    }
     const st = this.add.text(40, h - 40, t('city.stats', { runs: m.runs, wins: m.wins, floor: m.bestFloor }), textStyle(24, '#f3e6c8', true)).setOrigin(0, 1);
     const sb = this.add.graphics();
     sb.fillStyle(0x000000, 0.6).fillRoundedRect(st.x - 16, st.y - st.height - 10, st.width + 32, st.height + 20, 12);
@@ -83,10 +104,13 @@ export class CityScene extends Phaser.Scene {
     ring.lineStyle(4, ready ? 0x9fe39f : lv ? 0xf3d48a : 0x8a7a60, 1).strokeCircle(0, 0, 46);
     const ic = this.add.image(0, 0, b.icon); ic.setScale(76 / ic.width);
     if (!lv) ic.setAlpha(0.6);
-    const pips = this.add.graphics();
-    for (let i = 0; i < max; i++) {
-      pips.fillStyle(i < lv ? 0xf3d48a : 0x3b2f22, 1).fillCircle((i - (max - 1) / 2) * 14, 56, 5);
-      pips.lineStyle(1, 0x000000, 1).strokeCircle((i - (max - 1) / 2) * 14, 56, 5);
+    // level: dots up to 5 levels, otherwise "4/10"
+    const pips: Phaser.GameObjects.GameObject = max <= 5 ? this.add.graphics() : this.add.text(0, 56, `${lv}/${max}`, textStyle(17, lv ? '#f3d48a' : '#b8a888', true)).setOrigin(0.5);
+    if (pips instanceof Phaser.GameObjects.Graphics) {
+      for (let i = 0; i < max; i++) {
+        pips.fillStyle(i < lv ? 0xf3d48a : 0x3b2f22, 1).fillCircle((i - (max - 1) / 2) * 14, 56, 5);
+        pips.lineStyle(1, 0x000000, 1).strokeCircle((i - (max - 1) / 2) * 14, 56, 5);
+      }
     }
     const label = this.add.text(0, 68, t(`building.${b.id}.name`), { ...textStyle(20, '#ffffff', true), align: 'center' }).setOrigin(0.5, 0);
     c.add([ring, ic, pips, label]);
@@ -125,10 +149,11 @@ export class CityScene extends Phaser.Scene {
     const desc = this.add.text(x0, y, t(`building.${b.id}.desc`), ink);
     root.add(desc);
     y += desc.height + 22;
-    // per-level effects
-    for (let i = 1; i <= max; i++) {
+    // per-level effects (long buildings: current, next and last level only)
+    const shown = max <= 5 ? Array.from({ length: max }, (_, k) => k + 1) : [...new Set([lv, lv + 1, max].filter((k) => k >= 1 && k <= max))];
+    for (const i of shown) {
       const done = i <= lv;
-      const line = this.add.text(x0 + 10, y, `${done ? '✔' : i === lv + 1 ? '➜' : '•'} ${t('city.levelShort', { n: i })}: ${t(`building.${b.id}.l${i}`)}`, {
+      const line = this.add.text(x0 + 10, y, `${done ? '✔' : i === lv + 1 ? '➜' : '•'} ${t('city.levelShort', { n: i })}: ${levelText(b.id, i)}`, {
         fontFamily: FONT_BODY, fontSize: '23px', fontStyle: i === lv + 1 ? '700' : '400',
         color: done ? '#3d6b2a' : i === lv + 1 ? '#2b1a0c' : '#7a6a55', wordWrap: { width: PW - 160 },
       });

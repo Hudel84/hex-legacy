@@ -120,7 +120,7 @@ function playerPower(r: RunState): number {
 export const TREASURE_GOBLIN = 'neutral_treasure_goblin';
 export const TREASURE_CHANCE = 0.1;
 
-export const DIFFICULTY = { base: 400, start: 0.5, perFloor: 0.075, perFloorLate: 0.09, elite: 1.1, boss: 0.55, bossEscort: 1.2, final: 1.8 };
+export const DIFFICULTY = { base: 500, start: 0.5, perFloor: 0.075, perFloorLate: 0.13, elite: 1.1, boss: 0.55, bossEscort: 1.2, final: 1.8 };
 
 /** Enemy budget factor: steep in act 1, flatter in acts 2 and 3 (the player's growth slows down there too). */
 export function curveAt(gf: number): number {

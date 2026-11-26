@@ -13,7 +13,7 @@ import type { Faction } from '../battle/types';
 import { combine } from '../battle/mods';
 import { applyUpgrades, activeSynergies, synergyMods, roleOf, upgradeOffer, type SynergyDef, type UpgradeDef } from './upgrades';
 import {
-  ITEMS, EQUIP_SLOTS, BAG_SIZE, BELT_SIZE, slotOf, itemStats, itemMods, setBonuses, addStats, sellPrice,
+  ITEMS, EQUIP_SLOTS, rollConsumable, BAG_SIZE, BELT_SIZE, slotOf, itemStats, itemMods, setBonuses, addStats, sellPrice,
   type EquipSlot, type ItemInst, type Stats,
 } from './items';
 
@@ -61,6 +61,7 @@ export interface RunState {
   equip?: Partial<Record<EquipSlot, ItemInst | null>>;
   bag?: ItemInst[];                 // backpack, max BAG_SIZE
   belt?: (string | null)[];         // consumables, BELT_SIZE places
+  rerolls?: number;                 // oracle: new level-up choices left in this run
 }
 
 const KEY = 'hexlegacy.run.v1';
@@ -88,7 +89,25 @@ export function newRun(heroId: string, seed = Math.floor(Math.random() * 2 ** 31
     const opts = learnable(false, r);
     if (opts.length) learnSpell(new Rng(seed ^ 0x5eed).pick(opts), r);
   }
+  // city buildings of v0.17: start artifact (treasury), potions/scrolls (black market), rerolls (oracle)
+  const g = new Rng(seed ^ 0x7ea5);
+  const rar = bonus.startArtifact();
+  if (rar) {
+    const pool = PERKS.filter((p) => p.kind === 'artifact' && !p.boss && !p.cursed && p.rarity === rar && (!p.faction || p.faction === heroById(heroId).faction));
+    if (pool.length) grantPerk(g.pick(pool).id, r);
+  }
+  for (let i = 0; i < bonus.startConsumables(); i++) addConsumable(rollConsumable(g), r);
+  r.rerolls = bonus.rerolls();
   return r;
+}
+
+/** What the city gets at the end of a run: loot (all after a win, a part after a defeat), fame, production. */
+export function runEndGain(won: boolean, r = run()): { floor: number; factor: number; gain: Partial<Record<Res, number>>; production: Partial<Record<Res, number>> } {
+  const local = r.currentNode !== null ? (r.map.find((n) => n.id === r.currentNode)?.floor ?? 0) + 1 : 0;
+  const floor = (r.act - 1) * 13 + local + (won ? 1 : 0);
+  const factor = won ? 1 : bonus.keepOnDefeat();
+  const fame = floor * 2 + r.battlesWon + (won ? 15 : 0);
+  return { floor, factor, gain: { ...(r.loot ?? {}), fame }, production: bonus.production() };
 }
 
 function baseRun(heroId: string, seed: number): RunState {
@@ -243,7 +262,7 @@ export function magicGrowth(level: number): 'power' | 'knowledge' | null {
 
 /** Adds xp, returns how many level-ups happened. */
 export function gainXp(n: number, r = run()): number {
-  r.xp += n;
+  r.xp += Math.round(n * bonus.xp());   // Hall of Fame
   let ups = 0;
   while (r.xp >= xpForLevel(r.level)) {
     r.xp -= xpForLevel(r.level);
@@ -371,7 +390,8 @@ export function spellReward(g: Rng, r = run()): { kind: 'learn' | 'upgrade'; id:
 export const playerMods = (r = run()): SideMods => {
   const perks = sideMods(owner(r));
   const eq = equipped(r);
-  return combine(perks, heroById(r.heroId).mods ?? {}, ...eq.map((i) => itemMods(i, heroFaction(r))), ...setBonuses(eq).map((b) => b.mods));
+  return combine(perks, heroById(r.heroId).mods ?? {}, ...eq.map((i) => itemMods(i, heroFaction(r))), ...setBonuses(eq).map((b) => b.mods),
+    { hp: bonus.unitHp() });   // Arena (city)
 };
 
 // ---------- equipment ----------

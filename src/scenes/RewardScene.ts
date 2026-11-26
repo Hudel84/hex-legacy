@@ -145,6 +145,12 @@ export class RewardScene extends Phaser.Scene {
     const opts = levelUpOptions(g);
     commitRng(g);
     const gap = opts.length > 3 ? 330 : 360;
+    // Oracle (city): roll new level-up choices a few times per run
+    if ((r.rerolls ?? 0) > 0 && opts.some((o) => o.kind === 'new')) {
+      this.layer.add(new Button(this, w / 2, 1010, t('talent.reroll', { n: r.rerolls ?? 0 }), {
+        width: 380, fontSize: 24, onClick: () => { r.rerolls = (r.rerolls ?? 1) - 1; save(); this.next(); },
+      }));
+    }
     opts.forEach((o, i) => {
       const x = w / 2 + (i - (opts.length - 1) / 2) * gap;
       const cur = o.kind === 'boon' ? 0 : themeRank(o.theme);

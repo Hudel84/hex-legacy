@@ -28,7 +28,9 @@ export function levelOptionCard(scene: Phaser.Scene, x: number, y: number, o: Le
     return card(scene, x, y, { w: 300, h: 520, portrait: 'icon_atk', title: t(`boon.${o.boon}`), subtitle: t('talent.boon'), subtitleColor: '#d9c7a0', lines: [], onClick });
   }
   const rank = o.kind === 'rank' ? curRank + 1 : 1;
-  const lines = o.kind === 'new' ? [t(`talent.${o.theme}.desc`), ...rankLines(o.theme, 1)] : rankLines(o.theme, rank);
+  // new theme: short description, unless rank 1 explains the mechanic itself (Death and Decay, Burning, Summoning)
+  const ownR1 = !t(`talent.${o.theme}.r1`).startsWith('[');
+  const lines = o.kind === 'new' ? [...(ownR1 ? [] : [t(`talent.${o.theme}.desc`)]), ...rankLines(o.theme, 1)] : rankLines(o.theme, rank);
   lines.push(t(rank === 3 ? 'talent.thenLegendary' : 'talent.thenUpgrade'));
   return card(scene, x, y, {
     w: 300, h: 560, portrait: perkIconKey(perkById(basePerkId(o.theme, 1))), title: themeName(o.theme),
