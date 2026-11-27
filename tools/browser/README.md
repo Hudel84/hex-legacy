@@ -7,10 +7,11 @@ Serve the build first: `npm run build && python3 -m http.server 4174 --directory
 - `vt.mjs` – boss battle (bandit king, traps), reward with treasure goblin, boss relic choice, rest upgrade choice, unit info → screenshots in /tmp/shots
 - `evtest.mjs` – opens every event and node type (`TS=2` for the largest text size)
 - `oldsave.mjs` – plays with an old build under /old/ and continues the save in the current build
-- `tactics.mjs` – tactics set-up with real mouse clicks (select, move, swap, Enter), battle rating and reward (`LANG_DE=1`, `CITY=1` = War Council 1, `STRONG=1`) → /tmp/shots
+- `tactics.mjs` – tactics set-up with real mouse clicks (select, move, swap, Enter), battle rating and reward (`LANG_DE=1`, `CITY=1` = War Council 1, `STRONG=1`, `NEUTRAL=<unit id>` = hired neutral in the army) → /tmp/shots
 - `ui_cards.mjs` – hero selection (start talents; DE/EN, very large text) and elite reward with kind labels (Artifact / Equipment) → /tmp/shots
 - `spellbook.mjs` – clicks the lower half / right side / top of a spell row in the spellbook (must select the spell) and a crowded set-up for the count plates → /tmp/shots
 - `runend.mjs` – run end after a defeat in act 1 (or act 2 with argument 2) with lumber mill / ore mine: production only after the act-1 boss → /tmp/shots
+- `shop.mjs` – shop (v0.19): main page, hiring a neutral with a full army (replace screen), equipment page; argument = act → /tmp/shots
 - `fixtest2.mjs` – battle against chosen enemy units (check facing of sprites)
 
 `?test` exposes `game`, `hexRun()` and `hexDebug.battleConfig(node, enemy)` on `window`.

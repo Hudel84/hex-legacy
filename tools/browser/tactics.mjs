@@ -32,6 +32,7 @@ if (await scene('Talent')) { await ev(() => { const sc = game.scene.getScene('Ta
 await waitFor('Map');
 await sleep(1500);
 if (process.env.STRONG) await ev(() => { const r = hexRun(); r.atk = 30; r.def = 30; r.leadership = 400; });
+if (process.env.NEUTRAL) await ev((id) => { const r = hexRun(); r.army.push({ unitId: id, alloc: 0, level: 0, ups: [] }); }, process.env.NEUTRAL);   // a hired neutral creature (v0.19 shop)
 await ev(() => { const sc = game.scene.getScene('Map'); const r = hexRun(); sc.travel(r.map.find((n) => n.floor === 0)); });
 await waitFor('Battle', 60000);
 await sleep(3500);

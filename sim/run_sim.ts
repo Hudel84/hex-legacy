@@ -1,3 +1,4 @@
+import { aiShop } from './shop_ai';
 // Simulates whole act-1 runs with the AI playing both sides. Usage: npx tsx sim/run_sim.ts [runs]
 import { Battle } from '../src/battle/engine';
 import { newRun, setRun, run, availableNodes, gainXp, draftPool, rebalance, MAX_SLOTS, addLeadership, count, grantPerk, owner, spellReward, learnSpell, stashItem, addConsumable } from '../src/run/state';
@@ -39,7 +40,7 @@ for (let i = 0; i < RUNS; i++) {
     const node = pick.pick(opts);
     r.currentNode = node.id; r.visited.push(node.id);
     if (node.type === 'rest') { const s = pick.pick(r.army); if (s.level < MAX_UNIT_LEVEL) { const o = upgradeOptions(s); levelUpUnit(s, o.length ? pick.pick(o).id : null); } continue; }
-    if (node.type === 'shop') { while (r.gold >= 50) { r.gold -= 50; addLeadership(10); } continue; }
+    if (node.type === 'shop') { if (process.env.OLDSHOP) { while (r.gold >= 50) { r.gold -= 50; addLeadership(10); } } else aiShop(pick, node.floor); continue; }
     if (node.type === 'treasure') { r.gold += 80; if (ITEMS_ON && pick.next() < 0.5) stashItem(rollItem(pick, node.floor)); continue; }
     if (node.type === 'shrine' || node.type === 'event') { r.gold += 20; continue; }
     const cfg: RunBattleConfig = node.type === 'final' as string ? finalConfig() : battleConfig(node, buildEnemy(node));

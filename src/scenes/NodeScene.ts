@@ -2,25 +2,24 @@ import Phaser from 'phaser';
 import { t } from '../core/i18n';
 import { COLOR, FONT_BODY } from '../core/theme';
 import { playSfx, playMusic } from '../core/audio';
-import { img, sfx, loadRunUi } from '../core/assets';
+import { img, sfx, loadRunUi, loadPortrait } from '../core/assets';
 
 const NODE_MUSIC: Record<string, string> = { shop: 'mus_shop', rest: 'mus_rest', event: 'mus_event', treasure: 'mus_event', shrine: 'mus_event' };
 import {
-  run, save, addLeadership, applyBoon, BOONS, rng, commitRng, MAX_UNIT_LEVEL, MAX_SLOTS, nodeById, draftPool, rebalance, unitDef, type ArmySlot, heroTotals,
+  run, save, addLeadership, applyBoon, BOONS, rng, commitRng, MAX_UNIT_LEVEL, MAX_SLOTS, nodeById, rebalance, unitDef, type ArmySlot, heroTotals,
 } from '../run/state';
 import { eventById, type EventOutcome } from '../run/events';
-import { buildEnemy, battleConfig, globalFloor } from '../run/encounters';
+import { buildEnemy, battleConfig, globalFloor, shopNeutrals, neutralPrice } from '../run/encounters';
 import { ArmyPanel } from '../ui/ArmyPanel';
 import { bonus } from '../meta/meta';
-import { addLoot, lootFor, owner, grantPerk, learnable, learnSpell, upgradable, spellMax, spellReward, perkFactor } from '../run/state';
-import { SPELLS } from '../battle/spells';
+import { addLoot, lootFor, owner, grantPerk, learnSpell, spellReward, perkFactor } from '../run/state';
 import { rollItem, rollConsumable, sellPrice, ITEM_PRICE, ITEMS, CONSUMABLES, type ItemInst } from '../run/items';
 import { stashItem, slotsFor, bagFull, beltFull, addConsumable, sellItem, addToBag, heroFaction } from '../run/state';
 import { itemName, itemInfo, consumableName, consumableDesc, rarityName } from '../ui/itemUi';
-import { loadSpellIcons, spellName, spellDesc, levelStars } from '../ui/spellUi';
+import { loadSpellIcons, spellName } from '../ui/spellUi';
 import { openUpgradeChoice, levelLabel, roleName, upgradeName } from '../ui/upgradeUi';
 import { roleOf } from '../run/upgrades';
-import { upgradePrice, levelUpUnit, trainPrice } from '../run/state';
+import { levelUpUnit } from '../run/state';
 import { offer, perkById } from '../run/perks';
 import { perkLines } from '../ui/perkUi';
 import { panel, titleStyle, inkStyle } from '../ui/widgets';
@@ -42,10 +41,8 @@ export class NodeScene extends Phaser.Scene {
   private eventId = '';
   private box!: Phaser.GameObjects.Container;
   private armyPanel!: ArmyPanel;
-  private shopUnit: string | null = null;
+  private shopNeutral: string[] | null = null;
   private shopArtifact: string | null = null;
-  private shopSpell: string | null = null;
-  private shopForeign: string | null = null;
   private shopItems: ItemInst[] | null = null;
   private shopCons: string[] | null = null;
 
@@ -54,10 +51,8 @@ export class NodeScene extends Phaser.Scene {
   init(data: { kind: Kind; eventId?: string }): void {
     this.kind = data.kind;
     this.eventId = data.eventId ?? '';
-    this.shopUnit = null;
+    this.shopNeutral = null;
     this.shopArtifact = null;
-    this.shopSpell = null;
-    this.shopForeign = null;
     this.shopItems = null;
     this.shopCons = null;
   }
@@ -72,7 +67,6 @@ export class NodeScene extends Phaser.Scene {
     } else {
       img(this, BG[this.kind], `ui/screens/${BG[this.kind]}.webp`);
     }
-    if (this.kind === 'shop') for (const id of draftPool(owner().faction, 99)) img(this, `portrait_${id}`, unitDef(id).portrait);
     const mus = NODE_MUSIC[this.kind];
     if (mus) sfx(this, mus, `audio/music/${mus}.ogg`);
   }
@@ -194,66 +188,57 @@ export class NodeScene extends Phaser.Scene {
   }
 
   /** Let the player choose one of the army slots (for upgrades). */
-  private chooseSlot(title: string, filter: (s: ArmySlot) => boolean, then: (s: ArmySlot) => void, back: () => void, price?: (s: ArmySlot) => number): void {
+  private chooseSlot(title: string, filter: (s: ArmySlot) => boolean, then: (s: ArmySlot) => void, back: () => void, price?: (s: ArmySlot) => number, replace = false): void {
     const r = run();
     const opts: Opt[] = r.army.map((s) => ({
       label: `${t(`unit.${s.unitId}`)}  ${levelLabel(s)}`,
-      hint: s.level < MAX_UNIT_LEVEL ? `${roleName(roleOf(unitDef(s.unitId)))} · ${t('node.upgradeHint')}` : t('node.maxLevel'),
+      hint: replace ? `${roleName(roleOf(unitDef(s.unitId)))} · ${t('shop.replaceHint', { n: s.level })}`
+        : s.level < MAX_UNIT_LEVEL ? `${roleName(roleOf(unitDef(s.unitId)))} · ${t('node.upgradeHint')}` : t('node.maxLevel'),
       price: price?.(s),
       enabled: filter(s),
       action: () => then(s),
     }));
     opts.push({ label: t('common.back'), action: back });
-    this.show(title, t('node.chooseUnit'), opts);
+    this.show(title, t(replace ? 'shop.replaceText' : 'node.chooseUnit'), opts);
   }
 
   // ---------- shop ----------
 
-  private price(base: number): number { return Math.round((base + 15 * run().shopBuys) * (1 - shopDiscount())); }
-
   private shop(): void {
     const r = run();
-    if (this.shopUnit === null) {
+    // the shop (v0.19, Ben 27.11.): artifact (expensive), equipment and two neutral creatures to hire - no training, spells or upgrades
+    if (this.shopNeutral === null) {
       const g = rng();
-      const floor = r.currentNode !== null ? nodeById(r.currentNode).floor : 0;
-      const pool = draftPool(owner().faction, floor).filter((id) => !r.army.some((s) => s.unitId === id));
-      this.shopUnit = pool.length ? g.pick(pool) : '';
+      this.shopNeutral = shopNeutrals(g, r.currentNode !== null ? nodeById(r.currentNode).floor : 0);
       commitRng(g);
     }
-    const buy = (cost: number, fn: () => void) => () => {
-      if (r.gold < cost) { playSfx(this, 'ui_error'); return; }
-      r.gold -= cost; r.shopBuys++; fn(); playSfx(this, 'ui_buy'); save(); this.shop();
-    };
-    const opts: Opt[] = [
-      { label: t('shop.training'), hint: t('shop.trainingHint'), action: () => this.training() },
-      { label: t('shop.magic'), hint: t('shop.magicHint'), action: () => this.magicShop() },
-      { label: t('shop.gear'), hint: t('shop.gearHint'), action: () => this.gearShop() },
-      (() => {
-        const cost = (s: ArmySlot) => this.price(upgradePrice(s));
-        const open = r.army.filter((s) => s.level < MAX_UNIT_LEVEL);
-        const cheapest = open.length ? Math.min(...open.map(cost)) : 0;
-        return {
-          label: t('shop.upgrade'), hint: t('shop.upgradeHint'), price: cheapest || undefined,
-          enabled: open.some((s) => r.gold >= cost(s)),
-          action: () => this.chooseSlot(t('shop.upgrade'), (s) => s.level < MAX_UNIT_LEVEL && r.gold >= cost(s), (s) => {
-            openUpgradeChoice(this, s, (up) => {
-              r.gold -= cost(s); r.shopBuys++; levelUpUnit(s, up); playSfx(this, 'ui_equip'); save(); this.shop();
-            }, () => this.shop());
-          }, () => this.shop(), cost),
-        };
-      })(),
-    ];
-    if (this.shopUnit) {
-      const id = this.shopUnit;
-      const cost = Math.round((40 + unitDef(id).tier * 20) * (1 - shopDiscount()));
+    const opts: Opt[] = [{ label: t('shop.gear'), hint: t('shop.gearHint'), action: () => this.gearShop() }];
+    for (const id of this.shopNeutral) {
+      const d = unitDef(id);
+      const cost = Math.round(neutralPrice(id) * (1 - shopDiscount()));
       const full = r.army.length >= MAX_SLOTS;
       opts.push({
-        label: t('shop.unit', { unit: t(`unit.${id}`) }),
-        hint: full ? t('shop.unitFull') : t('shop.unitHint'),
-        price: cost, enabled: r.gold >= cost && !full,
+        label: t('shop.neutral', { unit: t(`unit.${id}`), tier: d.tier }),
+        hint: `${t('shop.neutralStack', { n: Math.max(1, Math.floor(r.leadership / d.cost)) })}${full ? ' · ' + t('shop.neutralReplace') : ''}`,
+        price: cost, enabled: r.gold >= cost,
         action: () => {
-          r.gold -= cost; r.army.push({ unitId: id, alloc: 0, level: 0, ups: [] }); rebalance(); this.shopUnit = '';
-          playSfx(this, 'ui_buy'); save(); this.scene.restart({ kind: 'shop' });
+          const hire = (slot: ArmySlot | null) => {
+            if (r.gold < cost) { playSfx(this, 'ui_error'); return; }
+            r.gold -= cost;
+            const unit: ArmySlot = { unitId: id, alloc: 0, level: 0, ups: [] };
+            if (slot) r.army[r.army.indexOf(slot)] = unit; else r.army.push(unit);
+            rebalance();
+            this.shopNeutral = this.shopNeutral!.filter((x) => x !== id);
+            playSfx(this, 'ui_buy'); save(); this.shop();
+            // portrait of the new unit for the army panel (not preloaded)
+            if (!this.textures.exists(`portrait_${id}`)) {
+              loadPortrait(this, id);
+              this.load.once('complete', () => this.armyPanel.refresh());
+              this.load.start();
+            }
+          };
+          if (!full) hire(null);
+          else this.chooseSlot(t('shop.replaceTitle', { unit: t(`unit.${id}`) }), () => true, (s2) => hire(s2), () => this.shop(), undefined, true);
         },
       });
     }
@@ -264,7 +249,8 @@ export class NodeScene extends Phaser.Scene {
     }
     if (this.shopArtifact) {
       const p = perkById(this.shopArtifact);
-      const cost = Math.round((p.rarity === 'legendary' ? 220 : p.rarity === 'rare' ? 150 : 110) * (1 - shopDiscount()));
+      // artifacts are expensive (x1.5 in v0.19)
+      const cost = Math.round((p.rarity === 'legendary' ? 330 : p.rarity === 'rare' ? 225 : 165) * (1 - shopDiscount()));
       opts.push({
         label: t('shop.artifact', { name: t(`perk.${p.id}`) }), hint: perkLines(p).join(' · '), price: cost, enabled: r.gold >= cost,
         action: () => { r.gold -= cost; grantPerk(p.id); this.shopArtifact = ''; playSfx(this, 'ui_buy'); save(); this.shop(); },
@@ -273,8 +259,6 @@ export class NodeScene extends Phaser.Scene {
     opts.push(this.leaveOpt());
     this.show(t('node.shop'), t('shop.text'), opts);
   }
-
-
 
   private floor(): number { const r = run(); return globalFloor(r.currentNode !== null ? nodeById(r.currentNode).floor : 0); }
 
@@ -329,88 +313,6 @@ export class NodeScene extends Phaser.Scene {
     opts.push({ label: t('common.back'), action: () => this.gearShop() });
     this.show(t('shop.sell'), t('shop.sellText'), opts);
   }
-
-  /** Training: hero stats for gold (price rises with every purchase). */
-  private training(): void {
-    const r = run();
-    const buy = (cost: number, fn: () => void) => () => {
-      if (r.gold < cost) { playSfx(this, 'ui_error'); return; }
-      r.gold -= cost; fn(); playSfx(this, 'ui_buy'); save(); this.training();
-    };
-    // every attribute has its own price: +50 % per purchase of that attribute (Ben, 21.11.)
-    const cost = (key: string, base: number) => trainPrice(base, r.trainBuys?.[key] ?? 0, shopDiscount());
-    const row = (key: string, base: number, fn: () => void): Opt => {
-      const c = cost(key, base);
-      return { label: t(`shop.${key}`), hint: t(`shop.${key}Hint`), price: c, enabled: r.gold >= c,
-        action: buy(c, () => { fn(); (r.trainBuys ??= {})[key] = (r.trainBuys[key] ?? 0) + 1; }) };
-    };
-    this.show(t('shop.training'), t('shop.trainingText'), [
-      row('atk', 45, () => { r.atk += 1; }),
-      row('def', 45, () => { r.def += 1; }),
-      row('power', 45, () => { r.power = (r.power ?? 0) + 1; }),
-      row('knowledge', 45, () => { r.knowledge = (r.knowledge ?? 0) + 1; }),
-      row('lead', 50, () => addLeadership(15)),
-      { label: t('common.back'), action: () => this.shop() },
-    ]);
-  }
-
-  /** Magic shop: one new spell of the hero's schools, sometimes one of a foreign school, and spell upgrades. */
-  private magicShop(): void {
-    const r = run();
-    if (this.shopSpell === null) {
-      const g = rng();
-      const own = learnable(false);
-      this.shopSpell = own.length ? g.pick(own) : '';
-      const foreign = learnable(true);
-      this.shopForeign = foreign.length && g.next() < 0.5 ? g.pick(foreign) : '';
-      commitRng(g);
-    }
-    const disc = 1 - shopDiscount();
-    const opts: Opt[] = [];
-    const learnOpt = (id: string, base: number, foreign: boolean): Opt => {
-      const cost = Math.round((base + (foreign ? 60 : 50) * (SPELLS[id].tier - 1)) * disc); // T2/T3 cost more
-      return {
-        label: t(foreign ? 'shop.learnForeign' : 'shop.learn', { spell: spellName(id), school: `${t(`school.${SPELLS[id].school}`)} T${SPELLS[id].tier}` }),
-        hint: spellDesc(id, heroTotals(r).power, 1), price: cost, enabled: r.gold >= cost,
-        action: () => {
-          r.gold -= cost; learnSpell(id);
-          if (foreign) this.shopForeign = ''; else this.shopSpell = '';
-          playSfx(this, 'ui_talent_pick'); save(); this.magicShop();
-        },
-      };
-    };
-    if (this.shopSpell) opts.push(learnOpt(this.shopSpell, 70, false));
-    if (this.shopForeign) opts.push(learnOpt(this.shopForeign, 120, true));
-    const up = upgradable();
-    opts.push({
-      label: t('shop.upgradeSpell'), hint: t('shop.upgradeSpellHint'), enabled: up.length > 0,
-      action: () => this.chooseSpellUpgrade(),
-    });
-    opts.push({ label: t('common.back'), action: () => this.shop() });
-    const known = (r.spells ?? []).map((x) => `${spellName(x.id)} ${levelStars(x.level, spellMax(x.id))}`).join(', ');
-    this.show(t('shop.magic'), `${t('shop.magicText', { list: known || '–' })}\n${t('magic.tierRule')}`, opts);
-  }
-
-  private chooseSpellUpgrade(): void {
-    const r = run();
-    const opts: Opt[] = (r.spells ?? []).map((x) => {
-      const max = spellMax(x.id);
-      const cost = this.price(40 + 25 * x.level);
-      const can = x.level < max;
-      return {
-        label: `${spellName(x.id)}  ${levelStars(x.level, max)}`,
-        hint: can ? t('shop.spellNext', { desc: spellDesc(x.id, heroTotals(r).power, x.level + 1) }) : t('shop.spellMax'),
-        price: can ? cost : undefined, enabled: can && r.gold >= cost,
-        action: () => {
-          r.gold -= cost; r.shopBuys++; learnSpell(x.id); playSfx(this, 'ui_equip'); save(); this.chooseSpellUpgrade();
-        },
-      };
-    });
-    opts.push({ label: t('common.back'), action: () => this.magicShop() });
-    this.show(t('shop.upgradeSpell'), t('shop.upgradeSpellText'), opts);
-  }
-
-  // ---------- rest ----------
 
   private rest(): void {
     const r = run();

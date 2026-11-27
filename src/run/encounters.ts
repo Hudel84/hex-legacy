@@ -119,10 +119,23 @@ function playerPower(r: RunState): number {
 }
 
 export const TREASURE_GOBLIN = 'neutral_treasure_goblin';
+
+/** Shop (v0.19, Ben 27.11.): neutral creatures of the current biome to hire, tier rising with the floor like enemies. */
+export function shopNeutrals(g: { shuffle<T>(a: T[]): T[] }, floor: number, r: RunState = run(), n = 2): string[] {
+  const groups = r.act >= 2 && BIOME_GROUPS[r.biome] ? BIOME_GROUPS[r.biome].flat() : Object.values(GROUPS).flat();
+  const maxTier = r.act === 1 ? (floor < 2 ? 2 : floor < 5 ? 3 : 4) : r.act === 2 ? (floor < 2 ? 3 : floor < 6 ? 4 : 5) : (floor < 2 ? 4 : floor < 6 ? 5 : 6);
+  const pool = [...new Set(groups)].filter((id) => id.startsWith('neutral_') && id !== TREASURE_GOBLIN && UNITS[id] && UNITS[id].tier <= maxTier
+    && !r.army.some((s) => s.unitId === id));
+  // prefer the stronger creatures of the allowed tiers
+  const strong = pool.filter((id) => UNITS[id].tier >= maxTier - 1);
+  return g.shuffle(strong.length >= n ? strong : pool).slice(0, n);
+}
+/** Price of a neutral creature in the shop: 50 + 30 x tier (before discount). */
+export const neutralPrice = (id: string): number => 50 + 30 * UNITS[id].tier;
 export const TREASURE_CHANCE = 0.1;
 
 /** early: extra factor for the very first fights of a run (index = global floor), so a fresh run without city can win its first fight (27.11.). */
-export const DIFFICULTY = { base: 500, start: 0.5, perFloor: 0.075, perFloorLate: 0.13, elite: 1.1, boss: 0.55, bossEscort: 1.2, final: 1.8, early: [0.75, 0.88] as number[] };
+export const DIFFICULTY = { base: 500, start: 0.5, perFloor: 0.075, perFloorLate: 0.015, elite: 1.1, boss: 0.55, bossEscort: 1.2, final: 1.0, finalSpawn: 7, finalHero: 6, early: [0.75, 0.88] as number[] };
 
 /** Enemy budget factor: steep in act 1, flatter in acts 2 and 3 (the player's growth slows down there too). */
 export function curveAt(gf: number): number {
@@ -245,8 +258,8 @@ export function finalConfig(): RunBattleConfig {
   const r = run();
   const node = r.map.find((n) => n.id === r.currentNode) ?? r.map[r.map.length - 1];
   const enemy: EnemyArmy = {
-    army: [{ id: 'boss_final_void_god', count: 1, boss: DIFFICULTY.final }, { id: 'summon_void_spawn', count: 14 }],
-    hero: { atk: 11, def: 11 },
+    army: [{ id: 'boss_final_void_god', count: 1, boss: DIFFICULTY.final }, { id: 'summon_void_spawn', count: DIFFICULTY.finalSpawn }],
+    hero: { atk: DIFFICULTY.finalHero, def: DIFFICULTY.finalHero },
   };
   const cfg = battleConfig(node, enemy);
   cfg.final = true;

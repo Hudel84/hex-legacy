@@ -13,7 +13,7 @@
   "settings.sfx": "Sound effects",
   "settings.fullscreen": "Fullscreen",
   "credits.title": "Credits",
-  "credits.body": "HEX LEGACY\nA game by Hudel\n\nDesign & direction: Ben\nCode: Claude (Anthropic)\nArt: Higgsfield (Nano Banana Pro, Seedance), Freebeat\nSound effects, hero voices & music: ElevenLabs\nEngine: Phaser\nFonts: Cinzel, Alegreya (SIL Open Font License)\n\nInspired by Heroes of Might and Magic and Slay the Spire.\nThanks for playing!",
+  "credits.body": "HEX LEGACY\nA game by Hudel\n\nDesign & direction: Hudel\nCode: Claude (Anthropic)\nArt: Higgsfield (Nano Banana Pro, Seedance), Freebeat\nSound effects, hero voices & music: ElevenLabs\nEngine: Phaser\nFonts: Cinzel, Alegreya (SIL Open Font License)\n\nInspired by Heroes of Might and Magic and Slay the Spire.\nThanks for playing!",
   "battle.wait": "Wait",
   "battle.defend": "Defend",
   "battle.auto": "Auto",
@@ -106,7 +106,7 @@
   "map.hint": "Click a glowing node to travel there. Scroll with the mouse wheel or by dragging.",
   "map.menu": "Save & quit",
   "map.noArmy": "You have no units!",
-  "shop.text": "\"Welcome, commander! Training, recruits, steel – everything has its price.\"",
+  "shop.text": "\"Welcome, commander! Steel, potions, rare relics – and swords for hire. Everything has its price.\"",
   "shop.atk": "Weapons drill: +1 ATK",
   "shop.atkHint": "Your hero's attack counts for every unit.",
   "shop.def": "Shield drill: +1 DEF",
@@ -1890,5 +1890,11 @@
   "kind.item": "Equipment",
   "reward.eliteTitle": "Elite spoils",
   "heroSelect.startTalent": "Start talent",
-  "runEnd.noProduction": "Lumber mill and ore mine only deliver after you have beaten the act 1 boss."
+  "runEnd.noProduction": "Lumber mill and ore mine only deliver after you have beaten the act 1 boss.",
+  "shop.neutral": "Hire: {unit} (T{tier})",
+  "shop.neutralStack": "About {n} of them follow you (leadership)",
+  "shop.neutralReplace": "army full: replaces a unit type (its upgrades are lost)",
+  "shop.replaceTitle": "Which unit type should {unit} replace?",
+  "shop.replaceHint": "leaves the army (upgrade level {n} is lost)",
+  "shop.replaceText": "Your army already has three unit types. The new creatures take the place of one of them."
 }

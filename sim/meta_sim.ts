@@ -1,5 +1,7 @@
+import { aiShop } from './shop_ai';
 import { rankFor, rateLoot } from '../src/run/rating';
 export const rankCount: Record<string, number> = {};
+const deathAt: Record<string, number> = {};
 // Meta progression over many runs (v0.17, GDD 17.8): the AI plays run after run, brings the loot home like
 // the game does (RunEndScene), builds the city greedily and we watch play time and success.
 // Usage: npx tsx sim/meta_sim.ts [campaigns=6] [maxRuns=80] [difficultyJSON]
@@ -50,14 +52,14 @@ function simRun(heroId: string, seed: number): { minutes: number; acts: number; 
     const node = pick.pick(opts);
     r.currentNode = node.id; r.visited.push(node.id);
     if (node.type === 'rest') { minutes += MIN_NODE; const s = pick.pick(r.army); if (s.level < MAX_UNIT_LEVEL) { const o = upgradeOptions(s); levelUpUnit(s, o.length ? pick.pick(o).id : null); } continue; }
-    if (node.type === 'shop') { minutes += MIN_NODE; while (r.gold >= 50) { r.gold -= 50; addLeadership(10); } continue; }
+    if (node.type === 'shop') { minutes += MIN_NODE; if (process.env.OLDSHOP) { while (r.gold >= 50) { r.gold -= 50; addLeadership(10); } } else aiShop(pick, node.floor); continue; }
     if (node.type === 'treasure') { minutes += MIN_NODE; r.gold += 80; addLoot(lootFor('treasure', 6)); if (pick.next() < 0.5) stashItem(rollItem(pick, node.floor)); continue; }
     if (node.type === 'shrine' || node.type === 'event') { minutes += MIN_NODE; r.gold += 20; continue; }
     minutes += MIN_BATTLE;
     const cfg = battleConfig(node, buildEnemy(node));
     const b = fight(cfg);
     for (const i of b.usedItems.player) if (r.belt) r.belt[i] = null;
-    if (b.winner !== 'player') break;
+    if (b.winner !== 'player') { const k = `${node.type}@${r.act}`; deathAt[k] = (deathAt[k] ?? 0) + 1; break; }
     r.battlesWon = (r.battlesWon ?? 0) + 1;
     // battle rating (v0.18): fewer losses = more resources; RATING=0 switches it off for comparison
     const rk = rankFor(b.lossShare('player'));
@@ -69,7 +71,7 @@ function simRun(heroId: string, seed: number): { minutes: number; acts: number; 
       if (r.act < 3) { advanceAct(); continue; }
       minutes += MIN_BATTLE;
       const fb = fight(finalConfig());
-      if (fb.winner === 'player') won = true;
+      if (fb.winner === 'player') won = true; else deathAt.final = (deathAt.final ?? 0) + 1;
       break;
     }
     r.gold += cfg.reward.gold;
@@ -147,3 +149,4 @@ for (let k = 0; k < rows.length; k += step) {
 }
 if (!FULL) console.log('city complete after (hours):', doneAt.map((m) => (m / 60).toFixed(1)).join(', ') || 'not within ' + MAX_RUNS + ' runs');
 console.log('battle ranks:', Object.entries(rankCount).sort().map(([k, v]) => `${k} ${(100 * v / Object.values(rankCount).reduce((x, y) => x + y, 0)).toFixed(0)}%`).join(', '));
+console.log('defeats:', Object.entries(deathAt).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(', '));

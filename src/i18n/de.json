@@ -13,7 +13,7 @@
   "settings.sfx": "Soundeffekte",
   "settings.fullscreen": "Vollbild",
   "credits.title": "Mitwirkende",
-  "credits.body": "HEX LEGACY\nEin Spiel von Hudel\n\nDesign & Leitung: Ben\nCode: Claude (Anthropic)\nGrafik: Higgsfield (Nano Banana Pro, Seedance), Freebeat\nSoundeffekte, Heldenstimmen & Musik: ElevenLabs\nEngine: Phaser\nSchriften: Cinzel, Alegreya (SIL Open Font License)\n\nInspiriert von Heroes of Might and Magic und Slay the Spire.\nDanke fürs Spielen!",
+  "credits.body": "HEX LEGACY\nEin Spiel von Hudel\n\nDesign & Leitung: Hudel\nCode: Claude (Anthropic)\nGrafik: Higgsfield (Nano Banana Pro, Seedance), Freebeat\nSoundeffekte, Heldenstimmen & Musik: ElevenLabs\nEngine: Phaser\nSchriften: Cinzel, Alegreya (SIL Open Font License)\n\nInspiriert von Heroes of Might and Magic und Slay the Spire.\nDanke fürs Spielen!",
   "battle.wait": "Warten",
   "battle.defend": "Verteidigen",
   "battle.auto": "Auto",
@@ -106,7 +106,7 @@
   "map.hint": "Klicke einen leuchtenden Knoten an, um dorthin zu reisen. Scrollen mit dem Mausrad oder durch Ziehen.",
   "map.menu": "Speichern & Ende",
   "map.noArmy": "Du hast keine Einheiten!",
-  "shop.text": "„Willkommen, Kommandant! Ausbildung, Rekruten, Stahl – alles hat seinen Preis.“",
+  "shop.text": "„Willkommen, Kommandant! Stahl, Tränke, seltene Relikte – und Klingen zum Anheuern. Alles hat seinen Preis.“",
   "shop.atk": "Waffendrill: +1 ANG",
   "shop.atkHint": "Der Angriff deines Helden zählt für jede Einheit.",
   "shop.def": "Schilddrill: +1 VER",
@@ -1890,5 +1890,11 @@
   "kind.item": "Ausrüstung",
   "reward.eliteTitle": "Beute der Elite",
   "heroSelect.startTalent": "Starttalent",
-  "runEnd.noProduction": "Sägewerk und Erzmine liefern erst, wenn du den Boss von Akt 1 besiegt hast."
+  "runEnd.noProduction": "Sägewerk und Erzmine liefern erst, wenn du den Boss von Akt 1 besiegt hast.",
+  "shop.neutral": "Anheuern: {unit} (T{tier})",
+  "shop.neutralStack": "Etwa {n} von ihnen folgen dir (Führung)",
+  "shop.neutralReplace": "Armee voll: ersetzt einen Einheitentyp (dessen Verbesserungen gehen verloren)",
+  "shop.replaceTitle": "Welchen Einheitentyp sollen die {unit} ersetzen?",
+  "shop.replaceHint": "verlässt die Armee (Verbesserungsstufe {n} geht verloren)",
+  "shop.replaceText": "Deine Armee hat schon drei Einheitentypen. Die neuen Kreaturen nehmen den Platz von einem davon ein."
 }
