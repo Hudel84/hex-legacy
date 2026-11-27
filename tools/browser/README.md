@@ -8,6 +8,7 @@ Serve the build first: `npm run build && python3 -m http.server 4174 --directory
 - `evtest.mjs` – opens every event and node type (`TS=2` for the largest text size)
 - `oldsave.mjs` – plays with an old build under /old/ and continues the save in the current build
 - `tactics.mjs` – tactics set-up with real mouse clicks (select, move, swap, Enter), battle rating and reward (`LANG_DE=1`, `CITY=1` = War Council 1, `STRONG=1`) → /tmp/shots
+- `ui_cards.mjs` – hero selection (start talents; DE/EN, very large text) and elite reward with kind labels (Artifact / Equipment) → /tmp/shots
 - `fixtest2.mjs` – battle against chosen enemy units (check facing of sprites)
 
 `?test` exposes `game`, `hexRun()` and `hexDebug.battleConfig(node, enemy)` on `window`.

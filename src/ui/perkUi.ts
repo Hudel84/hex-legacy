@@ -24,6 +24,9 @@ export function rarityLabel(p: PerkDef): string {
   return p.heroes ? `${t('rarity.hero')} · ${base}` : base;
 }
 
+/** Colour of the kind label on reward cards: what a card is at a glance (v0.18.1). */
+export const KIND_COLOR: Record<string, number> = { artifact: 0x6a3fa0, relic: 0xa0521c, talent: 0x2f5f9a, item: 0x3f6f35 };
+
 export function loadPerkIcons(scene: Phaser.Scene, perks: PerkDef[] = PERKS): void {
   for (const p of perks) if (!scene.textures.exists(perkIconKey(p))) scene.load.image(perkIconKey(p), `assets/${perkIconPath(p)}`);
 }
@@ -31,6 +34,7 @@ export function loadPerkIcons(scene: Phaser.Scene, perks: PerkDef[] = PERKS): vo
 export function perkCard(scene: Phaser.Scene, x: number, y: number, p: PerkDef, onClick: () => void, w = 300): Phaser.GameObjects.Container {
   return card(scene, x, y, {
     w, h: 520, portrait: perkIconKey(p), title: t(`perk.${p.id}`), subtitle: rarityLabel(p),
+    tag: t(p.boss ? 'kind.relic' : `kind.${p.kind}`), tagColor: KIND_COLOR[p.boss ? 'relic' : p.kind],
     subtitleColor: RARITY_COLOR[p.cursed ? 'cursed' : p.rarity], lines: perkLines(p),
     lineSize: perkLines(p).join(' ').length > 70 ? 19 : 22, onClick,
   });

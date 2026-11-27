@@ -21,7 +21,7 @@ import { offer, bossRelics, type PerkDef } from '../run/perks';
 import { levelUpOptions, takeThemeRank, rankUpgrades, chooseTalentUpgrade, themeRank, applyBoon, addLeadership } from '../run/state';
 import { levelOptionCard, themeName, rankLabel } from '../ui/talentUi';
 import { spellName } from '../ui/spellUi';
-import { perkCard, loadPerkIcons } from '../ui/perkUi';
+import { perkCard, loadPerkIcons, KIND_COLOR } from '../ui/perkUi';
 import { bonus } from '../meta/meta';
 import type { RunBattleConfig } from '../run/encounters';
 import { card, titleStyle, textStyle, stat, resRow, panel } from '../ui/widgets';
@@ -213,7 +213,7 @@ export class RewardScene extends Phaser.Scene {
     if (!opts.length && !this.eliteItem) { this.next(); return; }
     playSfx(this, 'ui_reward');
     this.clear();
-    this.layer.add(this.add.text(w / 2, 120, t('reward.artifact'), titleStyle(60)).setOrigin(0.5));
+    this.layer.add(this.add.text(w / 2, 120, t(this.eliteItem ? 'reward.eliteTitle' : 'reward.artifact'), titleStyle(60)).setOrigin(0.5));
     this.layer.add(this.add.text(w / 2, 195, t(this.eliteItem ? 'reward.chooseArtifactOrItem' : 'reward.chooseArtifact'), textStyle(30)).setOrigin(0.5));
     const n = opts.length + (this.eliteItem ? 1 : 0);
     const xs = (i: number) => w / 2 + (i - (n - 1) / 2) * 360;
@@ -223,6 +223,7 @@ export class RewardScene extends Phaser.Scene {
       const info = itemInfo(it, heroFaction());
       this.layer.add(card(this, xs(opts.length), 590, {
         w: 300, h: 520, portrait: itemIconKey(it.id), title: info.title, subtitle: info.sub, subtitleColor: info.color,
+        tag: t('kind.item'), tagColor: KIND_COLOR.item,
         lines: info.lines.slice(0, -1).map((l) => l.text), lineSize: 19,
         onClick: () => { this.itemFind = it; playSfx(this, 'ui_equip'); this.next(); },
       }));

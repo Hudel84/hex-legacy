@@ -67,6 +67,11 @@ export interface CardOpts {
   onClick?: () => void;
   disabled?: boolean;
   highlight?: boolean;
+  /** Small label at the top edge, e.g. "Artifact" / "Equipment" (v0.18.1). */
+  tag?: string;
+  tagColor?: number;
+  /** Space at the bottom kept free of text (the caller draws something there). */
+  reserveBottom?: number;
 }
 
 /** Card with gold frame, portrait in the arch and text below (units, heroes, rewards). */
@@ -91,7 +96,8 @@ export function card(scene: Phaser.Scene, x: number, y: number, o: CardOpts): Ph
   // texts below the arch; with a large text setting they shrink until they fit into the card
   const texts = scene.add.container(0, 0);
   c.add(texts);
-  for (let f = 1; f >= 0.55; f -= 0.075) {
+  const minF = o.reserveBottom ? 0.4 : 0.55;
+  for (let f = 1; f >= minF; f -= 0.075) {
     texts.removeAll(true);
     const title = scene.add.text(0, ty, o.title, { ...titleStyle(Math.round(w / 13 * f)), align: 'center', wordWrap: { width: w * 0.8 } }).setOrigin(0.5, 0);
     if (title.getWrappedText().length > 1) {
@@ -113,7 +119,16 @@ export function card(scene: Phaser.Scene, x: number, y: number, o: CardOpts): Ph
       texts.add(ln);
       yy += ln.height;
     }
-    if (yy <= h / 2 - 22) break;
+    if (yy <= h / 2 - 22 - (o.reserveBottom ?? 0)) break;
+  }
+  if (o.tag) {
+    const tt = scene.add.text(0, -h / 2 + 2, o.tag.toUpperCase(), { ...textStyle(Math.round(w / 19), '#ffffff', true), stroke: '#000', strokeThickness: 4 }).setOrigin(0.5);
+    if (tt.width > w * 0.7) tt.setScale(w * 0.7 / tt.width);
+    const tw = tt.displayWidth + 34, th = tt.displayHeight + 10;
+    const pill = scene.add.graphics();
+    pill.fillStyle(o.tagColor ?? 0x6a3fa0, 1).fillRoundedRect(-tw / 2, -h / 2 + 2 - th / 2, tw, th, th / 2);
+    pill.lineStyle(3, 0xf3d48a, 1).strokeRoundedRect(-tw / 2, -h / 2 + 2 - th / 2, tw, th, th / 2);
+    c.add([pill, tt]);
   }
   if (o.highlight) {
     const g = scene.add.graphics();

@@ -9,6 +9,9 @@ import { card, titleStyle, textStyle } from '../ui/widgets';
 import { Button } from '../ui/Button';
 import { playMusic } from '../core/audio';
 import { playVoice } from '../core/voice';
+import { START_THEME, themeById } from '../run/talents';
+import { themeName } from '../ui/talentUi';
+import { KIND_COLOR } from '../ui/perkUi';
 
 export class HeroSelectScene extends Phaser.Scene {
   private selected = HEROES[0].id;
@@ -25,6 +28,8 @@ export class HeroSelectScene extends Phaser.Scene {
     loadRunUi(this);
     img(this, 'ui_hero_select_bg', 'ui/screens/ui_hero_select_bg.webp');
     for (const h of HEROES) { loadHeroPortrait(this, h.id); for (const u of h.startArmy) loadPortrait(this, u); }
+    // start talent icons (v0.18.1)
+    for (const id of new Set(Object.values(START_THEME))) { const th = themeById(id); if (th) img(this, `talenticon_${th.icon}`, `icons/talents/icon_talent_${th.icon}.webp`); }
   }
 
   create(): void {
@@ -44,8 +49,8 @@ export class HeroSelectScene extends Phaser.Scene {
     rb.fillStyle(0x000000, 0.55).fillRoundedRect(w / 2 - race.width / 2 - 20, 248 - race.height / 2 - 8, race.width + 40, race.height + 16, 10);
     race.setDepth(1); rb.setDepth(0.5);
     this.drawCards();
-    new Button(this, w / 2 - 220, h - 85, t('common.back'), { width: 300, fontSize: 28, onClick: () => this.scene.start('Title') });
-    new Button(this, w / 2 + 220, h - 85, t('heroSelect.start'), { style: 'red', width: 340, fontSize: 30, onClick: () => this.start() });
+    new Button(this, w / 2 - 220, h - 58, t('common.back'), { width: 300, fontSize: 28, onClick: () => this.scene.start('Title') });
+    new Button(this, w / 2 + 220, h - 58, t('heroSelect.start'), { style: 'red', width: 340, fontSize: 30, onClick: () => this.start() });
     playMusic(this, 'mus_main_menu');
   }
 
@@ -59,8 +64,9 @@ export class HeroSelectScene extends Phaser.Scene {
       const army = hero.startArmy.map((u) => t(`unit.${u}`)).join(', ');
       const unlocked = heroUnlocked(hero.id);
       const lockInfo = heroUnlockText(hero.id);
-      const c = card(this, x, 590, {
-        w: 360, h: 620,
+      const H = 680, RES = 145;
+      const c = card(this, x, 612, {
+        w: 360, h: H, reserveBottom: RES + 22,
         portrait: `heroportrait_${hero.id}`,
         title: t(`hero.${hero.id}`),
         subtitle: t(hero.bonus),
@@ -74,6 +80,33 @@ export class HeroSelectScene extends Phaser.Scene {
         disabled: !unlocked,
         onClick: () => { this.selected = hero.id; this.drawCards(); playVoice(this, hero.id, 'select'); },
       });
+      // start talent (v0.16 themes): icon, name and what it does
+      const theme = START_THEME[hero.id];
+      const th = theme ? themeById(theme) : undefined;
+      if (th) {
+        const y0 = H / 2 - RES - 22;
+        const g = this.add.graphics();
+        g.fillStyle(0x16233a, 0.97).fillRoundedRect(-150, y0, 300, RES - 8, 12);
+        g.lineStyle(2, 0xf3d48a, 0.8).strokeRoundedRect(-150, y0, 300, RES - 8, 12);
+        const ic = this.add.image(-108, y0 + (RES - 8) / 2, `talenticon_${th.icon}`); ic.setScale(64 / Math.max(ic.width, ic.height));
+        const head = this.add.text(-68, y0 + 14, themeName(theme), { ...textStyle(20, '#ffe08a', true), wordWrap: { width: 210 } });
+        const desc = this.add.text(-68, 0, t(`talent.${theme}.desc`), { ...textStyle(17, '#efe3c8'), wordWrap: { width: 210 } });
+        // shrink until name + description fit into the box (large text setting)
+        for (let k = 1; k >= 0.3; k -= 0.05) {
+          head.setScale(k); desc.setScale(k);
+          head.setWordWrapWidth(210 / k); desc.setWordWrapWidth(210 / k);
+          desc.setY(head.y + head.displayHeight + 3);
+          if (desc.y + desc.displayHeight <= y0 + RES - 24) break;
+        }
+        // label on the upper edge of the box
+        const lab = this.add.text(0, y0, t('heroSelect.startTalent').toUpperCase(), { ...textStyle(15, '#ffffff', true), stroke: '#000', strokeThickness: 3 }).setOrigin(0.5);
+        if (lab.width > 200) lab.setScale(200 / lab.width);
+        const lw = lab.displayWidth + 26, lh = lab.displayHeight + 6;
+        const pill = this.add.graphics();
+        pill.fillStyle(KIND_COLOR.talent, 1).fillRoundedRect(-lw / 2, y0 - lh / 2, lw, lh, lh / 2);
+        pill.lineStyle(2, 0xf3d48a, 1).strokeRoundedRect(-lw / 2, y0 - lh / 2, lw, lh, lh / 2);
+        c.add([g, ic, head, desc, pill, lab]);
+      }
       if (!unlocked && lockInfo) {
         const [b, lv] = lockInfo.split(':');
         const lock = this.add.image(0, -60, 'ui_icon_lock'); lock.setScale(90 / lock.width);
