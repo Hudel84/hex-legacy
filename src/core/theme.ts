@@ -11,4 +11,4 @@ export const COLOR = {
 
 export const GAME_W = 1920;
 export const GAME_H = 1080;
-export const VERSION = '0.20.2';
+export const VERSION = '0.20.3';

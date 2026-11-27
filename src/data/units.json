@@ -1459,8 +1459,7 @@
       "crushingBlow"
     ],
     "sheet": "neutrals/animated/anim_neutral_cyclops_idle_sheet_8x4.webp",
-    "portrait": "ui/portraits/neutrals/portrait_neutral_cyclops.webp",
-    "faceLeft": true
+    "portrait": "ui/portraits/neutrals/portrait_neutral_cyclops.webp"
   },
   "neutral_dragon_turtle": {
     "faction": "neutral",
