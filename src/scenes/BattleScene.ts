@@ -1,3 +1,4 @@
+import { openHero } from './HeroScene';
 import { rankFor, fmtMult } from '../run/rating';
 import Phaser from 'phaser';
 import { Battle, type Action, type BattleSetup } from '../battle/engine';
@@ -155,6 +156,8 @@ export class BattleScene extends Phaser.Scene {
   private gridG!: Phaser.GameObjects.Graphics;
   private hiG!: Phaser.GameObjects.Graphics;
   private hoverG!: Phaser.GameObjects.Graphics;
+  /** Red hexes: how far the enemy stack under the mouse can move (v0.20.1). */
+  private enemyReachG!: Phaser.GameObjects.Graphics;
   private activeRing!: Phaser.GameObjects.Image;
   private infoText!: Phaser.GameObjects.Text;
   private logLines: string[] = [];
@@ -322,6 +325,14 @@ export class BattleScene extends Phaser.Scene {
     // heroes at the sides
     const ph = this.add.image(125, 640, `herobattle_${this.cfg.playerHero}`).setOrigin(0.5, 1);
     ph.setScale(380 / ph.height);
+    // click on the hero (or key I): hero screen to look things up (read-only during a battle, v0.20.1)
+    if (this.cfg.mode === 'run') {
+      ph.setInteractive({ useHandCursor: true, pixelPerfect: true, alphaTolerance: 20 });
+      ph.on('pointerover', () => { ph.setTint(0xfff0c0); this.infoText.setText(t('battle.heroScreen')); });
+      ph.on('pointerout', () => { ph.clearTint(); this.infoText.setText(''); });
+      ph.on('pointerup', () => this.openHeroScreen());
+      this.input.keyboard?.on('keydown-I', () => this.openHeroScreen());
+    }
     if (this.cfg.enemyHero) {
       const eh = this.add.image(w - 125, 640, `herobattle_${this.cfg.enemyHero}`).setOrigin(0.5, 1).setFlipX(true);
       eh.setScale(380 / eh.height);
@@ -333,6 +344,7 @@ export class BattleScene extends Phaser.Scene {
     // grid
     this.gridG = this.add.graphics();
     this.hiG = this.add.graphics();
+    this.enemyReachG = this.add.graphics();
     this.hoverG = this.add.graphics();
     this.drawGrid();
     for (const k of this.battle.obstacles) {
@@ -411,6 +423,15 @@ export class BattleScene extends Phaser.Scene {
       if (!v.box.active) continue;
       v.over.setPosition(v.box.x, v.box.y).setVisible(v.box.visible).setAlpha(v.box.alpha);
     }
+  }
+
+  private openHeroScreen(): void {
+    if (this.bookOpen || this.infoOpen?.active || this.battle.winner) return;
+    this.showEnemyReach(null);
+    this.hoverG.clear();
+    this.input.setDefaultCursor('default');
+    playSfx(this, 'ui_click');
+    openHero(this);
   }
 
   // ---------- tactics (set-up before the battle, v0.18) ----------
@@ -1202,7 +1223,13 @@ export class BattleScene extends Phaser.Scene {
 
   private onHover(x: number, y: number): void {
     this.hoverG.clear();
-    if (this.bookOpen) return;
+    if (this.bookOpen) { this.showEnemyReach(null); return; }
+    {
+      // red hexes: how far the enemy under the mouse can move
+      const hh = pixelToHex(x, y);
+      const st = hh ? this.battle.stackAt(hh) : undefined;
+      this.showEnemyReach(!this.spellTargeting && this.itemTargeting === null && st && st.side === 'enemy' && st.count > 0 ? st : null);
+    }
     if (this.deploying) { this.deployHover(x, y); return; }
     if (this.spellTargeting) { this.spellHover(x, y); return; }
     if (this.itemTargeting !== null) {
@@ -1256,6 +1283,25 @@ export class BattleScene extends Phaser.Scene {
     }
     if (occ) this.infoText.setText(this.stackInfo(occ));
     else if (s && this.inputOpen) this.infoText.setText(t('battle.yourTurn', { unit: unitName(s.def) }));
+  }
+
+  /** Movement range of an enemy stack in red (null clears it). Redrawn only when the stack changes. */
+  private enemyReachUid: number | null = null;
+  private showEnemyReach(st: Stack | null): void {
+    const uid = st ? st.uid : null;
+    if (uid === this.enemyReachUid && !st) return;
+    this.enemyReachUid = uid;
+    const g = this.enemyReachG;
+    g.clear();
+    if (!st) return;
+    for (const [, path] of this.battle.reachable(st)) {
+      const h = path[path.length - 1];
+      for (const c of this.battle.cells(st, h)) {
+        g.fillStyle(0xe8160c, 0.3).fillPoints(hexPoly(c, 8), true);
+        g.lineStyle(2, 0xff4030, 0.8).strokePoints(hexPoly(c, 8), true, true);
+      }
+    }
+    this.polyStack(g, st, 0xff3a2a, 0.18, 0xff8a7a, 0.9, 3);
   }
 
   /** Sword at the mouse pointer, tip on the pointer, blade pointing from the attack hex to the target. */

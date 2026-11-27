@@ -1921,5 +1921,7 @@
   "asc.rule.9": "Weak start",
   "asc.desc.9": "-15 % leadership at the start, no start gold from the town hall",
   "asc.rule.10": "Wrath of the Void",
-  "asc.desc.10": "another +25 % enemy strength, twice the void spawn in the final battle"
+  "asc.desc.10": "another +25 % enemy strength, twice the void spawn in the final battle",
+  "battle.heroScreen": "Your hero: click (or I) for the hero screen",
+  "hero.helpBattle": "During a battle you can only look. Equip items after the battle."
 }

@@ -1,5 +1,6 @@
 // Hero screen (GDD 5.3): equipment panel with 9 item places and 3 belt places, backpack, hero values, effects and sets.
 // Opened as an overlay from the map and node screens (the calling scene is paused meanwhile).
+import { themeName, rankLabel } from '../ui/talentUi';
 import Phaser from 'phaser';
 import { t } from '../core/i18n';
 import { playSfx } from '../core/audio';
@@ -50,6 +51,9 @@ export class HeroScene extends Phaser.Scene {
   constructor() { super('Hero'); }
 
   init(data: { caller?: string }): void { this.caller = data.caller ?? 'Map'; }
+
+  /** Opened from a battle: look only, no equipping (v0.20.1). */
+  private get readOnly(): boolean { return this.caller === 'Battle'; }
 
   preload(): void {
     loadRunUi(this);
@@ -163,7 +167,15 @@ export class HeroScene extends Phaser.Scene {
     const m = playerMods(r);
     const diff: Partial<SideMods> = {};
     for (const [k, v] of Object.entries(m) as [keyof SideMods, number][]) if (v !== NO_MODS[k]) diff[k] = v;
-    const lines = effectLines({}, diff);
+    // talents (themes with rank) and artifacts first, so they can be looked up here (also during a battle, v0.20.1)
+    const themes = (r.themes ?? []).map((th) => `${themeName(th.id)} (${rankLabel(th.rank)})`);
+    const arts = (r.artifacts ?? []).map((id) => t(`perk.${id}`));
+    const lines = [
+      ...(themes.length ? [`${t('map.talents')}: ${themes.join(', ')}`] : []),
+      ...(arts.length ? [`${t('map.artifacts')}: ${arts.join(', ')}`] : []),
+      ...((themes.length || arts.length) ? [''] : []),
+      ...effectLines({}, diff),
+    ];
     // between the corners: x 1405..1835 (wrap 410), y 132..402; the text shrinks until it fits
     const activeSets = Object.entries(sets).filter(([, n]) => n >= 2);
     const effects = this.add.container(0, 0);
@@ -204,7 +216,7 @@ export class HeroScene extends Phaser.Scene {
     }
     // help text between the backpack and the back button; shrinks if large text would not fit
     for (let size = 17; size >= 10; size--) {
-      const ht = this.add.text(X + 530, 545, t('hero.help'), { ...textStyle(size, '#d9c7a0'), wordWrap: { width: 190 } });
+      const ht = this.add.text(X + 530, 545, t(this.readOnly ? 'hero.helpBattle' : 'hero.help'), { ...textStyle(size, this.readOnly ? '#ffb08a' : '#d9c7a0'), wordWrap: { width: 190 } });
       if (ht.height <= 108 || size === 10) { this.layer.add(ht); break; }
       ht.destroy();
     }
@@ -223,6 +235,12 @@ export class HeroScene extends Phaser.Scene {
   /** Hover shows details, click moves the item (equip / to the backpack), dragging works too. */
   private makeItem(ic: Phaser.GameObjects.Container, it: ItemInst, from: Drop, click: () => void, setCount: number, faction: string): void {
     this.layer.add(ic);
+    if (this.readOnly) {
+      // during a battle only looking is allowed (the battle already uses the current equipment and belt)
+      ic.setInteractive();
+      ic.on('pointerover', () => this.showItem(it, setCount, faction, from));
+      return;
+    }
     ic.setInteractive({ useHandCursor: true, draggable: true });
     const home = { x: ic.x, y: ic.y };
     let dragging = false;

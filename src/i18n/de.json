@@ -1921,5 +1921,7 @@
   "asc.rule.9": "Schwacher Start",
   "asc.desc.9": "−15 % Führung zu Beginn, kein Startgold aus dem Rathaus",
   "asc.rule.10": "Zorn der Leere",
-  "asc.desc.10": "nochmals +25 % Gegnerstärke, doppelte Leerenbrut im Endkampf"
+  "asc.desc.10": "nochmals +25 % Gegnerstärke, doppelte Leerenbrut im Endkampf",
+  "battle.heroScreen": "Dein Held: Klick (oder I) öffnet den Heldenbildschirm",
+  "hero.helpBattle": "Im Kampf kannst du nur nachsehen. Ausrüstung wechseln geht nach dem Kampf."
 }
