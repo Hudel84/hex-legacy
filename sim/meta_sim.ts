@@ -1,3 +1,5 @@
+import { rankFor, rateLoot } from '../src/run/rating';
+export const rankCount: Record<string, number> = {};
 // Meta progression over many runs (v0.17, GDD 17.8): the AI plays run after run, brings the loot home like
 // the game does (RunEndScene), builds the city greedily and we watch play time and success.
 // Usage: npx tsx sim/meta_sim.ts [campaigns=6] [maxRuns=80] [difficultyJSON]
@@ -57,7 +59,10 @@ function simRun(heroId: string, seed: number): { minutes: number; acts: number; 
     for (const i of b.usedItems.player) if (r.belt) r.belt[i] = null;
     if (b.winner !== 'player') break;
     r.battlesWon = (r.battlesWon ?? 0) + 1;
-    addLoot(lootFor(node.type, node.floor));
+    // battle rating (v0.18): fewer losses = more resources; RATING=0 switches it off for comparison
+    const rk = rankFor(b.lossShare('player'));
+    (rankCount[rk.rank] = (rankCount[rk.rank] ?? 0) + 1);
+    addLoot(process.env.RATING === '0' ? lootFor(node.type, node.floor) : rateLoot(lootFor(node.type, node.floor), rk.mult));
     if (node.type === 'boss') {
       acts++;
       const o = bossRelics(cfg.setup.enemy.army[0].def.id, owner(), pick); if (o.length) grantPerk(pick.pick(o).id);
@@ -141,3 +146,4 @@ for (let k = 0; k < rows.length; k += step) {
   console.log(`${String(k + 1).padStart(2)}-${String(k + n).padEnd(3)}| ${pct(sum((r) => r.a1))}  ${pct(sum((r) => r.a2))}  ${pct(sum((r) => r.a3))}  ${pct(sum((r) => r.won))} | ${(last.min / CAMPAIGNS / 60).toFixed(1).padStart(5)} | ${(last.lv / CAMPAIGNS).toFixed(0)}/${totalLevels}`);
 }
 if (!FULL) console.log('city complete after (hours):', doneAt.map((m) => (m / 60).toFixed(1)).join(', ') || 'not within ' + MAX_RUNS + ' runs');
+console.log('battle ranks:', Object.entries(rankCount).sort().map(([k, v]) => `${k} ${(100 * v / Object.values(rankCount).reduce((x, y) => x + y, 0)).toFixed(0)}%`).join(', '));

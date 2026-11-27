@@ -61,10 +61,10 @@ export class ModalScene extends Phaser.Scene {
 
   private buildSettings(): void {
     const labelStyle = { fontFamily: FONT_TITLE, fontSize: '30px', fontStyle: '700', color: COLOR.parchmentText };
-    const rows = [-200, -100, 0, 100];
+    const rows = [-225, -135, -45, 45, 135];
     const LX = -430;
     // controls move right when the labels are big (large text setting), but stay inside the window
-    const probe = ['settings.language', 'settings.music', 'settings.sfx', 'settings.textSize']
+    const probe = ['settings.language', 'settings.music', 'settings.sfx', 'settings.textSize', 'settings.tactics']
       .map((k) => { const p = this.add.text(0, 0, t(k), labelStyle); const pw = p.width; p.destroy(); return pw; });
     const CX = Phaser.Math.Clamp(LX + Math.max(...probe) + 260, 120, 215);
 
@@ -111,6 +111,24 @@ export class ModalScene extends Phaser.Scene {
         settings.textSize = i;
         saveSettings();
         this.game.events.emit('text-size-changed');
+        this.scene.restart({ kind: this.kind });
+      });
+      this.panel.add([r, tx, hit]);
+    });
+
+    // tactics: set up the army before every battle (v0.18)
+    this.panel.add(this.add.text(LX, rows[4], t('settings.tactics'), labelStyle).setOrigin(0, 0.5));
+    [true, false].forEach((on, i) => {
+      const x = CX - 190 + i * 230;
+      const r = this.add.image(x, rows[4], (settings.tactics !== false) === on ? 'ui_radio_selected' : 'ui_radio_empty');
+      r.setScale(48 / r.width);
+      const tx = this.add.text(x + 34, rows[4], t(on ? 'settings.on' : 'settings.off'), { ...labelStyle, fontFamily: FONT_BODY, fontStyle: '400' }).setOrigin(0, 0.5);
+      const hit = this.add.zone(x + 60, rows[4], 200, 60).setInteractive({ useHandCursor: true });
+      hit.on('pointerup', () => {
+        if ((settings.tactics !== false) === on) return;
+        playSfx(this, 'ui_click');
+        settings.tactics = on;
+        saveSettings();
         this.scene.restart({ kind: this.kind });
       });
       this.panel.add([r, tx, hit]);

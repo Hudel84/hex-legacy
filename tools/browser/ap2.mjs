@@ -55,8 +55,21 @@ while (Date.now() - t0 < LIMIT) {
         if (sc.battle.winner) {
           if (sc._done === sc.battle) return 'battle-wait';
           sc._done = sc.battle;
-          if (sc.cfg.mode === 'run') sc.scene.start(sc.battle.winner === 'player' ? 'Reward' : 'RunEnd', sc.battle.winner === 'player' ? { config: sc.cfg } : { won: false });
+          if (sc.cfg.mode === 'run') sc.scene.start(sc.battle.winner === 'player' ? 'Reward' : 'RunEnd', sc.battle.winner === 'player' ? { config: sc.cfg, rank: 'SABCD'[hexRun().battlesWon % 5] } : { won: false });
           return `battle-${sc.battle.winner}`;
+        }
+        // tactics phase (v0.18): pick a unit, move it to a random hex of the zone, then start
+        if (sc.deploying) {
+          const own = sc.battle.stacks.filter((x) => x.side === 'player');
+          const z = [];
+          for (let c = 0; c < sc.deployCols; c++) for (let r = 0; r < 7; r++) z.push({ col: c, row: r });
+          const st = own[Math.floor(Math.random() * own.length)];
+          const ok = z.filter((h) => sc.battle.canDeploy(st.uid, h, sc.deployCols));
+          const h = ok[Math.floor(Math.random() * ok.length)];
+          const before = own.map((x) => x.pos.col + ',' + x.pos.row).join(' ');
+          if (h) sc.battle.deploy(st.uid, h, sc.deployCols);
+          sc.endDeploy();
+          return 'deploy ' + before + ' -> ' + own.map((x) => x.pos.col + ',' + x.pos.row).join(' ') + ' saved=' + JSON.stringify(hexRun().formation);
         }
         if (!sc.auto) sc.toggleAuto();
         return 'battle';

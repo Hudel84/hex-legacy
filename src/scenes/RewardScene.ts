@@ -1,3 +1,5 @@
+import { rankByLetter, rateLoot, fmtMult } from '../run/rating';
+import { settings } from '../core/settings';
 import { PASSIVE_MODS } from '../battle/passives';
 import { passiveDesc } from '../ui/UnitInfo';
 import Phaser from 'phaser';
@@ -43,10 +45,13 @@ export class RewardScene extends Phaser.Scene {
   private treasure = false;
   private treasureGold = 0;
   private extraItems: ItemInst[] = [];
+  /** Battle rating (S..D) from the battle screen; multiplies the meta resources. */
+  private rank: ReturnType<typeof rankByLetter>;
 
   constructor() { super('Reward'); }
 
-  init(data: { config: RunBattleConfig; treasure?: boolean }): void {
+  init(data: { config: RunBattleConfig; treasure?: boolean; rank?: string }): void {
+    this.rank = rankByLetter(data.rank);
     this.cfg = data.config; this.artifactDone = false; this.itemFind = null; this.consFind = null; this.eliteItem = null;
     this.relicDone = false; this.treasure = !!data.treasure; this.treasureGold = 0; this.extraItems = [];
   }
@@ -94,7 +99,7 @@ export class RewardScene extends Phaser.Scene {
     r.battlesWon++;
     this.levelUps = gainXp(this.cfg.reward.xp);
     const node = nodeById(this.cfg.nodeId);
-    this.loot = lootFor(node.type, node.floor) as Record<string, number>;
+    this.loot = rateLoot(lootFor(node.type, node.floor), this.rank?.mult ?? 1) as Record<string, number>;
     addLoot(this.loot);
     save();
     playSfx(this, 'ui_coins');
@@ -111,8 +116,13 @@ export class RewardScene extends Phaser.Scene {
     this.layer.add(this.add.text(w / 2 + 60, 260, `+${this.cfg.reward.xp} XP`, textStyle(40, '#bcd8f0', true)).setOrigin(0, 0.5));
     this.layer.add(this.add.text(w / 2, 345, t('reward.loot'), textStyle(24, '#e8dcc0')).setOrigin(0.5));
     this.layer.add(resRow(this, w / 2, 395, this.loot, 30, '+'));
+    if (this.rank) {
+      const rk = this.rank;
+      this.layer.add(this.add.text(w / 2, 440, t('rating.line', { rank: rk.rank }) + (rk.mult > 1 ? '  ·  ' + t('rating.bonus', { x: fmtMult(rk.mult, settings.lang) }) : ''),
+        textStyle(24, rk.color, true)).setOrigin(0.5));
+    }
     if (this.treasure) {
-      this.layer.add(this.add.text(w / 2, 470, t('reward.treasureGoblin', { n: this.treasureGold }), textStyle(30, '#ffe08a', true)).setOrigin(0.5));
+      this.layer.add(this.add.text(w / 2, this.rank ? 500 : 470, t('reward.treasureGoblin', { n: this.treasureGold }), textStyle(30, '#ffe08a', true)).setOrigin(0.5));
     }
     this.time.delayedCall(1300, () => this.next());
   }

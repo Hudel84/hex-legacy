@@ -1869,5 +1869,19 @@
   "city.resetTitle": "The city was rebuilt",
   "city.resetText": "The city has more buildings and levels now. All buildings were reset; everything you had built was refunded to your resources:",
   "city.resetOk": "Understood",
-  "talent.reroll": "New choices ({n} left)"
+  "talent.reroll": "New choices ({n} left)",
+  "rating.line": "Rating {rank}",
+  "rating.bonus": "city resources {x}",
+  "building.warCouncil.name": "War Council",
+  "building.warCouncil.desc": "Generals plan every battle over the maps: you may set up your army further forward before a fight.",
+  "building.warCouncil.l1": "Tactics: set up in the first 3 columns",
+  "building.warCouncil.l2": "Tactics: set up in the first 4 columns",
+  "settings.tactics": "Tactics",
+  "settings.on": "On",
+  "settings.off": "Off",
+  "battle.tacticsTitle": "Tactics",
+  "battle.tacticsHelp": "Set up your army: click one of your units, then a highlighted hex (another unit there swaps places).",
+  "battle.tacticsPicked": "{unit}: choose a hex",
+  "battle.start": "Start battle",
+  "battle.tacticsShort": "Tactics: set up your units, then start the battle"
 }

@@ -7,6 +7,7 @@ export interface Settings {
   musicVolume: number; // 0..1
   sfxVolume: number;   // 0..1
   textSize: number;    // 0 normal, 1 large, 2 very large
+  tactics: boolean;    // set up the army before each battle (v0.18)
 }
 
 const KEY = 'hexlegacy.settings.v1';
@@ -16,6 +17,7 @@ const defaults: Settings = {
   musicVolume: 0.6,
   sfxVolume: 0.8,
   textSize: 0,
+  tactics: true,
 };
 
 function load(): Settings {

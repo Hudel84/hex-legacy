@@ -1,3 +1,4 @@
+import { rankFor, fmtMult } from '../run/rating';
 import Phaser from 'phaser';
 import { Battle, type Action, type BattleSetup } from '../battle/engine';
 import { type Hex, key, eq, allHexes } from '../battle/hex';
@@ -136,6 +137,12 @@ export function testBattleConfig(): BattleConfig {
   return [c.x, c.y];  // head hex (clickable for wide units too)
 };
 
+/** Test helper: screen position of a hex (game coordinates). */
+(window as unknown as { __hexXY: (col: number, row: number) => [number, number] }).__hexXY = (col: number, row: number) => {
+  const c = hexCenter({ col, row });
+  return [c.x, c.y];
+};
+
 export class BattleScene extends Phaser.Scene {
   private cfg!: BattleConfig;
   private battle!: Battle;
@@ -169,6 +176,11 @@ export class BattleScene extends Phaser.Scene {
   private bookOpen: Phaser.GameObjects.Container | null = null;
   private itemTargeting: number | null = null;
   private beltBar!: Phaser.GameObjects.Container;
+  /** Tactics phase before the first round (v0.18): stacks can be moved inside the set-up zone. */
+  private deploying = false;
+  private deployCols = 2;
+  private deploySel: number | null = null;
+  private btnStart: Button | null = null;
 
   constructor() { super('Battle'); }
 
@@ -183,6 +195,9 @@ export class BattleScene extends Phaser.Scene {
     this.spellTargeting = null;
     this.bookOpen = null;
     this.itemTargeting = null;
+    this.deploying = false;
+    this.deploySel = null;
+    this.btnStart = null;
   }
 
   preload(): void {
@@ -359,7 +374,10 @@ export class BattleScene extends Phaser.Scene {
       if (p.rightButtonReleased()) { this.onRightClick(p.worldX, p.worldY); return; }
       if (over.length === 0) this.onClick(p.worldX, p.worldY);
     });
-    this.input.keyboard?.on('keydown-ESC', () => { this.closeBook(); this.cancelTargeting(); this.cancelItem(); });
+    this.input.keyboard?.on('keydown-ESC', () => {
+      if (this.deploying && this.deploySel !== null) { this.deploySel = null; this.infoText.setText(t('battle.tacticsShort')); this.drawDeploy(); return; }
+      this.closeBook(); this.cancelTargeting(); this.cancelItem();
+    });
     this.input.keyboard?.on('keydown-S', () => this.toggleBook());
     this.input.keyboard?.on('keydown-A', () => this.abilityClicked());
     this.input.keyboard?.on('keydown-W', () => this.playerAction({ type: 'wait' }));
@@ -380,7 +398,103 @@ export class BattleScene extends Phaser.Scene {
 
     this.log(t('battle.help'));
     this.setButtonsEnabled(false);
-    this.time.delayedCall(400, () => this.loop());
+    this.time.delayedCall(400, () => this.startOrDeploy());
+  }
+
+  // ---------- tactics (set-up before the battle, v0.18) ----------
+
+  private startOrDeploy(): void {
+    if (this.cfg.mode !== 'run' || settings.tactics === false) { void this.loop(); return; }
+    const { width: w, height: h } = this.scale;
+    this.deploying = true;
+    this.deployCols = this.cfg.setup.deployCols ?? 2;
+    this.deploySel = null;
+    this.btnWait.setVisible(false);
+    this.btnDefend.setVisible(false);
+    this.btnStart = new Button(this, w - 150, h - 165, t('battle.start'), { width: 250, fontSize: 24, style: 'red', onClick: () => this.endDeploy() });
+    this.btnStart.setDepth(2000);
+    this.input.keyboard?.on('keydown-ENTER', () => this.endDeploy());
+    this.infoText.setText(t('battle.tacticsShort'));
+    this.log(t('battle.tacticsHelp'));
+    this.drawDeploy();
+  }
+
+  private drawDeploy(): void {
+    const g = this.hiG;
+    g.clear();
+    if (!this.deploying) return;
+    const sel = this.deploySel;
+    for (const hx of allHexes()) {
+      if (!this.battle.inDeployZone(hx, this.deployCols)) continue;
+      const ok = sel !== null && this.battle.canDeploy(sel, hx, this.deployCols);
+      g.fillStyle(0x7fe07a, ok ? 0.38 : 0.22).fillPoints(hexPoly(hx, 4), true);
+      g.lineStyle(ok ? 3 : 2, 0xc8ffb8, ok ? 0.95 : 0.6).strokePoints(hexPoly(hx, 4), true, true);
+    }
+    if (sel !== null) this.polyStack(g, this.battle.stack(sel), 0xffd84a, 0.25, 0xffe58a, 1, 4);
+  }
+
+  private deployHover(x: number, y: number): void {
+    const hx = pixelToHex(x, y);
+    const st = hx ? this.battle.stackAt(hx) : undefined;
+    const own = st && st.side === 'player' ? st : undefined;
+    const ok = !!hx && this.deploySel !== null && this.battle.canDeploy(this.deploySel, hx, this.deployCols);
+    if (ok) this.hoverG.lineStyle(4, 0xffffff, 1).strokePoints(hexPoly(hx!, 4), true, true);
+    else if (own) this.polyStack(this.hoverG, own, 0, 0, 0xffffff, 1, 4);
+    this.input.setDefaultCursor(ok || own ? 'pointer' : 'default');
+  }
+
+  private deployClick(x: number, y: number): void {
+    const hx = pixelToHex(x, y);
+    if (!hx) return;
+    const st = this.battle.stackAt(hx);
+    const own = st && st.side === 'player' ? st : undefined;
+    const sel = this.deploySel;
+    if (sel !== null && own?.uid === sel) { this.deploySel = null; this.infoText.setText(t('battle.tacticsShort')); this.drawDeploy(); return; }
+    if (sel !== null && this.battle.canDeploy(sel, hx, this.deployCols)) {
+      this.battle.deploy(sel, hx, this.deployCols);
+      playSfx(this, 'cb_move', 0.6);
+      for (const v of this.views.values()) {
+        if (v.stack.side !== 'player') continue;
+        const p = this.stackCenter(v.stack);
+        this.tweens.add({ targets: v.box, x: p.x, y: p.y, duration: 220, ease: 'Sine.out' });
+        v.box.setDepth(p.y + 10);
+      }
+      this.deploySel = null;
+      this.infoText.setText(t('battle.tacticsShort'));
+      this.hoverG.clear();
+      this.drawDeploy();
+      return;
+    }
+    if (own) {
+      this.deploySel = own.uid;
+      playSfx(this, 'ui_click');
+      this.infoText.setText(t('battle.tacticsPicked', { unit: unitName(own.def) }));
+      this.drawDeploy();
+    }
+  }
+
+  private endDeploy(): void {
+    if (!this.deploying || this.infoOpen?.active) return;
+    this.deploying = false;
+    this.deploySel = null;
+    this.input.keyboard?.off('keydown-ENTER');
+    this.btnStart?.destroy();
+    this.btnStart = null;
+    this.btnWait.setVisible(true);
+    this.btnDefend.setVisible(true);
+    this.hiG.clear(); this.hoverG.clear();
+    this.input.setDefaultCursor('default');
+    this.infoText.setText('');
+    playSfx(this, 'ui_click');
+    // remember the set-up for the next battles of this run
+    try {
+      const r = currentRun();
+      const f = { ...(r.formation ?? {}) };
+      for (const st of this.battle.stacks) if (st.side === 'player' && st.count > 0) f[st.def.id] = { col: st.pos.col, row: st.pos.row };
+      r.formation = f;
+      saveRun();
+    } catch { /* no run */ }
+    void this.loop();
   }
 
   private smallLabel(): Phaser.Types.GameObjects.Text.TextStyle {
@@ -1074,6 +1188,7 @@ export class BattleScene extends Phaser.Scene {
   private onHover(x: number, y: number): void {
     this.hoverG.clear();
     if (this.bookOpen) return;
+    if (this.deploying) { this.deployHover(x, y); return; }
     if (this.spellTargeting) { this.spellHover(x, y); return; }
     if (this.itemTargeting !== null) {
       const h = pixelToHex(x, y);
@@ -1167,6 +1282,7 @@ export class BattleScene extends Phaser.Scene {
 
   private onClick(x: number, y: number): void {
     if (this.bookOpen) return;
+    if (this.deploying) { this.deployClick(x, y); return; }
     if (this.itemTargeting !== null) {
       const h = pixelToHex(x, y);
       const st = h ? this.battle.stackAt(h) : undefined;
@@ -1611,19 +1727,33 @@ export class BattleScene extends Phaser.Scene {
       fontFamily: FONT_TITLE, fontSize: '110px', fontStyle: '900', color: won ? COLOR.gold : '#e8c8c0', stroke: '#2a1608', strokeThickness: 14,
     }).setOrigin(0.5);
     const losses = this.battle.stacks
-      .filter((s) => s.side === 'player' && s.startCount > s.count)
+      .filter((s) => s.side === 'player' && s.summonRounds === undefined && s.startCount > s.count)
       .map((s) => t('battle.lossItem', { name: unitName(s.def), lost: s.startCount - s.count, total: s.startCount }));
-    const sum = this.add.text(w / 2, 290, losses.length ? t('battle.losses', { list: losses.join(', ') }) : t('battle.noLosses'), {
+    // battle rating (run fights only): fewer losses = rank S..D, better ranks give more city resources
+    const rated = won && this.cfg.mode === 'run';
+    const rk = rankFor(this.battle.lossShare('player'));
+    const sum = this.add.text(w / 2, rated ? 455 : 290, losses.length ? t('battle.losses', { list: losses.join(', ') }) : t('battle.noLosses'), {
       fontFamily: FONT_BODY, fontSize: '34px', color: COLOR.light, stroke: '#000', strokeThickness: 6, align: 'center',
       wordWrap: { width: 1400 },
     }).setOrigin(0.5);
     layer.add([img, title, sum]);
+    if (rated) {
+      const badge = this.add.text(w / 2, 300, rk.rank, {
+        fontFamily: FONT_TITLE, fontSize: '150px', fontStyle: '900', color: rk.color, stroke: '#2a1608', strokeThickness: 14,
+      }).setOrigin(0.5);
+      const label = this.add.text(w / 2, 385, t('rating.line', { rank: rk.rank }) + (rk.mult > 1 ? '  ·  ' + t('rating.bonus', { x: fmtMult(rk.mult, settings.lang) }) : ''), {
+        fontFamily: FONT_BODY, fontSize: '32px', color: rk.color, stroke: '#000', strokeThickness: 6,
+      }).setOrigin(0.5);
+      layer.add([badge, label]);
+      badge.setScale(0.2);
+      this.tweens.add({ targets: badge, scale: 1, delay: 450, duration: 450, ease: 'Back.Out' });
+    }
     this.tweens.add({ targets: layer, alpha: 1, duration: 700 });
     const buttons: Button[] = [];
     if (this.cfg.mode === 'run') {
       const cfg = this.cfg;
       buttons.push(new Button(this, w / 2, h - 120, t('common.continue'), { style: 'red', width: 400, fontSize: 30,
-        onClick: () => (won ? this.scene.start('Reward', { config: cfg, treasure: this.battle.treasureKilled() }) : this.scene.start('RunEnd', { won: false })) }));
+        onClick: () => (won ? this.scene.start('Reward', { config: cfg, treasure: this.battle.treasureKilled(), rank: rk.rank }) : this.scene.start('RunEnd', { won: false })) }));
     } else {
       buttons.push(new Button(this, w / 2 - 230, h - 120, t('battle.again'), { style: 'red', width: 400, fontSize: 30,
         onClick: () => this.scene.restart({ config: testBattleConfig() }) }));

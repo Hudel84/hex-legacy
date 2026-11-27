@@ -10,7 +10,12 @@ import { CONSUMABLES, SCROLL_LEVEL } from '../run/items';
 import { UNITS } from '../data/units';
 
 export interface ArmySetup { hero: HeroStats; army: { def: UnitDef; count: number }[]; mods?: SideMods; }
-export interface BattleSetup { player: ArmySetup; enemy: ArmySetup; seed?: number; obstacles?: Hex[]; startCols?: [number, number]; }
+export interface BattleSetup {
+  player: ArmySetup; enemy: ArmySetup; seed?: number; obstacles?: Hex[]; startCols?: [number, number];
+  /** Tactics (v0.18): remembered start hexes of the player's stacks (same order as the army), within `deployCols`. */
+  playerPos?: (Hex | null | undefined)[];
+  deployCols?: number;
+}
 
 export interface AttackPreview { minDmg: number; maxDmg: number; minKills: number; maxKills: number; }
 
@@ -121,6 +126,7 @@ export class Battle {
     this.random = rng(setup.seed ?? Date.now());
     this.heroes = { player: setup.player.hero, enemy: setup.enemy.hero };
     this.mods = { player: setup.player.mods ?? NO_MODS, enemy: setup.enemy.mods ?? NO_MODS };
+    for (const h of setup.obstacles ?? []) this.obstacles.add(key(h));
     for (const side of ['player', 'enemy'] as Side[]) {
       const army = setup[side].army;
       const rows = START_ROWS[army.length] ?? START_ROWS[3];
@@ -130,7 +136,7 @@ export class Battle {
         this.addStack(a.def, side, a.count, { col, row: rows[i] ?? i });
       });
     }
-    for (const h of setup.obstacles ?? []) this.obstacles.add(key(h));
+    if (setup.playerPos?.some(Boolean)) this.applyFormation(setup.playerPos, setup.deployCols ?? 2);
     for (const side of ['player', 'enemy'] as Side[]) {
       const hs = this.heroes[side];
       this.maxMana[side] = hs.spells?.length ? maxMana(hs.knowledge ?? 0, this.mods[side].mana) : 0;
@@ -771,6 +777,76 @@ export class Battle {
       const at = ev.length;
       if (this.summonFor(s.side, 'demon_t1_imp', n, [s], ev)) ev.splice(at, 0, { type: 'skill', side: s.side, uid: s.uid, name: 'passiveName.hellGate' });
     }
+  }
+
+  // ---------- tactics: placing the player's stacks before the battle (v0.18) ----------
+
+  /** Is a hex inside the player's set-up zone (the first `cols` columns, no obstacles)? */
+  inDeployZone(h: Hex, cols: number): boolean {
+    return h.col >= 0 && h.col < cols && h.row >= 0 && h.row < ROWS && !this.obstacles.has(key(h));
+  }
+
+  /** All player stacks stand inside the zone and do not overlap. */
+  private layoutOk(cols: number): boolean {
+    const seen = new Set<string>();
+    for (const s of this.stacks.filter((x) => x.side === 'player' && x.count > 0)) {
+      for (const c of this.cells(s)) {
+        if (!this.inDeployZone(c, cols) || seen.has(key(c))) return false;
+        seen.add(key(c));
+      }
+    }
+    return true;
+  }
+
+  /** Head hex for a stack clicked onto `h` (wide units cover the hex behind them, so col 0 becomes col 1). */
+  private deployHead(s: Stack, h: Hex): Hex { return s.def.wide && h.col === 0 ? { col: 1, row: h.row } : h; }
+
+  /** Move a player stack to `h` before the battle; another own stack standing there swaps places. */
+  deploy(uid: number, h: Hex, cols: number): boolean {
+    const s = this.stack(uid);
+    if (!s || s.side !== 'player' || this.round > 0) return false;
+    const target = this.deployHead(s, h);
+    const other = this.stacks.find((o) => o !== s && o.side === 'player' && o.count > 0 && this.cells(o).some((c) => eq(c, h)));
+    const old = s.pos, oldOther = other?.pos;
+    s.pos = other ? this.deployHead(s, other.pos) : target;
+    if (other) other.pos = this.deployHead(other, old);
+    if (this.layoutOk(cols)) return true;
+    s.pos = old; if (other && oldOther) other.pos = oldOther;
+    return false;
+  }
+
+  /** Can `uid` be placed on `h` (directly or by swapping)? Used for highlighting, changes nothing. */
+  canDeploy(uid: number, h: Hex, cols: number): boolean {
+    const others = this.stacks.filter((o) => o.side === 'player');
+    const saved = others.map((o) => o.pos);
+    const ok = this.deploy(uid, h, cols);
+    others.forEach((o, i) => { o.pos = saved[i]; });
+    return ok;
+  }
+
+  /** Start hexes from the last battle; stacks without one (or blocked by an obstacle) take the nearest free hex. */
+  private applyFormation(pos: (Hex | null | undefined)[], cols: number): void {
+    const own = this.stacks.filter((s) => s.side === 'player');
+    const defaults = own.map((s) => s.pos);
+    const taken = new Set<string>();
+    const fits = (s: Stack, p: Hex) => this.cells(s, p).every((c) => this.inDeployZone(c, cols) && !taken.has(key(c)));
+    const order = own.map((s, i) => i).sort((a, b) => (pos[b] ? 1 : 0) - (pos[a] ? 1 : 0));   // remembered ones first
+    for (const i of order) {
+      const s = own[i];
+      const want = pos[i] ? this.deployHead(s, pos[i]!) : defaults[i];
+      const cands = [want, defaults[i], ...allHexes().sort((a, b) => distance(a, want) - distance(b, want))];
+      const p = cands.find((c) => fits(s, c));
+      if (!p) { own.forEach((o, k) => { o.pos = defaults[k]; }); return; }   // should not happen: fall back to the normal set-up
+      s.pos = p;
+      for (const c of this.cells(s)) taken.add(key(c));
+    }
+  }
+
+  /** Share of a side's own army (leadership value, summons not counted) missing now: 0 = no unit lost. */
+  lossShare(side: Side): number {
+    const own = this.stacks.filter((s) => s.side === side && s.summonRounds === undefined);
+    const start = own.reduce((a, s) => a + s.startCount * s.def.cost, 0);
+    return start > 0 ? Math.max(0, 1 - own.reduce((a, s) => a + Math.min(s.count, s.startCount) * s.def.cost, 0) / start) : 0;
   }
 
   /** Did the player kill a treasure goblin before it ran away? */

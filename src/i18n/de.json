@@ -1869,5 +1869,19 @@
   "city.resetTitle": "Die Stadt wurde neu aufgebaut",
   "city.resetText": "Die Stadt hat jetzt mehr Gebäude und Stufen. Alle Gebäude wurden zurückgesetzt; was du gebaut hattest, wurde dir als Ressourcen erstattet:",
   "city.resetOk": "Verstanden",
-  "talent.reroll": "Neue Auswahl ({n} übrig)"
+  "talent.reroll": "Neue Auswahl ({n} übrig)",
+  "rating.line": "Wertung {rank}",
+  "rating.bonus": "Stadtressourcen {x}",
+  "building.warCouncil.name": "Kriegsrat",
+  "building.warCouncil.desc": "Die Feldherren planen jede Schlacht über den Karten: Du darfst deine Armee vor dem Kampf weiter vorn aufstellen.",
+  "building.warCouncil.l1": "Taktik: Aufstellung in den ersten 3 Spalten",
+  "building.warCouncil.l2": "Taktik: Aufstellung in den ersten 4 Spalten",
+  "settings.tactics": "Taktik",
+  "settings.on": "An",
+  "settings.off": "Aus",
+  "battle.tacticsTitle": "Taktik",
+  "battle.tacticsHelp": "Stelle deine Armee auf: Klicke eine deiner Einheiten und dann ein markiertes Feld (steht dort eine Einheit, tauschen beide).",
+  "battle.tacticsPicked": "{unit}: wähle ein Feld",
+  "battle.start": "Kampf beginnen",
+  "battle.tacticsShort": "Taktik: Einheiten aufstellen, dann Kampf beginnen"
 }

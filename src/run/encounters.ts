@@ -5,6 +5,7 @@ import { Battle } from '../battle/engine';
 import type { MapNode } from './mapgen';
 import { run, rng, commitRng, count, upgradedDef, playerMods, perkFactor, heroTotals, type RunState, summonFor } from './state';
 import { heroById } from './heroes';
+import { bonus } from '../meta/meta';
 
 // Themed enemy groups for act 1. Units are picked from one group per fight.
 const GROUPS: Record<string, string[]> = {
@@ -218,6 +219,8 @@ export function battleConfig(node: MapNode, enemy: EnemyArmy, rewardMul = 1): Ru
     setup: {
       seed,
       obstacles: Battle.randomObstacles(seed, isBoss ? 2 : 3),
+      deployCols: bonus.deployCols(),
+      playerPos: r.army.filter((s) => count(s) > 0).map((s) => r.formation?.[s.unitId] ?? null),
       player: {
         hero: {
           atk: tot.atk, def: tot.def, power: tot.power, knowledge: tot.knowledge, spells: (r.spells ?? []).map((x) => ({ ...x })),

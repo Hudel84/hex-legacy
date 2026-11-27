@@ -62,6 +62,8 @@ export interface RunState {
   bag?: ItemInst[];                 // backpack, max BAG_SIZE
   belt?: (string | null)[];         // consumables, BELT_SIZE places
   rerolls?: number;                 // oracle: new level-up choices left in this run
+  /** Tactics (v0.18): start hex of every unit type from the last set-up, kept for the next battles. */
+  formation?: Record<string, { col: number; row: number }>;
 }
 
 const KEY = 'hexlegacy.run.v1';

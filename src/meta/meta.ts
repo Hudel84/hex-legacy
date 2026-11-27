@@ -25,7 +25,7 @@ export interface BuildingDef {
 }
 
 /** Global cost factor (balancing: meta progression of about 20-30 hours, sim/meta_sim.ts). */
-export const COST_MULT = 0.7;
+export const COST_MULT = 0.8;
 
 type CostFn = (i: number) => Cost;
 /** Cost table for n levels: f(i) for level i+1, rounded and multiplied with COST_MULT. */
@@ -78,6 +78,9 @@ export const BUILDINGS: BuildingDef[] = [
     costs: lv(3, (i) => [{ wood: 25, stone: 15 }, { wood: 60, stone: 40, ore: 8 }, { wood: 120, stone: 85, ore: 22 }][i]) },
   { id: 'oreMine', icon: 'icon_building_ore_mine', district: 'center', x: 1840, y: 130,
     costs: lv(3, (i) => [{ wood: 35, stone: 25 }, { wood: 80, stone: 60, ore: 12 }, { wood: 150, stone: 120, ore: 30, crystals: 6 }][i]) },
+  // new in v0.18 (Ben 27.11.): the tactics zone before a battle grows from 2 to 3 and 4 columns
+  { id: 'warCouncil', icon: 'icon_building_map_room', district: 'center', x: 880, y: 385,
+    costs: lv(2, (i) => [{ wood: 45, stone: 35, ore: 10, fame: 30 }, { stone: 110, ore: 35, crystals: 12, fame: 110 }][i]) },
   // peoples
   { id: 'cathedral', icon: 'icon_building_human_cathedral', district: 'human', x: 420, y: 250, costs: people('seal', 0) },
   { id: 'griffinAerie', icon: 'icon_building_human_griffin_aerie', district: 'human', x: 660, y: 330, costs: people('seal', 1) },
@@ -233,6 +236,8 @@ export const bonus = {
   startConsumables: () => level('blackMarket'),
   rerolls: () => level('oracle'),
   unitHp: () => 0.03 * level('arena'),
+  /** columns on the own side where stacks may be placed before a battle (tactics, v0.18) */
+  deployCols: () => 2 + Math.min(2, level('warCouncil')),
   /** resources the mills and mines produce for every run (also after a defeat, not reduced) */
   production: (): Partial<Record<Res, number>> => ({
     wood: 5 * level('lumberMill'), stone: 4 * level('lumberMill'), ore: 3 * level('oreMine'), crystals: level('oreMine'),
