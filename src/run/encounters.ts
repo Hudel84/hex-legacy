@@ -120,11 +120,13 @@ function playerPower(r: RunState): number {
 export const TREASURE_GOBLIN = 'neutral_treasure_goblin';
 export const TREASURE_CHANCE = 0.1;
 
-export const DIFFICULTY = { base: 500, start: 0.5, perFloor: 0.075, perFloorLate: 0.13, elite: 1.1, boss: 0.55, bossEscort: 1.2, final: 1.8 };
+/** early: extra factor for the very first fights of a run (index = global floor), so a fresh run without city can win its first fight (27.11.). */
+export const DIFFICULTY = { base: 500, start: 0.5, perFloor: 0.075, perFloorLate: 0.13, elite: 1.1, boss: 0.55, bossEscort: 1.2, final: 1.8, early: [0.75, 0.88] as number[] };
 
 /** Enemy budget factor: steep in act 1, flatter in acts 2 and 3 (the player's growth slows down there too). */
 export function curveAt(gf: number): number {
-  return DIFFICULTY.start + DIFFICULTY.perFloor * Math.min(gf, 12) + DIFFICULTY.perFloorLate * Math.max(0, gf - 12);
+  const c = DIFFICULTY.start + DIFFICULTY.perFloor * Math.min(gf, 12) + DIFFICULTY.perFloorLate * Math.max(0, gf - 12);
+  return c * (DIFFICULTY.early[gf] ?? 1);
 }
 
 export function buildEnemy(node: MapNode, groupOverride?: string): EnemyArmy {
