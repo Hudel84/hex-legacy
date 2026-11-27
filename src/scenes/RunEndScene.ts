@@ -46,6 +46,7 @@ export class RunEndScene extends Phaser.Scene {
     saveMeta();
     this.add.text(w / 2, 520, t(this.won ? 'runEnd.lootWon' : 'runEnd.lootLost', { pct: Math.round(factor * 100) }), textStyle(28, '#e8dcc0')).setOrigin(0.5);
     this.add.existing(resRow(this, w / 2, 590, gained, 36, '+'));
+    if (end.productionMissed) this.add.text(w / 2, 660, t('runEnd.noProduction'), textStyle(24, '#e0a090')).setOrigin(0.5);
 
     new Button(this, w / 2 - 230, h - 110, t('runEnd.toCity'), { style: 'red', width: 400, fontSize: 28, onClick: () => this.scene.start('City') });
     new Button(this, w / 2 + 230, h - 110, t('heroSelect.again'), { width: 400, fontSize: 28, onClick: () => this.scene.start('HeroSelect') });

@@ -103,13 +103,19 @@ export function newRun(heroId: string, seed = Math.floor(Math.random() * 2 ** 31
   return r;
 }
 
+/** Mills and mines only deliver after a run that beat the act-1 boss (Ben 27.11.: no "start and lose at once" farming). */
+export const productionEarned = (won: boolean, r = run()): boolean => won || r.act >= 2;
+
 /** What the city gets at the end of a run: loot (all after a win, a part after a defeat), fame, production. */
-export function runEndGain(won: boolean, r = run()): { floor: number; factor: number; gain: Partial<Record<Res, number>>; production: Partial<Record<Res, number>> } {
+export function runEndGain(won: boolean, r = run()): { floor: number; factor: number; gain: Partial<Record<Res, number>>; production: Partial<Record<Res, number>>; productionMissed: boolean } {
   const local = r.currentNode !== null ? (r.map.find((n) => n.id === r.currentNode)?.floor ?? 0) + 1 : 0;
   const floor = (r.act - 1) * 13 + local + (won ? 1 : 0);
   const factor = won ? 1 : bonus.keepOnDefeat();
   const fame = floor * 2 + r.battlesWon + (won ? 15 : 0);
-  return { floor, factor, gain: { ...(r.loot ?? {}), fame }, production: bonus.production() };
+  const prod = bonus.production();
+  const earned = productionEarned(won, r);
+  const any = Object.values(prod).some((v) => (v ?? 0) > 0);
+  return { floor, factor, gain: { ...(r.loot ?? {}), fame }, production: earned ? prod : {}, productionMissed: any && !earned };
 }
 
 function baseRun(heroId: string, seed: number): RunState {

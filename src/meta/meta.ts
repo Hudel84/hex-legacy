@@ -238,7 +238,7 @@ export const bonus = {
   unitHp: () => 0.03 * level('arena'),
   /** columns on the own side where stacks may be placed before a battle (tactics, v0.18) */
   deployCols: () => 2 + Math.min(2, level('warCouncil')),
-  /** resources the mills and mines produce for every run (also after a defeat, not reduced) */
+  /** resources the mills and mines produce per run (only after the act-1 boss, see productionEarned in state.ts; not reduced) */
   production: (): Partial<Record<Res, number>> => ({
     wood: 5 * level('lumberMill'), stone: 4 * level('lumberMill'), ore: 3 * level('oreMine'), crystals: level('oreMine'),
   }),

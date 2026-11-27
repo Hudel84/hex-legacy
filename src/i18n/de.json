@@ -1857,12 +1857,12 @@
   "building.arena.l2": "+6 % LP",
   "building.arena.l3": "+9 % LP",
   "building.lumberMill.name": "Sägewerk",
-  "building.lumberMill.desc": "Holz und Stein für die Stadt – nach jedem Run, ob Sieg oder Niederlage.",
+  "building.lumberMill.desc": "Holz und Stein für die Stadt – nach jedem Run, in dem du den Boss von Akt 1 besiegt hast.",
   "building.lumberMill.l1": "+5 Holz und +4 Stein pro Run",
   "building.lumberMill.l2": "+10 Holz und +8 Stein pro Run",
   "building.lumberMill.l3": "+15 Holz und +12 Stein pro Run",
   "building.oreMine.name": "Erzmine",
-  "building.oreMine.desc": "Erz und Kristalle aus dem Berg – nach jedem Run, ob Sieg oder Niederlage.",
+  "building.oreMine.desc": "Erz und Kristalle aus dem Berg – nach jedem Run, in dem du den Boss von Akt 1 besiegt hast.",
   "building.oreMine.l1": "+3 Erz und +1 Kristall pro Run",
   "building.oreMine.l2": "+6 Erz und +2 Kristalle pro Run",
   "building.oreMine.l3": "+9 Erz und +3 Kristalle pro Run",
@@ -1889,5 +1889,6 @@
   "kind.talent": "Talent",
   "kind.item": "Ausrüstung",
   "reward.eliteTitle": "Beute der Elite",
-  "heroSelect.startTalent": "Starttalent"
+  "heroSelect.startTalent": "Starttalent",
+  "runEnd.noProduction": "Sägewerk und Erzmine liefern erst, wenn du den Boss von Akt 1 besiegt hast."
 }

@@ -1857,12 +1857,12 @@
   "building.arena.l2": "+6% HP",
   "building.arena.l3": "+9% HP",
   "building.lumberMill.name": "Lumber Mill",
-  "building.lumberMill.desc": "Wood and stone for the city – after every run, win or lose.",
+  "building.lumberMill.desc": "Wood and stone for the city – after every run in which you beat the act 1 boss.",
   "building.lumberMill.l1": "+5 wood and +4 stone per run",
   "building.lumberMill.l2": "+10 wood and +8 stone per run",
   "building.lumberMill.l3": "+15 wood and +12 stone per run",
   "building.oreMine.name": "Ore Mine",
-  "building.oreMine.desc": "Ore and crystals from the mountain – after every run, win or lose.",
+  "building.oreMine.desc": "Ore and crystals from the mountain – after every run in which you beat the act 1 boss.",
   "building.oreMine.l1": "+3 ore and +1 crystal per run",
   "building.oreMine.l2": "+6 ore and +2 crystals per run",
   "building.oreMine.l3": "+9 ore and +3 crystals per run",
@@ -1889,5 +1889,6 @@
   "kind.talent": "Talent",
   "kind.item": "Equipment",
   "reward.eliteTitle": "Elite spoils",
-  "heroSelect.startTalent": "Start talent"
+  "heroSelect.startTalent": "Start talent",
+  "runEnd.noProduction": "Lumber mill and ore mine only deliver after you have beaten the act 1 boss."
 }
