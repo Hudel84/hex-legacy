@@ -90,8 +90,12 @@ interface StackView {
   plate: Phaser.GameObjects.Container;
   countText: Phaser.GameObjects.Text;
   statusRow: Phaser.GameObjects.Container;
+  /** Stack count and status icons, drawn above all units and following the box (v0.18.2). */
+  over: Phaser.GameObjects.Container;
 }
 
+/** Depth of the count plates: above every unit (depth = y + 10 < 1200), below effects (3000+) and the HUD (2000). */
+const OVERLAY_DEPTH = 1500;
 const sheetKey = (d: UnitDef) => `sheet_${d.id}`;
 const portraitKey = (d: UnitDef) => `portrait_${d.id}`;
 const unitName = (d: UnitDef) => t(`unit.${d.id}`);
@@ -401,6 +405,14 @@ export class BattleScene extends Phaser.Scene {
     this.time.delayedCall(400, () => this.startOrDeploy());
   }
 
+  /** Count plates follow their stack (moves, lunges, fades). */
+  update(): void {
+    for (const v of this.views.values()) {
+      if (!v.box.active) continue;
+      v.over.setPosition(v.box.x, v.box.y).setVisible(v.box.visible).setAlpha(v.box.alpha);
+    }
+  }
+
   // ---------- tactics (set-up before the battle, v0.18) ----------
 
   private startOrDeploy(): void {
@@ -563,9 +575,11 @@ export class BattleScene extends Phaser.Scene {
     const plate = this.add.container(plateX, 16, [plateBg, countText]);
 
     const statusRow = this.add.container(plateX, 44);
-    box.add([shadow, sprite, plate, statusRow]);
+    box.add([shadow, sprite]);
     box.setDepth(p.y + 10);
-    this.views.set(s.uid, { stack: s, box, sprite, plate, countText, statusRow });
+    // count plate and statuses in their own layer, so units standing in front never hide them
+    const over = this.add.container(p.x, p.y, [plate, statusRow]).setDepth(OVERLAY_DEPTH + p.y / 10);
+    this.views.set(s.uid, { stack: s, box, sprite, plate, countText, statusRow, over });
   }
 
   /** Visible bounding box of frame 0 as fractions of the frame (cached per sheet). */
@@ -977,11 +991,12 @@ export class BattleScene extends Phaser.Scene {
         { ...textStyle(18, reason ? '#e0a090' : '#efe3c8'), wordWrap: { width: 375 } }));
       if (!ok) c.setAlpha(0.55);
       else {
-        c.setSize(510, 136);
-        c.setInteractive(new Phaser.Geom.Rectangle(0, 0, 510, 136), Phaser.Geom.Rectangle.Contains);
-        c.on('pointerover', () => { draw(true); playSfx(this, 'ui_hover'); });
-        c.on('pointerout', () => draw(false));
-        c.on('pointerup', () => this.chooseSpell(slot.id));
+        // the whole row is clickable: an own zone (a container hit area is shifted by half its size)
+        const hit = this.add.zone(0, 0, 510, 136).setOrigin(0).setInteractive({ useHandCursor: true });
+        hit.on('pointerover', () => { draw(true); playSfx(this, 'ui_hover'); });
+        hit.on('pointerout', () => draw(false));
+        hit.on('pointerup', () => this.chooseSpell(slot.id));
+        c.add(hit);
       }
       root.add(c);
     });
@@ -1462,7 +1477,7 @@ export class BattleScene extends Phaser.Scene {
           if (v) {
             this.log(t('battle.log.vanish', { a: unitName(v.stack.def) }));
             await this.tween({ targets: v.box, alpha: 0, duration: 400 });
-            v.box.destroy(); this.views.delete(e.uid);
+            v.box.destroy(); v.over.destroy(); this.views.delete(e.uid);
           }
           break;
         }
@@ -1519,7 +1534,7 @@ export class BattleScene extends Phaser.Scene {
             this.log(t('battle.log.fled', { a: unitName(v.stack.def) }));
             playSfx(this, 'ui_coins', 0.7);
             await this.tween({ targets: v.box, x: v.box.x + (v.stack.side === 'enemy' ? 260 : -260), alpha: 0, duration: 650, ease: 'Sine.in' });
-            v.box.destroy(); this.views.delete(e.uid);
+            v.box.destroy(); v.over.destroy(); this.views.delete(e.uid);
           }
           break;
         }
@@ -1670,7 +1685,7 @@ export class BattleScene extends Phaser.Scene {
     smoke.setScale(170 / smoke.width).setAlpha(0.9);
     this.tweens.add({ targets: smoke, alpha: 0, scale: smoke.scale * 1.4, duration: 700, onComplete: () => smoke.destroy() });
     await this.tween({ targets: v.box, alpha: 0, y: v.box.y + 20, duration: 500 });
-    v.box.destroy();
+    v.box.destroy(); v.over.destroy();
     this.views.delete(uid);
   }
 
