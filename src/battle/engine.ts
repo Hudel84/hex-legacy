@@ -285,11 +285,24 @@ export class Battle {
         seen.add(k);
         const p = [...path, n];
         if (stand) res.set(k, p);
-        // a stack may step onto an enemy trap, but not walk through it
-        if (!this.cells(s, n).some((c) => this.hostileTrap(s, c))) frontier.push({ h: n, path: p });
+        // a stack may step onto an enemy trap, but not walk through it - unless it cannot see the traps (it walks in)
+        if (this.blindToTraps(s) || !this.cells(s, n).some((c) => this.hostileTrap(s, c))) frontier.push({ h: n, path: p });
       }
     }
     return res;
+  }
+
+  /** The player's traps are hidden from the enemy (Ben 27.11.): it plans as if they were not there and runs into them. */
+  blindToTraps(s: Stack): boolean { return s.side === 'enemy'; }
+
+  /** Walk along a path; a hidden trap on the way stops the stack there and springs. Returns true if a trap sprang. */
+  private walk(s: Stack, path: Hex[], ev: BattleEvent[]): boolean {
+    let stop = path.length - 1;
+    for (let i = 0; i < path.length; i++) if (this.cells(s, path[i]).some((c) => this.hostileTrap(s, c))) { stop = i; break; }
+    const p = path.slice(0, stop + 1);
+    ev.push({ type: 'move', uid: s.uid, path: p });
+    s.pos = p[p.length - 1];
+    return this.springTraps(s, ev);
   }
 
   /** Is there a trap of the other side on this hex? */
@@ -1640,9 +1653,7 @@ export class Battle {
     const ev: BattleEvent[] = [];
     switch (a.type) {
       case 'move': {
-        ev.push({ type: 'move', uid: s.uid, path: this.reachable(s).get(key(a.to))! });
-        s.pos = a.to;
-        this.springTraps(s, ev);
+        this.walk(s, this.reachable(s).get(key(a.to))!, ev);
         break;
       }
       case 'shoot': {
@@ -1659,10 +1670,8 @@ export class Battle {
       case 'melee': {
         const t = this.stack(a.target);
         if (!eq(a.from, s.pos)) {
-          ev.push({ type: 'move', uid: s.uid, path: this.reachable(s).get(key(a.from))! });
-          s.pos = a.from;
-          // caught in a trap: the attack does not happen
-          if (this.springTraps(s, ev)) break;
+          // caught in a trap on the way: the attack does not happen
+          if (this.walk(s, this.reachable(s).get(key(a.from))!, ev)) break;
         }
         ev.push(...this.meleeExchange(s, t));
         break;
@@ -1799,7 +1808,7 @@ export class Battle {
     for (const e of enemies) {
       for (const from of this.meleeFrom(s, e, reach)) {
         if (s.def.ranged && !eq(from, s.pos)) continue; // shooters don't run into melee
-        if (!eq(from, s.pos) && this.cells(s, from).some((c) => this.hostileTrap(s, c))) continue;
+        if (!eq(from, s.pos) && !this.blindToTraps(s) && this.cells(s, from).some((c) => this.hostileTrap(s, c))) continue;
         const p = this.preview(s, e, false, from);
         let sc = expected(p) * this.value(e) + 1;
         if (!e.retaliated && !this.has(s, 'noRetaliation') && !this.has(s, 'bladeDance') && expected(p) < e.count) {
@@ -1823,7 +1832,7 @@ export class Battle {
     let bestD = this.sdist(s, target);
     for (const [, path] of reach) {
       const h = path[path.length - 1];
-      if (this.cells(s, h).some((c) => this.hostileTrap(s, c))) continue;
+      if (!this.blindToTraps(s) && this.cells(s, h).some((c) => this.hostileTrap(s, c))) continue;
       const d = this.sdist(s, target, h);
       if (d < bestD) { bestD = d; bestHex = h; }
     }

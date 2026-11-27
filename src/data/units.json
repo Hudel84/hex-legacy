@@ -846,7 +846,6 @@
     "cost": 29,
     "sheet": "neutrals/animated/anim_neutral_hobgoblin_captain_idle_sheet_8x4.webp",
     "portrait": "ui/portraits/neutrals/portrait_neutral_hobgoblin_captain.webp",
-    "faceLeft": true,
     "passives": [
       "drillmaster"
     ]
