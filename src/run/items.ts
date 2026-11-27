@@ -109,7 +109,8 @@ export function rollItem(g: Rng, floor: number, minRarity: ItemRarity = 'common'
   return makeItem(g.pick(pool).id, g);
 }
 
-export const ITEM_PRICE: Record<ItemRarity, number> = { common: 40, uncommon: 60, rare: 90, epic: 140, legendary: 220, set: 130 };
+/** Shop prices (v0.19.1: x1.25; selling gives 40 %). */
+export const ITEM_PRICE: Record<ItemRarity, number> = { common: 50, uncommon: 75, rare: 110, epic: 175, legendary: 275, set: 160 };
 export const sellPrice = (inst: ItemInst): number => Math.round(ITEM_PRICE[ITEMS[inst.id].rarity] * 0.4);
 
 // ---------- what an item gives ----------
@@ -169,18 +170,19 @@ export function addStats(a: Stats, b: Stats): Stats {
 // ---------- consumables ----------
 
 export interface ConsumableDef { id: string; kind: 'potion' | 'scroll'; spell?: string; tint?: number; price: number; target: 'ally' | 'enemy' | 'area' | 'massEnemy' | 'none'; }
+/** Prices x1.25 in v0.19.1. */
 export const CONSUMABLES: Record<string, ConsumableDef> = Object.fromEntries(([
-  { id: 'potionHeal', kind: 'potion', tint: 0xff6a5a, price: 35, target: 'ally' },
-  { id: 'potionMana', kind: 'potion', tint: 0x6aa8ff, price: 30, target: 'none' },
-  { id: 'potionStrength', kind: 'potion', tint: 0xffa040, price: 35, target: 'ally' },
-  { id: 'potionStone', kind: 'potion', tint: 0xb8a070, price: 30, target: 'ally' },
-  { id: 'potionHaste', kind: 'potion', tint: 0x7ee07e, price: 30, target: 'ally' },
-  { id: 'scroll_fireball', kind: 'scroll', spell: 'fireball', price: 45, target: 'area' },
-  { id: 'scroll_lightningBolt', kind: 'scroll', spell: 'lightningBolt', price: 45, target: 'enemy' },
-  { id: 'scroll_smite', kind: 'scroll', spell: 'smite', price: 40, target: 'enemy' },
-  { id: 'scroll_slow', kind: 'scroll', spell: 'slow', price: 35, target: 'enemy' },
-  { id: 'scroll_earthquake', kind: 'scroll', spell: 'earthquake', price: 50, target: 'massEnemy' },
-  { id: 'scroll_curseOfWeakness', kind: 'scroll', spell: 'curseOfWeakness', price: 35, target: 'enemy' },
+  { id: 'potionHeal', kind: 'potion', tint: 0xff6a5a, price: 45, target: 'ally' },
+  { id: 'potionMana', kind: 'potion', tint: 0x6aa8ff, price: 40, target: 'none' },
+  { id: 'potionStrength', kind: 'potion', tint: 0xffa040, price: 45, target: 'ally' },
+  { id: 'potionStone', kind: 'potion', tint: 0xb8a070, price: 40, target: 'ally' },
+  { id: 'potionHaste', kind: 'potion', tint: 0x7ee07e, price: 40, target: 'ally' },
+  { id: 'scroll_fireball', kind: 'scroll', spell: 'fireball', price: 55, target: 'area' },
+  { id: 'scroll_lightningBolt', kind: 'scroll', spell: 'lightningBolt', price: 55, target: 'enemy' },
+  { id: 'scroll_smite', kind: 'scroll', spell: 'smite', price: 50, target: 'enemy' },
+  { id: 'scroll_slow', kind: 'scroll', spell: 'slow', price: 45, target: 'enemy' },
+  { id: 'scroll_earthquake', kind: 'scroll', spell: 'earthquake', price: 60, target: 'massEnemy' },
+  { id: 'scroll_curseOfWeakness', kind: 'scroll', spell: 'curseOfWeakness', price: 45, target: 'enemy' },
 ] as ConsumableDef[]).map((c) => [c.id, c]));
 /** Scrolls cast their spell at this level, with the hero's spell power, without mana. */
 export const SCROLL_LEVEL = 2;

@@ -210,6 +210,9 @@ function eligible(p: PerkDef, o: Owner): boolean {
 }
 
 /** Pick `n` different perks of a kind, weighted by rarity; hero perks are more likely. */
+/** Shop price of an artifact (v0.19: x1.5, v0.19.1: higher again). */
+export const artifactPrice = (p: { rarity: string }): number => (p.rarity === 'legendary' ? 400 : p.rarity === 'rare' ? 275 : 200);
+
 export function offer(kind: 'talent' | 'artifact', n: number, o: Owner, rng: Rng, minRarity?: Rarity): PerkDef[] {
   let pool = PERKS.filter((p) => p.kind === kind && eligible(p, o));
   if (minRarity === 'rare') pool = pool.filter((p) => p.rarity !== 'common');

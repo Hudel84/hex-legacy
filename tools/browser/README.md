@@ -12,6 +12,7 @@ Serve the build first: `npm run build && python3 -m http.server 4174 --directory
 - `spellbook.mjs` – clicks the lower half / right side / top of a spell row in the spellbook (must select the spell) and a crowded set-up for the count plates → /tmp/shots
 - `runend.mjs` – run end after a defeat in act 1 (or act 2 with argument 2) with lumber mill / ore mine: production only after the act-1 boss → /tmp/shots
 - `shop.mjs` – shop (v0.19): main page, hiring a neutral with a full army (replace screen), equipment page; argument = act → /tmp/shots
+- `ascension.mjs` – ascension (v0.20): selector in the hero selection (real click + tooltip), map badge, enemy mods/gold of the first fight, unlock on the run end screen → /tmp/shots
 - `fixtest2.mjs` – battle against chosen enemy units (check facing of sprites)
 
 `?test` exposes `game`, `hexRun()` and `hexDebug.battleConfig(node, enemy)` on `window`.

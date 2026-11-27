@@ -42,6 +42,7 @@ export interface BaseMods {
   chill: number;        // 1 = in round 1 and every third round all enemies are slowed
   eruption: number;     // every round one enemy stack burns for this share of its hit points
   imps: number;         // 1 = every third round imps come through a portal
+  bossRage: number;     // 1 = boss skills that work every second round work every round (ascension 5)
   // ---- hero talent themes (v0.16, GDD 17.5) ----
   moraleDmg: number;    // extra damage during a morale bonus turn
   decay: number;        // Death and Decay: damage to every enemy at round start (x (1.6 + 0.6 ATK + power))
@@ -77,7 +78,7 @@ const BASE_ZERO: BaseMods = {
   splitShot: 0, firstStrike: 0, regen: 0, lifesteal: 0, startShield: 0, poison: 0, cooldown: 0, round1Ini: 0,
   vsBig: 0, executioner: 0, thorns: 0, crit: 0, critDmg: 0, morale: 0, undeadDmg: 0, spellDmg: 0, mana: 0,
   burn: 0, frost: 0, markShots: 0, furyMax: 0, pierceDef: 0,
-  traps: 0, entangle: 0, breath: 0, regrow: 0, raise: 0, chill: 0, eruption: 0, imps: 0,
+  traps: 0, entangle: 0, breath: 0, regrow: 0, raise: 0, chill: 0, eruption: 0, imps: 0, bossRage: 0,
   moraleDmg: 0, decay: 0, decayWeak: 0, decayArmor: 0, decaySlow: 0, decayPoison: 0, decayFear: 0,
   hellfire: 0, hellBurn: 0, hellCrit: 0, hellSplash: 0, hellTargets: 0, summon: 0, summonTier: 0, summonTwice: 0,
   autoHeal: 0, spellHeal: 0, extraCast: 0, trapDmg: 0, trapPoison: 0, trapSlow: 0, trapStun: 0,

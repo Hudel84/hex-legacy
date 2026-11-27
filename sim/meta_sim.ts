@@ -2,6 +2,9 @@ import { aiShop } from './shop_ai';
 import { rankFor, rateLoot } from '../src/run/rating';
 export const rankCount: Record<string, number> = {};
 const deathAt: Record<string, number> = {};
+// gold economy: income per act and gold left at the end of a run (GOLD=1)
+const goldIn: Record<number, number[]> = {}; const goldEnd: number[] = []; const goldSpent: number[] = [];
+let runIncome = 0;
 // Meta progression over many runs (v0.17, GDD 17.8): the AI plays run after run, brings the loot home like
 // the game does (RunEndScene), builds the city greedily and we watch play time and success.
 // Usage: npx tsx sim/meta_sim.ts [campaigns=6] [maxRuns=80] [difficultyJSON]
@@ -40,7 +43,7 @@ function fight(cfg: ReturnType<typeof battleConfig>): Battle {
 
 /** One run with the current city; returns minutes played, acts cleared and whether the run was won. */
 function simRun(heroId: string, seed: number): { minutes: number; acts: number; won: boolean; floor: number } {
-  setRun(newRun(heroId, seed));
+  setRun(newRun(heroId, seed, Number(process.env.ASC ?? 0)));
   const pick = new Rng(seed * 7 + 3);
   const pickUpgrade = () => { const pt = run().pendingTalent; if (pt) chooseTalentUpgrade(pick.pick(rankUpgrades(pt.theme, pt.rank)).id); };
   pickUpgrade();
@@ -53,7 +56,7 @@ function simRun(heroId: string, seed: number): { minutes: number; acts: number; 
     r.currentNode = node.id; r.visited.push(node.id);
     if (node.type === 'rest') { minutes += MIN_NODE; const s = pick.pick(r.army); if (s.level < MAX_UNIT_LEVEL) { const o = upgradeOptions(s); levelUpUnit(s, o.length ? pick.pick(o).id : null); } continue; }
     if (node.type === 'shop') { minutes += MIN_NODE; if (process.env.OLDSHOP) { while (r.gold >= 50) { r.gold -= 50; addLeadership(10); } } else aiShop(pick, node.floor); continue; }
-    if (node.type === 'treasure') { minutes += MIN_NODE; r.gold += 80; addLoot(lootFor('treasure', 6)); if (pick.next() < 0.5) stashItem(rollItem(pick, node.floor)); continue; }
+    if (node.type === 'treasure') { minutes += MIN_NODE; r.gold += 55; addLoot(lootFor('treasure', 6)); if (pick.next() < 0.5) stashItem(rollItem(pick, node.floor)); continue; }
     if (node.type === 'shrine' || node.type === 'event') { minutes += MIN_NODE; r.gold += 20; continue; }
     minutes += MIN_BATTLE;
     const cfg = battleConfig(node, buildEnemy(node));
@@ -74,7 +77,7 @@ function simRun(heroId: string, seed: number): { minutes: number; acts: number; 
       if (fb.winner === 'player') won = true; else deathAt.final = (deathAt.final ?? 0) + 1;
       break;
     }
-    r.gold += cfg.reward.gold;
+    r.gold += cfg.reward.gold; runIncome += cfg.reward.gold; (goldIn[r.act] ??= [0])[0] += cfg.reward.gold;
     const ups = gainXp(cfg.reward.xp);
     for (let u = 0; u < ups; u++) {
       const o = pick.pick(levelUpOptions(pick));
@@ -90,6 +93,7 @@ function simRun(heroId: string, seed: number): { minutes: number; acts: number; 
       else if (r.army.length < MAX_SLOTS && !own) { r.army.push({ unitId: id, alloc: 0, level: 0, ups: [] }); rebalance(); }
     }
   }
+  goldEnd.push(run().gold); goldSpent.push(runIncome - run().gold); runIncome = 0;
   const end = runEndGain(won);
   addRes(end.gain, end.factor);
   addRes(end.production);
@@ -150,3 +154,4 @@ for (let k = 0; k < rows.length; k += step) {
 if (!FULL) console.log('city complete after (hours):', doneAt.map((m) => (m / 60).toFixed(1)).join(', ') || 'not within ' + MAX_RUNS + ' runs');
 console.log('battle ranks:', Object.entries(rankCount).sort().map(([k, v]) => `${k} ${(100 * v / Object.values(rankCount).reduce((x, y) => x + y, 0)).toFixed(0)}%`).join(', '));
 console.log('defeats:', Object.entries(deathAt).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(', '));
+if (process.env.GOLD) { const n = goldEnd.length; const avg = (a: number[]) => Math.round(a.reduce((x, y) => x + y, 0) / Math.max(1, a.length)); console.log(`gold: battle income per act (sum over runs / runs) ${[1, 2, 3].map((a) => `act ${a} ${Math.round((goldIn[a]?.[0] ?? 0) / n)}`).join(', ')}; left at run end avg ${avg(goldEnd)}, max ${Math.max(...goldEnd)}`); }

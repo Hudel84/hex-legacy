@@ -346,7 +346,7 @@ export class RewardScene extends Phaser.Scene {
       });
       this.layer.add(c);
     });
-    this.layer.add(new Button(this, w / 2, h - 80, t('reward.skip'), { width: 380, fontSize: 26, onClick: () => { r.gold += 20; save(); this.finish(); } }));
+    this.layer.add(new Button(this, w / 2, h - 80, t('reward.skip'), { width: 380, fontSize: 26, onClick: () => { r.gold += 10; save(); this.finish(); } }));
   }
 
   private pick(id: string): void {

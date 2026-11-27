@@ -1,10 +1,12 @@
+import { ascOf } from '../run/ascension';
+import { ascBadge } from '../ui/ascUi';
 import Phaser from 'phaser';
 import { t } from '../core/i18n';
 import { playMusic, playSfx } from '../core/audio';
 import { img } from '../core/assets';
 import { run, setRun, runEndGain } from '../run/state';
 import { titleStyle, textStyle, resRow } from '../ui/widgets';
-import { addRes, bonus, getMeta, saveMeta } from '../meta/meta';
+import { addRes, bonus, getMeta, saveMeta, unlockAscension } from '../meta/meta';
 import { loadRunUi } from '../core/assets';
 import { Button } from '../ui/Button';
 
@@ -43,7 +45,11 @@ export class RunEndScene extends Phaser.Scene {
     for (const k of Object.keys(made) as (keyof typeof made)[]) gained[k] += made[k];
     const m = getMeta();
     m.runs++; if (this.won) m.wins++; m.bestFloor = Math.max(m.bestFloor, floor);
+    const asc = ascOf(r);
+    const newAsc = this.won ? unlockAscension(asc) : null;
     saveMeta();
+    if (asc > 0) this.add.existing(ascBadge(this, w / 2, 235, asc, 26));
+    if (newAsc) this.add.text(w / 2, 700, t('asc.unlocked', { n: newAsc }), titleStyle(34, '#ff9a7a')).setOrigin(0.5);
     this.add.text(w / 2, 520, t(this.won ? 'runEnd.lootWon' : 'runEnd.lootLost', { pct: Math.round(factor * 100) }), textStyle(28, '#e8dcc0')).setOrigin(0.5);
     this.add.existing(resRow(this, w / 2, 590, gained, 36, '+'));
     if (end.productionMissed) this.add.text(w / 2, 660, t('runEnd.noProduction'), textStyle(24, '#e0a090')).setOrigin(0.5);

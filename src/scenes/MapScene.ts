@@ -1,3 +1,5 @@
+import { ascOf } from '../run/ascension';
+import { ascBadge } from '../ui/ascUi';
 import { basePerkId } from '../run/talents';
 import { themeName, rankLabel, rankLines } from '../ui/talentUi';
 import Phaser from 'phaser';
@@ -173,6 +175,7 @@ export class MapScene extends Phaser.Scene {
     right.add(panel(this, 200, 520, 400, 1040));
     right.add(this.add.text(200, 50, t('run.act', { n: r.act }), titleStyle(34)).setOrigin(0.5));
     right.add(this.add.text(200, 95, t(`biome.${r.biome}`), textStyle(24, '#e8dcc0')).setOrigin(0.5));
+    if (ascOf(r) > 0) right.add(ascBadge(this, 318, 52, ascOf(r), 18));
     LEGEND.forEach((type, i) => {
       const y = 150 + i * 50;
       const ic = this.add.image(70, y, ICON[type]); ic.setScale(42 / Math.max(ic.width, ic.height));

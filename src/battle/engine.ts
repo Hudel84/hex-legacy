@@ -720,6 +720,8 @@ export class Battle {
   /** Bosses do something extra at the start of every round (GDD: boss mechanics). */
   private bossSkill(s: Stack, ev: BattleEvent[]): void {
     const r = this.round;
+    // ascension 5: skills of every second round fire every round
+    const on = (parity: number) => this.sm(s).bossRage > 0 || r % 2 === parity;
     const skill = (p: string) => ev.push({ type: 'skill', side: s.side, uid: s.uid, name: `passiveName.${p}` });
     const foes = this.foesOf(s.side);
     const pick = (list: Stack[]) => list[Math.floor(this.random() * list.length)];
@@ -727,7 +729,7 @@ export class Battle {
       const at = ev.length;
       if (this.layTraps(s.side, 2, 0.12, 6, ev)) ev.splice(at, 0, { type: 'skill', side: s.side, uid: s.uid, name: 'passiveName.trapper' });
     }
-    if (this.has(s, 'rootGrasp') && r % 2 === 1) {
+    if (this.has(s, 'rootGrasp') && on(1)) {
       const t = foes.filter((e) => !e.def.flying).sort((a, b) => this.power(b) - this.power(a))[0];
       if (t) {
         skill('rootGrasp');
@@ -735,7 +737,7 @@ export class Battle {
         if (t.count > 0) this.addStatus(t, 'root', 2, 1, ev, true);
       }
     }
-    if (this.has(s, 'poisonBreath') && r % 2 === 0 && foes.length) {
+    if (this.has(s, 'poisonBreath') && on(0) && foes.length) {
       skill('poisonBreath');
       for (const e of foes) this.addStatus(e, 'poison', 2, Math.max(1, Math.round(this.hpTotal(e) * 0.04)), ev, true);
     }
@@ -743,12 +745,12 @@ export class Battle {
       const amount = this.heal(s, Math.round(s.startCount * s.def.hp * 0.06), true);
       if (amount > 0) { skill('regrow'); ev.push({ type: 'heal', uid: s.uid, amount, count: s.count }); }
     }
-    if (this.has(s, 'raiseDead') && r % 2 === 0) {
+    if (this.has(s, 'raiseDead') && on(0)) {
       const n = Math.round(s.def.cost * 0.12 / UNITS.undead_t1_skeleton.cost) + Math.floor(r / 2);
       const at = ev.length;
       if (this.summonFor(s.side, 'undead_t1_skeleton', n, [s], ev)) ev.splice(at, 0, { type: 'skill', side: s.side, uid: s.uid, name: 'passiveName.raiseDead' });
     }
-    if (this.has(s, 'blizzard') && r % 2 === 0 && foes.length) {
+    if (this.has(s, 'blizzard') && on(0) && foes.length) {
       skill('blizzard');
       for (const e of foes) {
         this.hurt(e, Math.max(1, Math.round(this.hpTotal(e) * 0.03)), ev, 'skill');
@@ -772,7 +774,7 @@ export class Battle {
         else this.addStatus(s, 'shield', 3, 3, ev);
       }
     }
-    if (this.has(s, 'hellGate') && r % 2 === 0) {
+    if (this.has(s, 'hellGate') && on(0)) {
       const n = Math.round(s.def.cost * 0.12 / UNITS.demon_t1_imp.cost) + Math.floor(r / 2);
       const at = ev.length;
       if (this.summonFor(s.side, 'demon_t1_imp', n, [s], ev)) ev.splice(at, 0, { type: 'skill', side: s.side, uid: s.uid, name: 'passiveName.hellGate' });

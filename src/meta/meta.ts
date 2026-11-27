@@ -135,6 +135,8 @@ export interface MetaState {
   bestFloor: number;
   /** v0.17: the city was reset, the spent resources were refunded (shown once in the city). */
   resetNotice?: Partial<Record<Res, number>> | null;
+  /** v0.20: highest ascension level that can be chosen (win on level n unlocks n+1). */
+  ascUnlocked?: number;
 }
 
 const KEY = 'hexlegacy.meta.v1';
@@ -166,6 +168,15 @@ export function getMeta(): MetaState {
   } catch { /* ignore */ }
   meta = fresh();
   return meta;
+}
+
+/** A won run on ascension `a` unlocks the next level (max. 10). Returns the new level or null. */
+export function unlockAscension(a: number): number | null {
+  const m = getMeta();
+  const cur = m.ascUnlocked ?? 0;
+  if (a < cur || a >= 10) return null;
+  m.ascUnlocked = a + 1;
+  return a + 1;
 }
 
 export function saveMeta(): void {

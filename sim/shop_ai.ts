@@ -1,6 +1,6 @@
 // The AI at the shop (v0.19): artifact if affordable, else a piece of equipment; sometimes hires a neutral creature.
 import { run, owner, grantPerk, stashItem, bagFull, rebalance, MAX_SLOTS, count } from '../src/run/state';
-import { offer } from '../src/run/perks';
+import { offer, artifactPrice } from '../src/run/perks';
 import { rollItem, ITEM_PRICE, ITEMS } from '../src/run/items';
 import { shopNeutrals, neutralPrice } from '../src/run/encounters';
 import { UNITS } from '../src/data/units';
@@ -10,7 +10,7 @@ export function aiShop(pick: Rng, floor: number): void {
   const r = run();
   const art = offer('artifact', 1, owner(), pick)[0];
   if (art) {
-    const cost = art.rarity === 'legendary' ? 330 : art.rarity === 'rare' ? 225 : 165;
+    const cost = artifactPrice(art);
     if (r.gold >= cost) { r.gold -= cost; grantPerk(art.id); }
   }
   // a neutral creature: only if it is stronger (tier) than the weakest own unit type, or a slot is free

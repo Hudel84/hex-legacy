@@ -1,3 +1,6 @@
+import { ascLines } from '../ui/ascUi';
+import { tooltip } from '../ui/perkUi';
+import { getMeta } from '../meta/meta';
 import Phaser from 'phaser';
 import { t } from '../core/i18n';
 import { COLOR } from '../core/theme';
@@ -7,11 +10,14 @@ import { newRun, setRun } from '../run/state';
 import { loadRunUi, loadHeroPortrait, loadPortrait, img } from '../core/assets';
 import { card, titleStyle, textStyle } from '../ui/widgets';
 import { Button } from '../ui/Button';
-import { playMusic } from '../core/audio';
+import { playMusic, playSfx } from '../core/audio';
 import { playVoice } from '../core/voice';
 import { START_THEME, themeById } from '../run/talents';
 import { themeName } from '../ui/talentUi';
 import { KIND_COLOR } from '../ui/perkUi';
+
+/** Chosen ascension level, kept while switching tabs (v0.20). */
+let chosenAsc: number | null = null;
 
 export class HeroSelectScene extends Phaser.Scene {
   private selected = HEROES[0].id;
@@ -49,6 +55,7 @@ export class HeroSelectScene extends Phaser.Scene {
     rb.fillStyle(0x000000, 0.55).fillRoundedRect(w / 2 - race.width / 2 - 20, 248 - race.height / 2 - 8, race.width + 40, race.height + 16, 10);
     race.setDepth(1); rb.setDepth(0.5);
     this.drawCards();
+    this.ascSelector();
     new Button(this, w / 2 - 220, h - 58, t('common.back'), { width: 300, fontSize: 28, onClick: () => this.scene.start('Title') });
     new Button(this, w / 2 + 220, h - 58, t('heroSelect.start'), { style: 'red', width: 340, fontSize: 30, onClick: () => this.start() });
     playMusic(this, 'mus_main_menu');
@@ -119,9 +126,34 @@ export class HeroSelectScene extends Phaser.Scene {
     void COLOR;
   }
 
+  /** Ascension (v0.20): choose the level, bottom left; only shown after the first won run. */
+  private ascSelector(): void {
+    const max = getMeta().ascUnlocked ?? 0;
+    if (max < 1) { chosenAsc = 0; return; }
+    if (chosenAsc === null || chosenAsc > max) chosenAsc = max;
+    const { height: h } = this.scale;
+    const x = 255, y = h - 58;
+    const bg = this.add.graphics();
+    bg.fillStyle(0x000000, 0.6).fillRoundedRect(x - 215, y - 40, 430, 80, 14).lineStyle(2, 0x8a6a2b, 1).strokeRoundedRect(x - 215, y - 40, 430, 80, 14);
+    const a = chosenAsc;
+    const label = this.add.text(x, y - 12, a > 0 ? t('asc.level', { n: a }) : t('asc.none'), textStyle(28, a > 0 ? '#ff9a7a' : '#e8dcc0', true)).setOrigin(0.5);
+    const sub = this.add.text(x, y + 20, a > 0 ? `${t(`asc.rule.${a}`)} · ${t('asc.bonus', { n: a * 10 })}` : t('asc.choose'), textStyle(17, '#e8dcc0')).setOrigin(0.5);
+    if (sub.width > 330) sub.setScale(330 / sub.width);
+    label.setInteractive({ useHandCursor: true });
+    if (a > 0) tooltip(this, label, t('asc.level', { n: a }), [...ascLines(a), '', t('asc.bonus', { n: a * 10 })]);
+    const arrow = (dx: number, txt: string, d: number) => {
+      const ok = d < 0 ? a > 0 : a < max;
+      const b = this.add.text(x + dx, y, txt, textStyle(40, ok ? '#f3d48a' : '#5a4a3a', true)).setOrigin(0.5);
+      if (ok) b.setInteractive({ useHandCursor: true }).on('pointerup', () => { chosenAsc = a + d; playSfx(this, 'ui_click'); this.scene.restart({ faction: this.faction, selected: this.selected }); });
+    };
+    arrow(-185, '◀', -1);
+    arrow(185, '▶', 1);
+    void bg;
+  }
+
   private start(): void {
     if (!heroUnlocked(this.selected)) this.selected = heroesOf(this.faction)[0].id;
-    setRun(newRun(this.selected));
+    setRun(newRun(this.selected, undefined, chosenAsc ?? 0));
     this.scene.start('Map');
   }
 }

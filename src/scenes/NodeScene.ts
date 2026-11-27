@@ -12,6 +12,7 @@ import { eventById, type EventOutcome } from '../run/events';
 import { buildEnemy, battleConfig, globalFloor, shopNeutrals, neutralPrice } from '../run/encounters';
 import { ArmyPanel } from '../ui/ArmyPanel';
 import { bonus } from '../meta/meta';
+import { ASC, ascOf } from '../run/ascension';
 import { addLoot, lootFor, owner, grantPerk, learnSpell, spellReward, perkFactor } from '../run/state';
 import { rollItem, rollConsumable, sellPrice, ITEM_PRICE, ITEMS, CONSUMABLES, type ItemInst } from '../run/items';
 import { stashItem, slotsFor, bagFull, beltFull, addConsumable, sellItem, addToBag, heroFaction } from '../run/state';
@@ -20,7 +21,7 @@ import { loadSpellIcons, spellName } from '../ui/spellUi';
 import { openUpgradeChoice, levelLabel, roleName, upgradeName } from '../ui/upgradeUi';
 import { roleOf } from '../run/upgrades';
 import { levelUpUnit } from '../run/state';
-import { offer, perkById } from '../run/perks';
+import { offer, perkById, artifactPrice } from '../run/perks';
 import { perkLines } from '../ui/perkUi';
 import { panel, titleStyle, inkStyle } from '../ui/widgets';
 import { Button } from '../ui/Button';
@@ -35,6 +36,8 @@ const BG: Record<Exclude<Kind, 'event'>, string> = {
 
 /** Shop discount: Marketplace (city) + Gold talent, max. 60 %. */
 const shopDiscount = (): number => Math.min(0.6, bonus.shopDiscount() + perkFactor('discount'));
+/** Price factor: discounts, and ascension 6 (hard times: +25 %). */
+const priceMult = (): number => (1 - shopDiscount()) * ASC.shop(ascOf(run()));
 
 export class NodeScene extends Phaser.Scene {
   private kind: Kind = 'shop';
@@ -215,7 +218,7 @@ export class NodeScene extends Phaser.Scene {
     const opts: Opt[] = [{ label: t('shop.gear'), hint: t('shop.gearHint'), action: () => this.gearShop() }];
     for (const id of this.shopNeutral) {
       const d = unitDef(id);
-      const cost = Math.round(neutralPrice(id) * (1 - shopDiscount()));
+      const cost = Math.round(neutralPrice(id) * priceMult());
       const full = r.army.length >= MAX_SLOTS;
       opts.push({
         label: t('shop.neutral', { unit: t(`unit.${id}`), tier: d.tier }),
@@ -250,7 +253,7 @@ export class NodeScene extends Phaser.Scene {
     if (this.shopArtifact) {
       const p = perkById(this.shopArtifact);
       // artifacts are expensive (x1.5 in v0.19)
-      const cost = Math.round((p.rarity === 'legendary' ? 330 : p.rarity === 'rare' ? 225 : 165) * (1 - shopDiscount()));
+      const cost = Math.round(artifactPrice(p) * priceMult());
       opts.push({
         label: t('shop.artifact', { name: t(`perk.${p.id}`) }), hint: perkLines(p).join(' · '), price: cost, enabled: r.gold >= cost,
         action: () => { r.gold -= cost; grantPerk(p.id); this.shopArtifact = ''; playSfx(this, 'ui_buy'); save(); this.shop(); },
@@ -271,7 +274,7 @@ export class NodeScene extends Phaser.Scene {
       this.shopCons = [rollConsumable(g), rollConsumable(g)];
       commitRng(g);
     }
-    const disc = 1 - shopDiscount();
+    const disc = priceMult();
     const opts: Opt[] = [];
     for (const it of this.shopItems) {
       const d = ITEMS[it.id];
@@ -339,7 +342,7 @@ export class NodeScene extends Phaser.Scene {
   private treasure(): void {
     const r = run();
     const g = rng();
-    const gold = g.int(70, 110);
+    const gold = g.int(40, 70);
     const boon = g.next() < 0.5 ? g.pick(BOONS.filter((b) => b !== 'gold60')) : null;
     commitRng(g);
     r.gold += gold;

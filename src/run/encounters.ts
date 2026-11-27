@@ -5,6 +5,8 @@ import { Battle } from '../battle/engine';
 import type { MapNode } from './mapgen';
 import { run, rng, commitRng, count, upgradedDef, playerMods, perkFactor, heroTotals, type RunState, summonFor } from './state';
 import { heroById } from './heroes';
+import { ASC, ascOf } from './ascension';
+import { combine } from '../battle/mods';
 import { bonus } from '../meta/meta';
 
 // Themed enemy groups for act 1. Units are picked from one group per fight.
@@ -103,7 +105,7 @@ export function actScaled(def: UnitDef, act: number): UnitDef {
   };
 }
 
-export interface EnemyArmy { army: { id: string; count: number; act?: number; boss?: number }[]; hero: { atk: number; def: number }; }
+export interface EnemyArmy { army: { id: string; count: number; act?: number; boss?: number; mult?: number }[]; hero: { atk: number; def: number }; }
 
 /** Late bosses and the Void God are a bit tougher since unit upgrades go up to level 5 (20.11.). */
 export const BOSS_SCALE: Record<number, number> = { 1: 1, 2: 1.35, 3: 1.6 };
@@ -130,8 +132,8 @@ export function shopNeutrals(g: { shuffle<T>(a: T[]): T[] }, floor: number, r: R
   const strong = pool.filter((id) => UNITS[id].tier >= maxTier - 1);
   return g.shuffle(strong.length >= n ? strong : pool).slice(0, n);
 }
-/** Price of a neutral creature in the shop: 50 + 30 x tier (before discount). */
-export const neutralPrice = (id: string): number => 50 + 30 * UNITS[id].tier;
+/** Price of a neutral creature in the shop: 60 + 40 x tier (before discount; v0.19.0: 50 + 30 x tier). */
+export const neutralPrice = (id: string): number => 60 + 40 * UNITS[id].tier;
 export const TREASURE_CHANCE = 0.1;
 
 /** early: extra factor for the very first fights of a run (index = global floor), so a fresh run without city can win its first fight (27.11.). */
@@ -148,16 +150,17 @@ export function buildEnemy(node: MapNode, groupOverride?: string): EnemyArmy {
   const g = rng();
   const floor = globalFloor(node.floor, r);
   // fixed difficulty curve (leadership points), so the player's growth actually matters
-  const curve = DIFFICULTY.base * curveAt(floor);
+  const A = ascOf(r);
+  const curve = DIFFICULTY.base * curveAt(floor) * ASC.enemyBudget(A);   // ascension 1 / 10
   void playerPower(r);
   const heroBonus = Math.floor(floor / 4);
   const out: EnemyArmy['army'] = [];
 
   if (node.type === 'boss') {
     const b = BOSSES[r.biome] ?? BOSSES.meadows;
-    out.push({ id: b.id, count: 1, boss: BOSS_SCALE[r.act] ?? 1 });
+    out.push({ id: b.id, count: 1, boss: (BOSS_SCALE[r.act] ?? 1) * ASC.boss(A) });   // ascension 5: mighty bosses
     // the escort grows with the act like normal fights (act 1: as before)
-    const rest = Math.max(40, DIFFICULTY.base * DIFFICULTY.boss * (1 + DIFFICULTY.bossEscort * (r.act - 1)));
+    const rest = Math.max(40, DIFFICULTY.base * DIFFICULTY.boss * (1 + DIFFICULTY.bossEscort * (r.act - 1))) * ASC.enemyBudget(A);
     for (const e of b.escort) out.push({ id: e, count: Math.max(2, Math.round(rest * 0.5 / UNITS[e].cost)) });
     commitRng(g);
     return { army: out, hero: { atk: 1 + 3 * (r.act - 1), def: 1 + 3 * (r.act - 1) } };
@@ -165,8 +168,8 @@ export function buildEnemy(node: MapNode, groupOverride?: string): EnemyArmy {
 
   if (node.type === 'elite') {
     const eliteId = g.pick(ACT_ELITES[r.act] ?? ACT_ELITES[1]);
-    out.push({ id: eliteId, count: 1, act: r.act });
-    const budget = Math.max(20, curve * DIFFICULTY.elite - UNITS[eliteId].cost);
+    out.push({ id: eliteId, count: 1, act: r.act, mult: ASC.elite(A) });   // ascension 2: hard elites
+    const budget = Math.max(20, curve * DIFFICULTY.elite * ASC.elite(A) - UNITS[eliteId].cost);
     const esc = ELITES[eliteId];
     for (const id of esc) out.push({ id, count: Math.max(2, Math.round(budget / esc.length / UNITS[id].cost)) });
     commitRng(g);
@@ -221,7 +224,9 @@ export function battleConfig(node: MapNode, enemy: EnemyArmy, rewardMul = 1): Ru
   const isElite = node.type === 'elite';
   const tot = heroTotals(r);
   const gf = globalFloor(node.floor, r);
-  const baseGold = (isBoss ? 150 : isElite ? 75 : 25 + gf * 3) * (1 + 0.3 * (r.act - 1));
+  // gold economy v0.19.1 (Ben 27.11.: far less gold): before (boss 150 / elite 75 / 25 + 3 x floor) x (1 + 0.3 per act)
+  const A = ascOf(r);
+  const baseGold = (isBoss ? 90 : isElite ? 45 : 15 + gf * 1.5) * (1 + 0.1 * (r.act - 1)) * ASC.gold(A);   // ascension 3: meagre spoils
   return {
     mode: 'run',
     nodeId: node.id,
@@ -243,11 +248,19 @@ export function battleConfig(node: MapNode, enemy: EnemyArmy, rewardMul = 1): Ru
         mods: playerMods(r),
         army: r.army.filter((s) => count(s) > 0).map((s) => ({ def: upgradedDef(s), count: count(s) })),
       },
-      enemy: { hero: enemy.hero, army: enemy.army.map((a) => ({ def: a.boss ? bossScaled(UNITS[a.id], a.boss) : a.act ? actScaled(UNITS[a.id], a.act) : UNITS[a.id], count: a.count })) },
+      enemy: {
+        hero: enemy.hero,
+        army: enemy.army.map((a) => {
+          const d = a.boss ? bossScaled(UNITS[a.id], a.boss) : a.act ? actScaled(UNITS[a.id], a.act) : UNITS[a.id];
+          return { def: a.mult && a.mult !== 1 ? bossScaled(d, a.mult) : d, count: a.count };
+        }),
+        // ascension 4 / 5 / 8: tough, raging, battle-hardened foes
+        mods: combine({ hp: ASC.enemyHp(A), bossRage: ASC.bossRage(A), crit: ASC.enemyCrit(A), morale: ASC.enemyMorale(A) }),
+      },
     },
     reward: {
       gold: Math.round(baseGold * rewardMul * (1 + perkFactor('gold', r))),
-      xp: Math.round((isBoss ? 60 : isElite ? 30 : 12 + gf) * (1 + 0.25 * (r.act - 1)) * (1 + perkFactor('xp', r))),
+      xp: Math.round((isBoss ? 60 : isElite ? 30 : 12 + gf) * (1 + 0.25 * (r.act - 1)) * (1 + perkFactor('xp', r)) * ASC.xp(A)),   // ascension 7
       draft: !isBoss,
     },
   };
@@ -258,7 +271,7 @@ export function finalConfig(): RunBattleConfig {
   const r = run();
   const node = r.map.find((n) => n.id === r.currentNode) ?? r.map[r.map.length - 1];
   const enemy: EnemyArmy = {
-    army: [{ id: 'boss_final_void_god', count: 1, boss: DIFFICULTY.final }, { id: 'summon_void_spawn', count: DIFFICULTY.finalSpawn }],
+    army: [{ id: 'boss_final_void_god', count: 1, boss: DIFFICULTY.final }, { id: 'summon_void_spawn', count: DIFFICULTY.finalSpawn * ASC.voidSpawn(ascOf(r)) }],
     hero: { atk: DIFFICULTY.finalHero, def: DIFFICULTY.finalHero },
   };
   const cfg = battleConfig(node, enemy);

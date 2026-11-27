@@ -26,7 +26,7 @@ const actBoss: Record<number, number> = {};
 const act1ByHero: Record<string, number> = {};
 for (let i = 0; i < RUNS; i++) {
   const hero = HEROES[i % HEROES.length];
-  setRun(newRun(hero.id, 1000 + i));
+  setRun(newRun(hero.id, 1000 + i, Number(process.env.ASC ?? 0)));
   (byHero[hero.id] ??= [0, 0])[1]++;
   const pick = new Rng(77 + i);
   const pickUpgrade = () => { const pt = run().pendingTalent; if (pt) chooseTalentUpgrade(pick.pick(rankUpgrades(pt.theme, pt.rank)).id); };
@@ -41,7 +41,7 @@ for (let i = 0; i < RUNS; i++) {
     r.currentNode = node.id; r.visited.push(node.id);
     if (node.type === 'rest') { const s = pick.pick(r.army); if (s.level < MAX_UNIT_LEVEL) { const o = upgradeOptions(s); levelUpUnit(s, o.length ? pick.pick(o).id : null); } continue; }
     if (node.type === 'shop') { if (process.env.OLDSHOP) { while (r.gold >= 50) { r.gold -= 50; addLeadership(10); } } else aiShop(pick, node.floor); continue; }
-    if (node.type === 'treasure') { r.gold += 80; if (ITEMS_ON && pick.next() < 0.5) stashItem(rollItem(pick, node.floor)); continue; }
+    if (node.type === 'treasure') { r.gold += 55; if (ITEMS_ON && pick.next() < 0.5) stashItem(rollItem(pick, node.floor)); continue; }
     if (node.type === 'shrine' || node.type === 'event') { r.gold += 20; continue; }
     const cfg: RunBattleConfig = node.type === 'final' as string ? finalConfig() : battleConfig(node, buildEnemy(node));
     const b = new Battle(cfg.setup);

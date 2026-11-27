@@ -1,4 +1,5 @@
 // Run state: everything about the current run, saved to localStorage after every node.
+import { ASC, ascOf } from './ascension';
 import { UNITS } from '../data/units';
 import type { UnitDef } from '../battle/types';
 import { generateMap, type MapNode } from './mapgen';
@@ -62,6 +63,7 @@ export interface RunState {
   bag?: ItemInst[];                 // backpack, max BAG_SIZE
   belt?: (string | null)[];         // consumables, BELT_SIZE places
   rerolls?: number;                 // oracle: new level-up choices left in this run
+  asc?: number;                     // ascension level of this run (v0.20, 0 = none)
   /** Tactics (v0.18): start hex of every unit type from the last set-up, kept for the next battles. */
   formation?: Record<string, { col: number; row: number }>;
 }
@@ -84,8 +86,8 @@ export function advanceAct(r = run()): void {
   r.pending = null;
 }
 
-export function newRun(heroId: string, seed = Math.floor(Math.random() * 2 ** 31)): RunState {
-  const r = baseRun(heroId, seed);
+export function newRun(heroId: string, seed = Math.floor(Math.random() * 2 ** 31), asc = 0): RunState {
+  const r = baseRun(heroId, seed, asc);
   giveStartTheme(r);
   if (bonus.extraSpell()) {
     const opts = learnable(false, r);
@@ -115,18 +117,21 @@ export function runEndGain(won: boolean, r = run()): { floor: number; factor: nu
   const prod = bonus.production();
   const earned = productionEarned(won, r);
   const any = Object.values(prod).some((v) => (v ?? 0) > 0);
-  return { floor, factor, gain: { ...(r.loot ?? {}), fame }, production: earned ? prod : {}, productionMissed: any && !earned };
+  // ascension: +10 % city resources per level (loot and fame)
+  const k = ASC.reward(ascOf(r));
+  const gain = Object.fromEntries(Object.entries({ ...(r.loot ?? {}), fame }).map(([key, v]) => [key, Math.round((v ?? 0) * k)])) as Partial<Record<Res, number>>;
+  return { floor, factor, gain, production: earned ? prod : {}, productionMissed: any && !earned };
 }
 
-function baseRun(heroId: string, seed: number): RunState {
+function baseRun(heroId: string, seed: number, asc = 0): RunState {
   const hero = heroById(heroId);
   const rng = new Rng(seed);
   const biome = rng.pick(ACT1_BIOMES);
-  const leadership = hero.leadership + bonus.leadership();
+  const leadership = Math.round((hero.leadership + bonus.leadership()) * ASC.startLead(asc));   // ascension 9: weak start
   const share = Math.floor(leadership / hero.startArmy.length);
   return {
     version: 1, seed, rngState: seed ^ 0x51f15e, act: 1, biome,
-    heroId, atk: hero.atk + bonus.atk(), def: hero.def + bonus.def(), leadership, level: 1, xp: 0, gold: 60 + bonus.startGold(),
+    heroId, atk: hero.atk + bonus.atk(), def: hero.def + bonus.def(), leadership, level: 1, xp: 0, gold: 60 + (ASC.noTownGold(asc) ? 0 : bonus.startGold()), asc,
     army: hero.startArmy.map((unitId, i) => ({ unitId, alloc: share, level: i < bonus.smithy() ? 1 : 0 })),
     map: generateMap(seed), currentNode: null, visited: [], shopBuys: 0, battlesWon: 0, pending: null, loot: {}, talents: [], artifacts: [],
     power: hero.power + bonus.power(), knowledge: hero.knowledge + bonus.knowledge(),
