@@ -119,7 +119,7 @@ export class ArmyPanel extends Phaser.GameObjects.Container {
       c.add(fitWidth(sc.add.text(134, y - 40, t(`unit.${s.unitId}`), textStyle(21, COLOR.gold, true)), 232));
       c.add(sc.add.text(134, y - 12, `×${count(s)}  ${levelLabel(s)}`, textStyle(22, '#ffffff', true)));
       const role = roleOf(d);
-      c.add(sc.add.text(134, y + 20, `${roleName(role)} · ${t('run.costEach', { n: d.cost })}`, textStyle(17, ROLE_COLOR[role])));
+      c.add(fitWidth(sc.add.text(134, y + 20, `${roleName(role)} · ${t('run.costEach', { n: d.cost })}`, textStyle(17, ROLE_COLOR[role])), 250));
     });
     const hy = 625 + r.army.length * 125 - 30;
     const syn = armySynergies(r);

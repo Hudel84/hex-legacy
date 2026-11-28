@@ -109,7 +109,7 @@ while (Date.now() - t0 < LIMIT) {
           sc.leave(); return `event ${sc.eventId}`;
         }
         if (sc.kind === 'shop' && hexRun().gold >= 60) { hexRun().gold -= 45; hexRun().atk += 1; }
-        if (sc.kind === 'shop') { sc.gearShop(); sc.magicShop(); sc.training(); }
+        if (sc.kind === 'shop') { sc.gearShop?.(); sc.magicShop?.(); sc.training?.(); }
         sc.leave(); return `node ${sc.kind}`;
       }
       if (key === 'RunEnd') return `END won=${sc.won}`;

@@ -31,7 +31,7 @@ export class PreloadScene extends Phaser.Scene {
     }
     for (const k of ['ui_window_panel', 'ui_panel_parchment', 'ui_panel_dark_wood', 'ui_button_close',
       'ui_button_minus', 'ui_button_plus', 'ui_divider_gold', 'ui_radio_empty', 'ui_radio_selected',
-      'ui_checkbox_empty', 'ui_checkbox_checked', 'ui_bar_mana_frame', 'ui_button_settings']) {
+      'ui_checkbox_empty', 'ui_checkbox_checked', 'ui_bar_mana_frame', 'ui_button_settings', 'ui_button_round_wood_normal']) {
       this.load.image(k, `${A}ui/${k}.webp`);
     }
 

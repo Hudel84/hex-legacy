@@ -2,6 +2,7 @@
 // Opened as an overlay from the map and node screens (the calling scene is paused meanwhile).
 import { themeName, rankLabel } from '../ui/talentUi';
 import Phaser from 'phaser';
+import { holdInfo } from '../core/touch';
 import { t } from '../core/i18n';
 import { playSfx } from '../core/audio';
 import { img, loadRunUi } from '../core/assets';
@@ -130,7 +131,7 @@ export class HeroScene extends Phaser.Scene {
       const p = this.place(`belt${i}`);
       if (!id) { this.placeholder(p, 'slot_consumable', t('hero.beltEmpty')); return; }
       const ic = consumableIcon(this, p.x, p.y, id, p.s * 0.92);
-      ic.setInteractive();
+      holdInfo(ic.setInteractive());
       ic.on('pointerover', () => this.showConsumable(id));
       this.layer.add(ic);
     });
@@ -237,11 +238,11 @@ export class HeroScene extends Phaser.Scene {
     this.layer.add(ic);
     if (this.readOnly) {
       // during a battle only looking is allowed (the battle already uses the current equipment and belt)
-      ic.setInteractive();
+      holdInfo(ic.setInteractive());
       ic.on('pointerover', () => this.showItem(it, setCount, faction, from));
       return;
     }
-    ic.setInteractive({ useHandCursor: true, draggable: true });
+    holdInfo(ic.setInteractive({ useHandCursor: true, draggable: true }));
     const home = { x: ic.x, y: ic.y };
     let dragging = false;
     ic.on('pointerover', () => this.showItem(it, setCount, faction, from));

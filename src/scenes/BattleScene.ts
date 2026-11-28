@@ -1,4 +1,5 @@
-import { settingsButton } from '../ui/settingsButton';
+import { settingsButton, fullscreenButton } from '../ui/settingsButton';
+import { holdInfo, onHold } from '../core/touch';
 import { openHero } from './HeroScene';
 import { rankFor, fmtMult } from '../run/rating';
 import Phaser from 'phaser';
@@ -328,6 +329,7 @@ export class BattleScene extends Phaser.Scene {
     ph.setScale(380 / ph.height);
     // settings during the battle (v0.20.4): gear top right
     settingsButton(this, w - 60, 58, 64).setDepth(2100);
+    fullscreenButton(this, w - 60, 138, 64)?.setDepth(2100);
     // click on the hero (or key I): hero screen to look things up (read-only during a battle, v0.20.1)
     if (this.cfg.mode === 'run') {
       ph.setInteractive({ useHandCursor: true, pixelPerfect: true, alphaTolerance: 20 });
@@ -368,9 +370,11 @@ export class BattleScene extends Phaser.Scene {
 
     // HUD
     this.initBar = this.add.container(w / 2, 78).setDepth(2000);
-    this.infoText = this.add.text(w / 2 + 130 * Math.min(1, settings.textSize ?? 0), h - 92, '', {
+    this.infoText = this.add.text(w / 2, h - 92, '', {
       fontFamily: FONT_BODY, fontSize: '28px', color: COLOR.light, stroke: '#000', strokeThickness: 5, align: 'center',
     }).setOrigin(0.5).setDepth(2000);
+    // large text (default on phones, v0.21): between the log (left) and the buttons (right), wrapped, growing upwards
+    if (settings.textSize) this.infoText.setPosition(1225, h - 14).setOrigin(0.5, 1).setWordWrapWidth(800);
     this.logText = this.add.text(30, h - 18, '', {
       fontFamily: FONT_BODY, fontSize: '21px', color: '#e8dcc0', stroke: '#000', strokeThickness: 4, lineSpacing: 1,
       wordWrap: { width: settings.textSize ? 780 : 1400 },
@@ -378,7 +382,7 @@ export class BattleScene extends Phaser.Scene {
 
     const bx = w - 150;
     this.btnAbility = new Button(this, bx, h - 285, t('battle.ability'), { width: 250, fontSize: 20, style: 'red', onClick: () => this.abilityClicked() });
-    this.btnAbility.on('pointerover', () => this.abilityHover());
+    holdInfo(this.btnAbility).on('pointerover', () => this.abilityHover());
     this.btnAbility.setDepth(2000).setVisible(false);
     this.btnWait = new Button(this, bx, h - 205, t('battle.wait'), { width: 250, fontSize: 26, onClick: () => this.playerAction({ type: 'wait' }) });
     this.btnDefend = new Button(this, bx, h - 125, t('battle.defend'), { width: 250, fontSize: 26, onClick: () => this.playerAction({ type: 'defend' }) });
@@ -388,10 +392,16 @@ export class BattleScene extends Phaser.Scene {
     // input
     this.input.on(Phaser.Input.Events.POINTER_MOVE, (p: Phaser.Input.Pointer) => this.onHover(p.worldX, p.worldY));
     this.input.mouse?.disableContextMenu();
+    // touch (v0.21): a finger has no hover, so touching shows the preview; holding = right click (unit card / cancel)
+    this.input.on(Phaser.Input.Events.POINTER_DOWN, (p: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
+      if (!p.wasTouch || this.infoOpen?.active) return;
+      if (over.length === 0) this.onHover(p.worldX, p.worldY);
+      onHold(p, () => { if (!this.infoOpen?.active && over.length === 0) this.onRightClick(p.worldX, p.worldY); });
+    });
     this.input.on(Phaser.Input.Events.POINTER_UP, (p: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
       if (this.infoOpen?.active) return;
       if (p.rightButtonReleased()) { this.onRightClick(p.worldX, p.worldY); return; }
-      if (over.length === 0) this.onClick(p.worldX, p.worldY);
+      if (over.length === 0) this.onClick(p.worldX, p.worldY, p.wasTouch);
     });
     this.input.keyboard?.on('keydown-ESC', () => {
       if (this.deploying && this.deploySel !== null) { this.deploySel = null; this.infoText.setText(t('battle.tacticsShort')); this.drawDeploy(); return; }
@@ -880,7 +890,7 @@ export class BattleScene extends Phaser.Scene {
       const ic = consumableIcon(this, x, y, id, 64);
       const usable = can && b.itemTargets('player', i).length > 0;
       ic.setAlpha(usable ? 1 : 0.5);
-      ic.setInteractive({ useHandCursor: usable });
+      holdInfo(ic.setInteractive({ useHandCursor: usable }));
       ic.on('pointerover', () => this.infoText.setText(`${consumableName(id)}: ${consumableDesc(id, b.spellPower('player'))}`));
       ic.on('pointerup', () => { if (usable) this.chooseItem(i); });
       this.beltBar.add(ic);
@@ -1344,23 +1354,65 @@ export class BattleScene extends Phaser.Scene {
     }) + (tags.length ? `\n${tags.join('  ·  ')}` : '');
   }
 
-  private onClick(x: number, y: number): void {
+  /** touch: the action shown by the first tap; a second tap on the same thing carries it out (v0.21) */
+  private touchPending = '';
+
+  private tapHint?: Phaser.GameObjects.Text;
+
+  /** Touch only: true on the first tap (preview stays, a "tap again" label appears above the finger), false when the same target is tapped again. */
+  private needsSecondTap(touch: boolean, what: string, x: number, y: number): boolean {
+    if (!touch) return false;
+    const key = `${this.battle.round}|${this.battle.active?.uid ?? ''}|${what}`;
+    if (this.touchPending === key) { this.touchPending = ''; this.hideTapHint(); return false; }
+    this.touchPending = key;
+    this.hideTapHint();
+    const tx = this.add.text(x, y - 95, t('battle.tapAgain'), {
+      fontFamily: FONT_BODY, fontSize: '26px', fontStyle: '700', color: '#ffe9a8', stroke: '#000', strokeThickness: 6,
+      backgroundColor: '#140d08cc', padding: { x: 12, y: 6 },
+    }).setOrigin(0.5, 1).setDepth(2050);
+    tx.setX(Phaser.Math.Clamp(x, tx.displayWidth / 2 + 10, this.scale.width - tx.displayWidth / 2 - 10));
+    this.tapHint = tx;
+    this.tweens.add({ targets: tx, alpha: 0, delay: 2600, duration: 400, onComplete: () => { if (this.tapHint === tx) this.hideTapHint(); } });
+    return true;
+  }
+
+  private hideTapHint(): void {
+    this.tapHint?.destroy();
+    this.tapHint = undefined;
+  }
+
+  private onClick(x: number, y: number, touch = false): void {
     if (this.bookOpen) return;
     if (this.deploying) { this.deployClick(x, y); return; }
     if (this.itemTargeting !== null) {
       const h = pixelToHex(x, y);
       const st = h ? this.battle.stackAt(h) : undefined;
-      if (st && this.battle.itemTargets('player', this.itemTargeting).includes(st.uid)) void this.useItem(this.itemTargeting, st.uid);
+      if (st && this.battle.itemTargets('player', this.itemTargeting).includes(st.uid)) {
+        if (this.needsSecondTap(touch, `item${this.itemTargeting}>${st.uid}`, x, y)) return;
+        void this.useItem(this.itemTargeting, st.uid);
+      } else { this.touchPending = ''; this.hideTapHint(); }
       return;
     }
     if (this.spellTargeting) {
       const h = pixelToHex(x, y);
       const st = h ? this.battle.stackAt(h) : undefined;
-      if (st && this.battle.spellTargets('player', this.spellTargeting).includes(st.uid)) void this.castSpell(this.spellTargeting, st.uid);
+      if (st && this.battle.spellTargets('player', this.spellTargeting).includes(st.uid)) {
+        if (this.needsSecondTap(touch, `spell${this.spellTargeting}>${st.uid}`, x, y)) return;
+        void this.castSpell(this.spellTargeting, st.uid);
+      } else { this.touchPending = ''; this.hideTapHint(); }
       return;
     }
     const a = this.actionAt(x, y);
-    if (a) { void this.playerAction(a.action); return; }
+    if (a) {
+      // moving needs one tap; attacks, shots and abilities show the damage preview first
+      if (a.action.type !== 'move' && this.needsSecondTap(touch, JSON.stringify(a.action), x, y)) return;
+      this.touchPending = '';
+      this.hideTapHint();
+      void this.playerAction(a.action);
+      return;
+    }
+    this.touchPending = '';
+    this.hideTapHint();
     if (this.targeting) return;
     const h = pixelToHex(x, y);
     const st = h ? this.battle.stackAt(h) : undefined;

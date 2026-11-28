@@ -4,6 +4,8 @@ import { FONT_BODY, COLOR, VERSION } from '../core/theme';
 import { playMusic } from '../core/audio';
 import { Button } from '../ui/Button';
 import { shade } from '../ui/widgets';
+import { fullscreenButton } from '../ui/settingsButton';
+import { IS_TOUCH, canFullscreen, isStandalone } from '../core/mobile';
 import { hasSave, loadSave } from '../run/state';
 
 let quickDone = false;
@@ -60,6 +62,13 @@ export class TitleScene extends Phaser.Scene {
       this.tweens.add({ targets: btn, alpha: 1, y: { from: h - 55, to: h - 85 }, delay: 200 + i * 100, duration: 400 });
       this.buttons.push({ btn, key: it.key });
     });
+
+    // phones/tablets (v0.21): full screen button, or on iPhone the tip to add the game to the home screen
+    if (!fullscreenButton(this, w - 70, 70, 76) && IS_TOUCH && !canFullscreen() && !isStandalone()) {
+      this.add.text(w - 30, 30, t('title.homeScreenHint'), {
+        fontFamily: FONT_BODY, fontSize: '24px', color: COLOR.light, stroke: '#000', strokeThickness: 5, align: 'right', wordWrap: { width: 520 },
+      }).setOrigin(1, 0).setAlpha(0.9);
+    }
 
     this.versionText = this.add.text(24, h - 20, '', {
       fontFamily: FONT_BODY, fontSize: '22px', color: COLOR.light,

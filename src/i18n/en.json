@@ -1925,5 +1925,17 @@
   "asc.desc.10": "another +25 % enemy strength, twice the void spawn in the final battle",
   "battle.heroScreen": "Your hero: click (or I) for the hero screen",
   "hero.helpBattle": "During a battle you can only look. Equip items after the battle.",
-  "settings.inBattle": "Language and text size apply from the next screen on."
+  "settings.inBattle": "Language and text size apply from the next screen on.",
+  "battle.tapAgain": "Tap again",
+  "title.homeScreenHint": "Tip: for full screen, tap “Share” → “Add to Home Screen” in Safari and start the game from there.",
+  "battle.help.touch": "Blue hex = move. Tap an enemy = preview, again = attack. Hold = details.",
+  "map.hint.touch": "Tap a glowing node to travel there. Drag the map to scroll.",
+  "info.hint.touch": "Hold a stack for details.",
+  "info.close.touch": "Tap anywhere to close",
+  "title.clickToStart.touch": "Tap to begin",
+  "battle.chooseTarget.touch": "{ability}: choose a target (hold to cancel)",
+  "battle.chooseSpellTarget.touch": "{spell}: choose a target (hold to cancel)",
+  "battle.chooseItemTarget.touch": "{item}: choose a target (hold to cancel)",
+  "hero.hover.touch": "Hold an item to see its details.",
+  "hero.help.touch": "Tap an item to put it on or take it off, or drag it to a place. Hold it for details. Spare items can be sold at the merchant."
 }

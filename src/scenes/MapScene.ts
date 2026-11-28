@@ -1,9 +1,10 @@
-import { settingsButton } from '../ui/settingsButton';
+import { settingsButton, fullscreenButton } from '../ui/settingsButton';
 import { ascOf } from '../run/ascension';
 import { ascBadge } from '../ui/ascUi';
 import { basePerkId } from '../run/talents';
 import { themeName, rankLabel, rankLines } from '../ui/talentUi';
 import Phaser from 'phaser';
+import { holdInfo } from '../core/touch';
 import { t } from '../core/i18n';
 import { COLOR } from '../core/theme';
 import { playMusic, playSfx, mapMusic } from '../core/audio';
@@ -141,13 +142,13 @@ export class MapScene extends Phaser.Scene {
         const chk = this.add.image(x + size * 0.3, y + size * 0.25, 'marker_check'); chk.setScale(36 / chk.width);
       }
       if (isAvail) {
-        icon.setInteractive({ useHandCursor: true });
+        holdInfo(icon.setInteractive({ useHandCursor: true }));
         const base = icon.scale;
         icon.on('pointerover', () => { icon.setScale(base * 1.15); this.showTip(n, x, y - size * 0.75); playSfx(this, 'ui_hover'); });
         icon.on('pointerout', () => { icon.setScale(base); this.tip.setVisible(false); });
         icon.on('pointerup', () => this.travel(n));
       } else {
-        icon.setInteractive();
+        holdInfo(icon.setInteractive());
         icon.on('pointerover', () => this.showTip(n, x, y - size * 0.75));
         icon.on('pointerout', () => this.tip.setVisible(false));
       }
@@ -263,6 +264,9 @@ export class MapScene extends Phaser.Scene {
     // The side panels get their own camera that never scrolls. Otherwise clicks on objects inside the
     // fixed panels are tested against the scrolled map and hit the wrong thing (portrait -> army unit).
     const uiObjs = new Set<Phaser.GameObjects.GameObject>([this.armyPanel, right, menu]);
+    // full screen (phones/tablets, v0.21): top-left corner of the army panel
+    const fs = fullscreenButton(this, 72, 92, 54);
+    if (fs) { fs.setScrollFactor(0).setDepth(201); uiObjs.add(fs); }
     const uiCam = this.cameras.add(0, 0, this.scale.width, this.scale.height).setName('ui');
     uiCam.ignore(this.children.list.filter((o) => !uiObjs.has(o)));
     this.cameras.main.ignore([...uiObjs]);

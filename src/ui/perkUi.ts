@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { holdInfo } from '../core/touch';
 import { t } from '../core/i18n';
 import { effectParts, perkIconKey, perkIconPath, PERKS, type PerkDef } from '../run/perks';
 import { card, textStyle } from './widgets';
@@ -43,6 +44,7 @@ export function perkCard(scene: Phaser.Scene, x: number, y: number, p: PerkDef, 
 /** Simple hover tooltip (title + text) for any interactive object. */
 export function tooltip(scene: Phaser.Scene, obj: Phaser.GameObjects.GameObject & { x: number; y: number }, title: string, lines: string[]): void {
   let tip: Phaser.GameObjects.Container | null = null;
+  holdInfo(obj);
   obj.on('pointerover', (p: Phaser.Input.Pointer) => {
     tip?.destroy();
     const tt = scene.add.text(0, 0, title, { fontFamily: FONT_BODY, fontSize: '22px', fontStyle: '700', color: '#f3d48a' });
@@ -51,8 +53,9 @@ export function tooltip(scene: Phaser.Scene, obj: Phaser.GameObjects.GameObject 
     const bg = scene.add.graphics();
     bg.fillStyle(0x140d08, 0.95).fillRoundedRect(-12, -10, w, h, 10).lineStyle(2, 0x8a6a2b, 1).strokeRoundedRect(-12, -10, w, h, 10);
     tip = scene.add.container(0, 0, [bg, tt, tx]).setDepth(9500).setScrollFactor(0, 0, true);
-    const px = Math.min(p.x + 18, scene.scale.width - w - 10);
-    const py = Math.min(p.y + 18, scene.scale.height - h - 10);
+    // touch: above the finger (it would hide the tip), else below-right of the mouse
+    const px = Phaser.Math.Clamp(p.wasTouch ? p.x - w / 2 : p.x + 18, 10, scene.scale.width - w - 10);
+    const py = p.wasTouch && p.y - h - 50 > 10 ? p.y - h - 50 : Math.min(p.y + 18, scene.scale.height - h - 10);
     tip.setPosition(px, py);
   });
   obj.on('pointerout', () => { tip?.destroy(); tip = null; });

@@ -18,6 +18,7 @@ Serve the build first: `npm run build && python3 -m http.server 4174 --directory
 - `battle_qol.mjs` – v0.20.4: settings from the battle (gear, paused, ESC, volume) and a treasure goblin battle
 - `mapview.mjs` – map screenshots per biome (contrast), `GEAR=1` also opens the settings from the map
 - `itemfind.mjs` – item found after a battle: worn item with stats and changes if equipped (weapon, two rings, free slot; `TS=2`)
+- `mobile.mjs` – v0.21 phones (touch emulation): rotate hint in portrait, canvas fits landscape also with browser bars, full screen button, very large text by default, map (hold a node / drag from a node: no travel), battle (tap = preview + "tap again", second tap attacks, hold = unit card) → /tmp/shots/mob_*.png. `?touch` forces touch texts/buttons on a desktop browser
 - `fixtest2.mjs` – battle against chosen enemy units (check facing of sprites)
 
 `?test` exposes `game`, `hexRun()` and `hexDebug.battleConfig(node, enemy)` on `window`.

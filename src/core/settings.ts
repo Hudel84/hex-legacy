@@ -16,9 +16,16 @@ const defaults: Settings = {
   lang: navigator.language?.toLowerCase().startsWith('de') ? 'de' : 'en',
   musicVolume: 0.6,
   sfxVolume: 0.8,
-  textSize: 0,
+  // phones (short side under 600 px): very large text, the 1920×1080 screen is shrunk to about a third (v0.21)
+  textSize: isPhone() ? 2 : 0,
   tactics: true,
 };
+
+function isPhone(): boolean {
+  try {
+    return matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600;
+  } catch { return false; }
+}
 
 function load(): Settings {
   try {

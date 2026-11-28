@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { GAME_W, GAME_H, VERSION } from './core/theme';
 import { installTextScale } from './core/textScale';
+import { installTouch } from './core/touch';
+import { installMobile } from './core/mobile';
 import { run as currentRun, advanceAct } from './run/state';
 import { finalConfig, buildEnemy, battleConfig } from './run/encounters';
 import { UNITS } from './data/units';
@@ -24,6 +26,7 @@ const params = new URLSearchParams(location.search);
 const testMode = params.has('test');
 
 installTextScale();
+installTouch();
 const game = new Phaser.Game({
   fps: testMode ? { smoothStep: false, min: 4 } : undefined,
   type: params.has('canvas') ? Phaser.CANVAS : Phaser.AUTO,
@@ -34,6 +37,8 @@ const game = new Phaser.Game({
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   scene: [BootScene, PreloadScene, TitleScene, ModalScene, BattleScene, HeroSelectScene, MapScene, NodeScene, RewardScene, RunEndScene, CityScene, HeroScene, ActScene, TalentScene],
 });
+
+installMobile(game);
 
 // handy for automated tests and debugging in the browser console
 (window as unknown as { game: Phaser.Game }).game = game;

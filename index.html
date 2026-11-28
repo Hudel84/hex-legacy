@@ -2,12 +2,32 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover + safe-area padding: the game stays clear of the notch on phones (v0.21) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Hex Legacy</title>
     <link rel="icon" href="./assets/ui/favicon.png" />
+    <!-- installable / "Add to Home Screen": starts in full screen without browser bars -->
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="./assets/ui/apple-touch-icon.png" />
+    <meta name="theme-color" content="#0d0a08" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Hex Legacy" />
     <style>
-      html, body { margin: 0; height: 100%; background: #0d0a08; overflow: hidden; }
-      #game { width: 100vw; height: 100vh; }
+      html, body {
+        margin: 0; height: 100%; background: #0d0a08; overflow: hidden;
+        overscroll-behavior: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
+        -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%;
+      }
+      /* fixed to the visible screen instead of 100vh: on phones 100vh is taller than what is visible
+         (browser bars), which cut off the bottom of the game */
+      #game {
+        position: fixed;
+        top: env(safe-area-inset-top, 0px); right: env(safe-area-inset-right, 0px);
+        bottom: env(safe-area-inset-bottom, 0px); left: env(safe-area-inset-left, 0px);
+        touch-action: none;
+      }
     </style>
   </head>
   <body>

@@ -1925,5 +1925,17 @@
   "asc.desc.10": "nochmals +25 % Gegnerstärke, doppelte Leerenbrut im Endkampf",
   "battle.heroScreen": "Dein Held: Klick (oder I) öffnet den Heldenbildschirm",
   "hero.helpBattle": "Im Kampf kannst du nur nachsehen. Ausrüstung wechseln geht nach dem Kampf.",
-  "settings.inBattle": "Sprache und Textgröße gelten ab dem nächsten Bildschirm."
+  "settings.inBattle": "Sprache und Textgröße gelten ab dem nächsten Bildschirm.",
+  "battle.tapAgain": "Nochmal tippen",
+  "title.homeScreenHint": "Tipp: Für Vollbild in Safari „Teilen“ → „Zum Home-Bildschirm“ wählen und das Spiel von dort starten.",
+  "battle.help.touch": "Blaues Feld = ziehen. Gegner antippen = Vorschau, nochmal = Angriff. Halten = Details.",
+  "map.hint.touch": "Tippe einen leuchtenden Knoten an, um dorthin zu reisen. Zum Scrollen die Karte ziehen.",
+  "info.hint.touch": "Stapel gedrückt halten zeigt Details.",
+  "info.close.touch": "Zum Schließen irgendwo tippen",
+  "title.clickToStart.touch": "Zum Starten tippen",
+  "battle.chooseTarget.touch": "{ability}: Ziel wählen (gedrückt halten bricht ab)",
+  "battle.chooseSpellTarget.touch": "{spell}: Ziel wählen (gedrückt halten bricht ab)",
+  "battle.chooseItemTarget.touch": "{item}: Ziel wählen (gedrückt halten bricht ab)",
+  "hero.hover.touch": "Gegenstand gedrückt halten, um Details zu sehen.",
+  "hero.help.touch": "Gegenstand antippen zum Anlegen oder Ablegen, oder auf einen Platz ziehen. Gedrückt halten zeigt Details. Überzähliges kannst du beim Händler verkaufen."
 }
