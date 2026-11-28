@@ -1,3 +1,4 @@
+import { takePendingUps } from '../src/run/state';
 import { aiShop } from './shop_ai';
 // Simulates whole act-1 runs with the AI playing both sides. Usage: npx tsx sim/run_sim.ts [runs]
 import { Battle } from '../src/battle/engine';
@@ -27,6 +28,7 @@ const act1ByHero: Record<string, number> = {};
 for (let i = 0; i < RUNS; i++) {
   const hero = HEROES[i % HEROES.length];
   setRun(newRun(hero.id, 1000 + i, Number(process.env.ASC ?? 0)));
+  takePendingUps((o) => (o.length ? o[0].id : null));   // city smithy (v0.20.7)
   (byHero[hero.id] ??= [0, 0])[1]++;
   const pick = new Rng(77 + i);
   const pickUpgrade = () => { const pt = run().pendingTalent; if (pt) chooseTalentUpgrade(pick.pick(rankUpgrades(pt.theme, pt.rank)).id); };

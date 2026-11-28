@@ -76,7 +76,6 @@ export class HeroSelectScene extends Phaser.Scene {
         w: 360, h: H, reserveBottom: RES + 22,
         portrait: `heroportrait_${hero.id}`,
         title: t(`hero.${hero.id}`),
-        subtitle: t(hero.bonus),
         lines: [
           `${t('stat.atk')} ${hero.atk}   ${t('stat.def')} ${hero.def}   ${t('stat.lead')} ${hero.leadership}`,
           `${t('stat.power')} ${hero.power}   ${t('stat.knowledge')} ${hero.knowledge}`,

@@ -66,6 +66,8 @@ export interface RunState {
   asc?: number;                     // ascension level of this run (v0.20, 0 = none)
   /** Tactics (v0.18): start hex of every unit type from the last set-up, kept for the next battles. */
   formation?: Record<string, { col: number; row: number }>;
+  /** City smithy (v0.20.7): start unit types whose first level (and its upgrade) is still to be chosen. */
+  pendingUps?: string[];
 }
 
 const KEY = 'hexlegacy.run.v1';
@@ -132,7 +134,9 @@ function baseRun(heroId: string, seed: number, asc = 0): RunState {
   return {
     version: 1, seed, rngState: seed ^ 0x51f15e, act: 1, biome,
     heroId, atk: hero.atk + bonus.atk(), def: hero.def + bonus.def(), leadership, level: 1, xp: 0, gold: 60 + (ASC.noTownGold(asc) ? 0 : bonus.startGold()), asc,
-    army: hero.startArmy.map((unitId, i) => ({ unitId, alloc: share, level: i < bonus.smithy() ? 1 : 0 })),
+    army: hero.startArmy.map((unitId) => ({ unitId, alloc: share, level: 0, ups: [] })),
+    // the smithy's levels are taken with a chosen upgrade on the map (before v0.20.7: level without upgrade)
+    pendingUps: hero.startArmy.slice(0, bonus.smithy()),
     map: generateMap(seed), currentNode: null, visited: [], shopBuys: 0, battlesWon: 0, pending: null, loot: {}, talents: [], artifacts: [],
     power: hero.power + bonus.power(), knowledge: hero.knowledge + bonus.knowledge(),
     spells: hero.spells.map((id) => ({ id, level: 1 })),
@@ -240,6 +244,24 @@ export function levelUpUnit(slot: ArmySlot, upgradeId: string | null): void {
   slot.level++;
   slot.ups ??= [];
   if (upgradeId) slot.ups.push(upgradeId);
+}
+
+/** The next start unit whose smithy level is still open (skips gone or maxed units). */
+export function nextPendingUp(r = run()): ArmySlot | null {
+  while (r.pendingUps?.length) {
+    const s = r.army.find((x) => x.unitId === r.pendingUps![0]);
+    if (s && s.level < MAX_UNIT_LEVEL) return s;
+    r.pendingUps.shift();
+  }
+  return null;
+}
+
+/** Take every open smithy level with `choose` (simulations; the game lets the player choose on the map). */
+export function takePendingUps(choose: (opts: UpgradeDef[]) => string | null, r = run()): void {
+  for (let s = nextPendingUp(r); s; s = nextPendingUp(r)) {
+    levelUpUnit(s, choose(upgradeOptions(s, r)));
+    r.pendingUps!.shift();
+  }
 }
 
 /** Deterministic offer for a slot's next level, so leaving and coming back shows the same choice. */

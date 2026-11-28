@@ -409,6 +409,15 @@ export class NodeScene extends Phaser.Scene {
   }
 
   private outcome(o: EventOutcome): void {
+    // forge (v0.20.7): the player picks the upgrade of the forged unit (before: a random one)
+    const slot = o.upgrade ? run().army.find((s) => s.unitId === o.upgrade && s.level < MAX_UNIT_LEVEL) : undefined;
+    if (slot) {
+      openUpgradeChoice(this, slot, (up) => {
+        levelUpUnit(slot, up); playSfx(this, 'ui_equip');
+        this.outcome({ ...o, upgrade: undefined });
+      });
+      return;
+    }
     const vars: Record<string, string | number> = {};
     for (const [k, v] of Object.entries(o.vars ?? {})) vars[k] = typeof v === 'string' && v.includes('.') ? t(v) : v;
     this.settle();

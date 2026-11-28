@@ -1,3 +1,4 @@
+import { takePendingUps } from '../src/run/state';
 // First fights of a fresh run (no city): win rate and army loss per hero and per enemy group.
 // Usage: npx tsx sim/first_fight.ts [runsPerHero] [floor] ['{"start":0.4}']
 import { Battle } from '../src/battle/engine';
@@ -16,6 +17,7 @@ for (const hero of HEROES) {
   let w = 0, lossSum = 0;
   for (let i = 0; i < N; i++) {
     setRun(newRun(hero.id, 5000 + i));
+    takePendingUps((o) => (o.length ? o[0].id : null));   // city smithy (v0.20.7)
     const pick = new Rng(99 + i);
     const pt = run().pendingTalent; if (pt) chooseTalentUpgrade(pick.pick(rankUpgrades(pt.theme, pt.rank)).id);
     const r = run();

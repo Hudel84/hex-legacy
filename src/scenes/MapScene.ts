@@ -8,7 +8,8 @@ import { t } from '../core/i18n';
 import { COLOR } from '../core/theme';
 import { playMusic, playSfx, mapMusic } from '../core/audio';
 import { img, sfx, loadRunUi } from '../core/assets';
-import { run, save, availableNodes, nodeById, rng, commitRng, count , heroTotals } from '../run/state';
+import { run, save, availableNodes, nodeById, rng, commitRng, count , heroTotals, nextPendingUp, levelUpUnit } from '../run/state';
+import { openUpgradeChoice } from '../ui/upgradeUi';
 import type { MapNode, NodeType } from '../run/mapgen';
 import { buildEnemy, battleConfig } from '../run/encounters';
 import { EVENT_IDS } from '../run/events';
@@ -75,6 +76,8 @@ export class MapScene extends Phaser.Scene {
     const p = r.pendingNode;
     if (p && p.node === r.currentNode) { this.time.delayedCall(0, () => this.scene.start('Node', { kind: p.kind, eventId: p.eventId })); }
     else if (p) { delete r.pendingNode; save(); }
+    // city smithy (v0.20.7): the start units' first level comes with a chosen upgrade
+    if (!(p && p.node === r.currentNode) && nextPendingUp(r)) this.time.delayedCall(0, () => this.smithyChoice());
     const biomeMap = ADVMAP;
     const mk = biomeMap[r.biome] ?? 'advmap_act1_meadows';
 
@@ -276,6 +279,20 @@ export class MapScene extends Phaser.Scene {
   }
 
   /** Walking hero token of the run's people (sheet key walk_<people>). */
+  /** One open smithy level: choose the upgrade, then the map is drawn again (next open level, new stars). */
+  private smithyChoice(): void {
+    const r = run();
+    const s = nextPendingUp(r);
+    if (!s) { save(); return; }
+    const root = openUpgradeChoice(this, s, (up) => {
+      levelUpUnit(s, up); r.pendingUps!.shift(); save();
+      playSfx(this, 'ui_equip');
+      this.scene.restart();
+    });
+    root.add(this.add.text(this.scale.width / 2, 30, t('upg.smithy'), textStyle(22, '#ffe08a', true)).setOrigin(0.5, 0));
+    root.setScrollFactor(0, 0, true);   // fixed on screen (UI camera), not on the scrolled map
+  }
+
   private walkKey(): string {
     const f = heroById(run().heroId).faction;
     return `walk_${({ human: 'humans', undead: 'undead', elf: 'elves', dwarf: 'dwarves', orc: 'orcs', demon: 'demons' } as Record<string, string>)[f] ?? 'humans'}`;

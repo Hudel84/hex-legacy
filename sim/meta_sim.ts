@@ -1,3 +1,4 @@
+import { takePendingUps } from '../src/run/state';
 import { aiShop } from './shop_ai';
 import { rankFor, rateLoot } from '../src/run/rating';
 export const rankCount: Record<string, number> = {};
@@ -44,6 +45,7 @@ function fight(cfg: ReturnType<typeof battleConfig>): Battle {
 /** One run with the current city; returns minutes played, acts cleared and whether the run was won. */
 function simRun(heroId: string, seed: number): { minutes: number; acts: number; won: boolean; floor: number } {
   setRun(newRun(heroId, seed, Number(process.env.ASC ?? 0)));
+  takePendingUps((o) => (o.length ? o[0].id : null));   // city smithy (v0.20.7)
   const pick = new Rng(seed * 7 + 3);
   const pickUpgrade = () => { const pt = run().pendingTalent; if (pt) chooseTalentUpgrade(pick.pick(rankUpgrades(pt.theme, pt.rank)).id); };
   pickUpgrade();
