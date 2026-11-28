@@ -89,7 +89,10 @@ function rng(seed: number): () => number {
 /** Harmful statuses that holy heal can remove. */
 const NEGATIVE = new Set<StatusId>(['poison', 'atkDown', 'defDown', 'slow', 'fear', 'root', 'burn', 'confused']);
 
-const START_ROWS: Record<number, number[]> = { 1: [3], 2: [2, 4], 3: [1, 3, 5], 4: [0, 2, 4, 6] };
+const START_ROWS: Record<number, number[]> = { 1: [3], 2: [2, 4], 3: [1, 3, 5], 4: [1, 2, 4, 5] };
+/** The four corner hexes are rocks in every battle (v0.20.5, tester feedback): otherwise a shooter in a corner
+ * can be walled in by two own stacks and never be reached. An edge hex has 4-5 neighbours, two blockers are not enough. */
+export const CORNERS: Hex[] = [{ col: 0, row: 0 }, { col: 0, row: ROWS - 1 }, { col: COLS - 1, row: 0 }, { col: COLS - 1, row: ROWS - 1 }];
 
 interface StrikeOpts { mult?: number; ignoreDefend?: boolean; noLifesteal?: boolean; kind?: 'normal' | 'counter' | 'first' | 'area'; noCrit?: boolean }
 
@@ -126,7 +129,7 @@ export class Battle {
     this.random = rng(setup.seed ?? Date.now());
     this.heroes = { player: setup.player.hero, enemy: setup.enemy.hero };
     this.mods = { player: setup.player.mods ?? NO_MODS, enemy: setup.enemy.mods ?? NO_MODS };
-    for (const h of setup.obstacles ?? []) this.obstacles.add(key(h));
+    for (const h of [...CORNERS, ...(setup.obstacles ?? [])]) this.obstacles.add(key(h));
     for (const side of ['player', 'enemy'] as Side[]) {
       const army = setup[side].army;
       const rows = START_ROWS[army.length] ?? START_ROWS[3];
