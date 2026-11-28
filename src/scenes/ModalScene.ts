@@ -14,7 +14,16 @@ export class ModalScene extends Phaser.Scene {
 
   constructor() { super('Modal'); }
 
-  init(data: { kind: Kind }): void { this.kind = data.kind; }
+  /** Scene that opened the settings during a run (paused while the window is open, v0.20.4). */
+  private caller: string | null = null;
+  /** language and text size when the window was opened: if they change, the caller is rebuilt (map) */
+  private startLook = '';
+
+  init(data: { kind: Kind; caller?: string | null; look?: string }): void {
+    this.kind = data.kind;
+    this.caller = data.caller ?? null;
+    this.startLook = data.look ?? `${settings.lang}|${settings.textSize}`;
+  }
 
   create(): void {
     const { width: w, height: h } = this.scale;
@@ -83,7 +92,7 @@ export class ModalScene extends Phaser.Scene {
         playSfx(this, 'ui_click');
         setLang(l.id);
         this.game.events.emit('lang-changed');
-        this.scene.restart({ kind: this.kind });
+        this.scene.restart({ kind: this.kind, caller: this.caller, look: this.startLook });
       });
       radios.push(r);
       this.panel.add([r, tx, hit]);
@@ -111,7 +120,7 @@ export class ModalScene extends Phaser.Scene {
         settings.textSize = i;
         saveSettings();
         this.game.events.emit('text-size-changed');
-        this.scene.restart({ kind: this.kind });
+        this.scene.restart({ kind: this.kind, caller: this.caller, look: this.startLook });
       });
       this.panel.add([r, tx, hit]);
     });
@@ -129,10 +138,14 @@ export class ModalScene extends Phaser.Scene {
         playSfx(this, 'ui_click');
         settings.tactics = on;
         saveSettings();
-        this.scene.restart({ kind: this.kind });
+        this.scene.restart({ kind: this.kind, caller: this.caller, look: this.startLook });
       });
       this.panel.add([r, tx, hit]);
     });
+
+    if (this.caller === 'Battle') {
+      this.panel.add(this.add.text(0, rows[4] + 62, t('settings.inBattle'), { fontFamily: FONT_BODY, fontSize: '20px', color: COLOR.parchmentText }).setOrigin(0.5).setAlpha(0.85));
+    }
 
     // volumes
     this.volumeRow(rows[1], t('settings.music'), LX, CX, () => settings.musicVolume, (v) => {
@@ -173,7 +186,15 @@ export class ModalScene extends Phaser.Scene {
     playSfx(this, 'ui_close');
     this.tweens.add({
       targets: this.panel, scale: 0.92, alpha: 0, duration: 120,
-      onComplete: () => this.scene.stop(),
+      onComplete: () => {
+        const caller = this.caller;
+        const changed = this.startLook !== `${settings.lang}|${settings.textSize}`;
+        this.scene.stop();
+        if (!caller) return;
+        this.scene.resume(caller);
+        // language or text size changed: rebuild the map (a battle keeps running and shows it from the next screen on)
+        if (changed && caller !== 'Battle') this.scene.get(caller).scene.restart();
+      },
     });
   }
 }

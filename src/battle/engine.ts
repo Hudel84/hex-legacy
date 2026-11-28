@@ -987,7 +987,8 @@ export class Battle {
     // summoned stacks alone do not keep a side alive
     const real = (s: Stack) => s.summonRounds === undefined && !this.has(s, 'treasure');
     const p = this.alive.some((s) => s.side === 'player' && real(s));
-    const e = this.alive.some((s) => s.side === 'enemy' && real(s));
+    // a treasure goblin keeps the battle going until it is killed or runs away (tester feedback, v0.20.4)
+    const e = this.alive.some((s) => s.side === 'enemy' && (real(s) || this.has(s, 'treasure')));
     if (p && e) return false;
     this.winner = p ? 'player' : 'enemy';
     ev.push({ type: 'end', winner: this.winner });

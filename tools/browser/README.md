@@ -15,6 +15,9 @@ Serve the build first: `npm run build && python3 -m http.server 4174 --directory
 - `ascension.mjs` – ascension (v0.20): selector in the hero selection (real click + tooltip), map badge, enemy mods/gold of the first fight, unlock on the run end screen → /tmp/shots
 - `hover_hero.mjs` – v0.20.1: hovering an enemy shows its movement range in red; clicking the hero opens the hero screen (read-only, battle paused, ESC resumes) → /tmp/shots
 - `traps.mjs` – v0.20.2: hobgoblin facing on both sides; enemies walk into the hidden traps of the Sappeur → /tmp/shots
+- `battle_qol.mjs` – v0.20.4: settings from the battle (gear, paused, ESC, volume) and a treasure goblin battle
+- `mapview.mjs` – map screenshots per biome (contrast), `GEAR=1` also opens the settings from the map
+- `itemfind.mjs` – item found after a battle: worn item with stats and changes if equipped (weapon, two rings, free slot; `TS=2`)
 - `fixtest2.mjs` – battle against chosen enemy units (check facing of sprites)
 
 `?test` exposes `game`, `hexRun()` and `hexDebug.battleConfig(node, enemy)` on `window`.

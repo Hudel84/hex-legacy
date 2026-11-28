@@ -269,12 +269,45 @@ export class RewardScene extends Phaser.Scene {
     // what is worn in that place now
     const cur = slotsFor(it).map((k) => r.equip?.[k]).filter((x): x is ItemInst => !!x);
     const free = slotsFor(it).some((k) => !r.equip?.[k]);
-    this.layer.add(this.add.text(w / 2 + 270, 280, t('reward.wornNow'), titleStyle(24)));
-    if (free || !cur.length) this.layer.add(this.add.text(w / 2 + 270, 325, t('reward.slotFree'), textStyle(22, '#9fe39f')));
-    else cur.forEach((c, i) => {
-      this.layer.add(itemIcon(this, w / 2 + 320, 370 + i * 120, c, 90));
-      this.layer.add(this.add.text(w / 2 + 380, 350 + i * 120, itemName(c.id), { ...textStyle(21, '#efe3c8', true), wordWrap: { width: 230 } }));
-    });
+    // right column (tester feedback v0.20.4): what is worn there now, with its stats, and what equipping would change
+    const RX = w / 2 + 250, RW = 380;
+    const head = this.add.text(RX, 270, t('reward.wornNow'), titleStyle(24));
+    this.layer.add(head);
+    let ry = head.y + head.height + 10;
+    if (free || !cur.length) {
+      const ft = this.add.text(RX, ry, t('reward.slotFree'), textStyle(22, '#9fe39f'));
+      this.layer.add(ft); ry += ft.height + 12;
+    } else {
+      // one worn item: full stats; two (rings): both, smaller
+      const room = 330 / cur.length;
+      for (const c of cur) {
+        this.layer.add(itemIcon(this, RX + 34, ry + 34, c, 68));
+        const block = this.add.container(0, 0);
+        this.layer.add(block);
+        let hgt = 0;
+        for (let size = cur.length > 1 ? 16 : 19; size >= 11; size--) {
+          block.removeAll(true);
+          hgt = itemInfoBlock(this, block, RX + 80, ry, RW - 80, itemInfo(c, heroFaction(), sets[ITEMS[c.id].set ?? ''] ?? 0), size);
+          if (hgt <= room - 8) break;
+        }
+        ry += Math.max(hgt, 72) + 10;
+      }
+    }
+    // stat changes if the found item is put on
+    const before = heroTotals(r);
+    const sim = JSON.parse(JSON.stringify(r));
+    equipItem(it, undefined, sim);
+    const after = heroTotals(sim);
+    const ch = (['atk', 'def', 'power', 'knowledge', 'lead'] as const).filter((k) => after[k] !== before[k]);
+    const ih = this.add.text(RX, Math.max(ry + 6, 600), t('hero.ifEquip'), titleStyle(22));
+    this.layer.add(ih);
+    const lines = ch.length ? ch.map((k) => `${t(`stat.${k}`)} ${after[k] > before[k] ? '+' : ''}${after[k] - before[k]}`) : [t('hero.noChange')];
+    let ly = ih.y + ih.height + 4;
+    ch.length ? ch.forEach((k, i) => {
+      const tx = this.add.text(RX, ly, lines[i], textStyle(21, after[k] > before[k] ? '#9fe39f' : '#ff9a8a', true));
+      this.layer.add(tx); ly += tx.height + 2;
+    }) : this.layer.add(this.add.text(RX, ly, lines[0], { ...textStyle(18, '#d9c7a0'), wordWrap: { width: RW } }));
+    void itemName;
     const done = (msg?: string) => { this.itemFind = null; save(); if (msg) toast(this, msg); this.time.delayedCall(msg ? 700 : 0, () => this.next()); };
     const by = h - 150;
     this.layer.add(new Button(this, w / 2 - 420, by, t('reward.equip'), { style: 'red', width: 380, fontSize: 26, onClick: () => {

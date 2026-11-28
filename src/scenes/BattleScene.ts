@@ -1,3 +1,4 @@
+import { settingsButton } from '../ui/settingsButton';
 import { openHero } from './HeroScene';
 import { rankFor, fmtMult } from '../run/rating';
 import Phaser from 'phaser';
@@ -325,6 +326,8 @@ export class BattleScene extends Phaser.Scene {
     // heroes at the sides
     const ph = this.add.image(125, 640, `herobattle_${this.cfg.playerHero}`).setOrigin(0.5, 1);
     ph.setScale(380 / ph.height);
+    // settings during the battle (v0.20.4): gear top right
+    settingsButton(this, w - 60, 58, 64).setDepth(2100);
     // click on the hero (or key I): hero screen to look things up (read-only during a battle, v0.20.1)
     if (this.cfg.mode === 'run') {
       ph.setInteractive({ useHandCursor: true, pixelPerfect: true, alphaTolerance: 20 });

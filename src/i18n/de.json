@@ -1923,5 +1923,6 @@
   "asc.rule.10": "Zorn der Leere",
   "asc.desc.10": "nochmals +25 % Gegnerstärke, doppelte Leerenbrut im Endkampf",
   "battle.heroScreen": "Dein Held: Klick (oder I) öffnet den Heldenbildschirm",
-  "hero.helpBattle": "Im Kampf kannst du nur nachsehen. Ausrüstung wechseln geht nach dem Kampf."
+  "hero.helpBattle": "Im Kampf kannst du nur nachsehen. Ausrüstung wechseln geht nach dem Kampf.",
+  "settings.inBattle": "Sprache und Textgröße gelten ab dem nächsten Bildschirm."
 }

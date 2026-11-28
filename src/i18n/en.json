@@ -1923,5 +1923,6 @@
   "asc.rule.10": "Wrath of the Void",
   "asc.desc.10": "another +25 % enemy strength, twice the void spawn in the final battle",
   "battle.heroScreen": "Your hero: click (or I) for the hero screen",
-  "hero.helpBattle": "During a battle you can only look. Equip items after the battle."
+  "hero.helpBattle": "During a battle you can only look. Equip items after the battle.",
+  "settings.inBattle": "Language and text size apply from the next screen on."
 }

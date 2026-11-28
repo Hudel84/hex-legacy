@@ -1,3 +1,4 @@
+import { settingsButton } from '../ui/settingsButton';
 import { ascOf } from '../run/ascension';
 import { ascBadge } from '../ui/ascUi';
 import { basePerkId } from '../run/talents';
@@ -87,6 +88,9 @@ export class MapScene extends Phaser.Scene {
     const traveled = new Set<string>();
     for (let i = 1; i < r.visited.length; i++) traveled.add(`${r.visited[i - 1]}>${r.visited[i]}`);
     const dots = this.add.container(0, 0);
+    // contrast (v0.20.4, tester feedback on the bright meadows): light halo under every path dot
+    const halos = this.add.graphics();
+    dots.add(halos);
     for (const n of r.map) {
       for (const nid of n.next) {
         const m = nodeById(nid);
@@ -96,8 +100,11 @@ export class MapScene extends Phaser.Scene {
         const steps = Math.floor((len - 90) / 26);
         for (let k = 0; k <= steps; k++) {
           const f = (45 + k * 26) / len;
-          const d = this.add.image(x1 + (x2 - x1) * f, y1 + (y2 - y1) * f, lit ? 'path_dot_lit' : 'path_dot');
-          d.setScale((lit ? 18 : 14) / d.width).setAlpha(lit ? 1 : 0.85);
+          const dx = x1 + (x2 - x1) * f, dy = y1 + (y2 - y1) * f;
+          halos.fillStyle(0x1a1006, 0.55).fillCircle(dx, dy + 1, lit ? 12 : 10);
+          halos.fillStyle(0xfff1c8, lit ? 0.9 : 0.75).fillCircle(dx, dy, lit ? 10.5 : 8.5);
+          const d = this.add.image(dx, dy, lit ? 'path_dot_lit' : 'path_dot');
+          d.setScale((lit ? 19 : 16) / d.width);
           dots.add(d);
         }
       }
@@ -105,11 +112,17 @@ export class MapScene extends Phaser.Scene {
 
     // nodes
     const avail = new Set(availableNodes().map((n) => n.id));
+    const plates = this.add.graphics();   // dark plate with a light rim under every node icon (contrast)
     for (const n of r.map) {
       const x = px(n), y = py(n);
       const size = n.type === 'boss' ? 170 : 84;
       const isAvail = avail.has(n.id) && !this.busy;
       const isVisited = visited.has(n.id);
+      if (n.type !== 'boss') {
+        plates.fillStyle(0x000000, 0.25).fillCircle(x + 2, y + 4, size * 0.56);
+        plates.fillStyle(0x24170b, isVisited ? 0.45 : 0.62).fillCircle(x, y, size * 0.54);
+        plates.lineStyle(3, 0xf3e2b0, isVisited ? 0.45 : 0.85).strokeCircle(x, y, size * 0.54);
+      }
       if (isAvail) {
         const ring = this.add.image(x, y, 'ring_available');
         ring.setScale((size * 1.45) / ring.width);
@@ -119,7 +132,7 @@ export class MapScene extends Phaser.Scene {
       }
       const icon = this.add.image(x, y, ICON[n.type]);
       icon.setScale(size / Math.max(icon.width, icon.height));
-      if (!isAvail && !isVisited && n.id !== r.currentNode) icon.setAlpha(0.8);
+      if (!isAvail && !isVisited && n.id !== r.currentNode) icon.setAlpha(0.92);
       if (isVisited && n.id !== r.currentNode) {
         icon.setAlpha(0.55);
         const chk = this.add.image(x + size * 0.3, y + size * 0.25, 'marker_check'); chk.setScale(36 / chk.width);
@@ -176,6 +189,7 @@ export class MapScene extends Phaser.Scene {
     right.add(this.add.text(200, 50, t('run.act', { n: r.act }), titleStyle(34)).setOrigin(0.5));
     right.add(this.add.text(200, 95, t(`biome.${r.biome}`), textStyle(24, '#e8dcc0')).setOrigin(0.5));
     if (ascOf(r) > 0) right.add(ascBadge(this, 318, 52, ascOf(r), 18));
+    right.add(settingsButton(this, 92, 52, 54));   // settings during a run (v0.20.4)
     LEGEND.forEach((type, i) => {
       const y = 150 + i * 50;
       const ic = this.add.image(70, y, ICON[type]); ic.setScale(42 / Math.max(ic.width, ic.height));
